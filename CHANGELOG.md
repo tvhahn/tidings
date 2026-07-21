@@ -22,7 +22,9 @@ This project follows [Semantic Versioning](https://semver.org/).
 - Marketing landing: the closing olive-tree photograph now reaches up to the
   FAQ's last question and stays put when an answer opens (the text slides over
   the scene instead of pushing it), the demo subtitle says the demo runs in
-  your browser, and the footer theme control is a quiet three-icon row.
+  your browser, and the footer theme control is a quiet three-icon row. The
+  social-share card is now an illustrated scene — an olive sapling and a
+  notebook in morning light — instead of a text-only card.
 
 ## [0.1.0] — 2026-07-21
 
