@@ -282,8 +282,13 @@ whichever fits.
 3. Build output directory: `frontend/dist`.
 4. Environment variable: `VITE_DEMO_MODE=true`.
 5. Production branch: `main`.
-6. Confirm per-PR preview deploys are enabled (default-on for GitHub-connected projects).
-7. Verify the GitHub OAuth connection is read-only.
+6. Build system version: pin **Version 3** (new projects default to the latest
+   version; pin explicitly so builds stay reproducible).
+7. Set the environment variable in **both** the Production and Preview
+   environments — preview deploys build with Preview-environment variables
+   only.
+8. Confirm per-PR preview deploys are enabled (default-on for GitHub-connected projects).
+9. Verify the GitHub OAuth connection is read-only.
 
 `frontend/public/_redirects` is copied into `dist/_redirects` by the
 build and Cloudflare picks it up automatically.
