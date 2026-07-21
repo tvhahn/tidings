@@ -20,8 +20,10 @@ export function MarketingApp() {
       <PrivacyBand />
       <GetStarted />
       <ForAgents />
-      <FAQ />
-      <Coda />
+      <div className="closing">
+        <FAQ />
+        <Coda />
+      </div>
       <Footer />
     </div>
   );

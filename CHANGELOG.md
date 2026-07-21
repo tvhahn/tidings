@@ -17,6 +17,13 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Marketing landing: the closing olive-tree photograph now reaches up to the
+  FAQ's last question and stays put when an answer opens (the text slides over
+  the scene instead of pushing it), the demo subtitle says the demo runs in
+  your browser, and the footer theme control is a quiet three-icon row.
+
 ## [0.1.0] — 2026-07-21
 
 Initial open-source release.

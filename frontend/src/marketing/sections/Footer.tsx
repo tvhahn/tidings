@@ -23,8 +23,7 @@ function ThemePicker() {
           aria-label={label}
           className={mode === value ? "is-active" : ""}
         >
-          <Icon size={13} aria-hidden="true" />
-          <span>{label}</span>
+          <Icon size={14} aria-hidden="true" />
         </button>
       ))}
     </div>

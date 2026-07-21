@@ -906,16 +906,35 @@
   white-space: nowrap;
 }
 
+/* ---------- Closing scene (FAQ riding over the coda photograph) ---------- */
+/* FAQ and Coda share one positioning context so the photograph can sit BEHIND
+   the FAQ: the coda is pulled out of flow and bottom-anchored, the FAQ stays in
+   normal flow on top, and opening an answer slides the FAQ's soft bottom apron
+   DOWN over the still photograph instead of pushing it. min-height reserves the
+   composition so neither the photo nor the footer moves for any answer at
+   desktop widths — see the tuned value below. Below 880px this all reverts to a
+   plain stack (the coda flows after the FAQ) in the responsive block. */
+.marketing .closing {
+  position: relative;
+  overflow: hidden;
+  /* Tuned: FAQ height with its first answer open (~430px at 1440) plus the
+     visible photograph region (~the old clamp, ~560px) ≈ 990px, then padded so
+     the FAQ can grow to its tallest single answer ("What if my bank isn't
+     supported?", ~+180px) without the natural content height exceeding this —
+     i.e. the photo/footer stay put. Exceeding it degrades to a push, accepted
+     only on extreme viewports. Verified 1280–1920 with DevTools. */
+  min-height: 1180px;
+}
 /* ---------- Coda (the closing scene) ---------- */
 /* The coda IS the photograph — the page closes on the same text-over-room
    construction the hero opens with. Three layers: ::before is a blurred copy of
    the plate stretched to cover (an ambient tone-matched underlay for the left
    half), .coda-plate is the sharp photograph sized by HEIGHT so the entire tree
-   fits — air above the crown, pot on the floor — and ::after composites the
-   copy scrim plus a short top fade toward the FAQ. The bottom edge is a clean
-   crop: the photograph runs to the section's last pixel and lands on the
-   footer's restored hairline (a fade through the pot reads as an error; a crop
-   through the scene reads as photography). */
+   fits — air above the crown, pot on the floor — and ::after carries the left
+   copy scrim (the soft TOP edge now lives on the FAQ apron, not here). The
+   bottom edge is a clean crop: the photograph runs to the scene's last pixel and
+   lands on the footer's restored hairline (a fade through the pot reads as an
+   error; a crop through the scene reads as photography). */
 .marketing .coda {
   position: relative;
   overflow: hidden;
@@ -925,6 +944,21 @@
      breathe, but still clearly shorter than the hero so it reads as a close. */
   min-height: clamp(480px, 62vh, 660px);
   padding: 0;
+}
+/* Out-of-flow, bottom-anchored scene. The box is 220px taller than the old
+   clamp so the photograph extends UP past the FAQ's rest position — its real
+   top edge is always hidden behind the opaque FAQ block, and only the FAQ apron
+   (a soft fade) reveals the photo below. padding-top = the overhang (220px) so
+   the flex-centred copy lands in the VISIBLE bottom clamp region, exactly as
+   before. */
+.marketing .closing .coda {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(clamp(480px, 62vh, 660px) + 220px);
+  margin: 0;
+  padding-top: 220px;
 }
 /* Ambient underlay: the plate itself, blurred and slightly overscaled (the
    scale hides the blur's edge bleed). Wherever the sharp plate's left mask
@@ -951,8 +985,18 @@
    4vw–26vw instead, which is what the ≤880px override used to hand-tune. */
 .marketing .coda-plate {
   position: absolute;
-  top: -2.1%;
-  bottom: -4.9%;
+  /* Anchored to the scene's BOTTOM with a height tied to the old clamp (not the
+     taller scene box), so the visible crop — air above the crown, pot on the
+     floor — is pixel-identical to before regardless of the 220px overhang. The
+     -4.9% bottom keeps the pot on the floor as in the original `right 30%`
+     crop; the height multiplier is raised past the original 1.07 so the
+     photograph's textured region (wall shading, crown) reaches up toward the
+     FAQ's last hairline — the extra pale air scales up into the hidden overhang
+     behind the FAQ instead of showing as a blank band below it. Mobile restores
+     the simple percentage offsets in the media block. */
+  top: auto;
+  bottom: calc(clamp(480px, 62vh, 660px) * -0.049);
+  height: calc(clamp(480px, 62vh, 660px) * 1.19);
   right: 0;
   aspect-ratio: 3 / 2;
   z-index: 0;
@@ -976,30 +1020,24 @@
   background-image: url("./assets/coda-room-dark.webp");
 }
 /* Composited overlay: a horizontal left scrim carries the copy (legibility
-   never rides on the photo) over a short top fade that dissolves the scene's
-   upper edge into the page surface below the FAQ. No bottom stops — the
-   photograph is deliberately cropped by the footer hairline instead. */
+   never rides on the photo). The soft TOP edge is no longer here — it moved to
+   the FAQ apron (#faq::after) so it travels with the FAQ's bottom when an answer
+   opens. No bottom stops either — the photograph is deliberately cropped by the
+   footer hairline. */
 .marketing .coda::after {
   content: "";
   position: absolute;
   inset: 0;
   z-index: 0;
-  background:
-    linear-gradient(
-      to right,
-      var(--surface) 0%,
-      color-mix(in oklch, var(--surface) 88%, transparent) 18%,
-      color-mix(in oklch, var(--surface) 60%, transparent) 34%,
-      color-mix(in oklch, var(--surface) 30%, transparent) 48%,
-      color-mix(in oklch, var(--surface) 10%, transparent) 60%,
-      transparent 72%
-    ),
-    linear-gradient(
-      to bottom,
-      var(--surface) 0%,
-      color-mix(in oklch, var(--surface) 55%, transparent) 12%,
-      transparent 30%
-    );
+  background: linear-gradient(
+    to right,
+    var(--surface) 0%,
+    color-mix(in oklch, var(--surface) 88%, transparent) 18%,
+    color-mix(in oklch, var(--surface) 60%, transparent) 34%,
+    color-mix(in oklch, var(--surface) 30%, transparent) 48%,
+    color-mix(in oklch, var(--surface) 10%, transparent) 60%,
+    transparent 72%
+  );
   pointer-events: none;
 }
 /* Lift the copy above the photo/overlay layers; the wrap centers vertically as
@@ -1037,10 +1075,39 @@
 /* The photograph crops onto the footer's own hairline — the same boundary
    grammar as the sticky nav's border, so the page opens and closes with
    matching hardware. Only the gap goes; the border stays. */
-.marketing .coda + footer {
+.marketing .closing + footer {
   margin-top: 0;
 }
 /* ---------- FAQ ---------- */
+/* The FAQ rides in normal flow ON TOP of the bottom-anchored coda photograph.
+   Its opaque surface hides the photo's true top edge; its apron (::after) is the
+   soft dissolve into the photo and travels with the FAQ's bottom when an answer
+   opens. */
+.marketing #faq {
+  position: relative;
+  z-index: 1;
+  background: var(--surface);
+}
+/* The apron IS the photograph's soft top edge. PIXEL stops only — percentage
+   stops against a growing box collapse into a hard line as the FAQ expands. */
+.marketing #faq::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 72px;
+  /* Starts just shy of opaque: the plate's hard top edge is hidden behind the
+     FAQ's own surface, so the apron only needs to ease surface into photograph —
+     a lighter start lets the wall's tone reach the hairline. */
+  background: linear-gradient(
+    to bottom,
+    color-mix(in oklch, var(--surface) 88%, transparent),
+    color-mix(in oklch, var(--surface) 34%, transparent) 34%,
+    transparent
+  );
+  pointer-events: none;
+}
 .marketing .faq {
   display: grid;
   grid-template-columns: 1fr 2fr;
@@ -1171,25 +1238,22 @@
 }
 
 /* ---------- Footer theme picker ---------- */
+/* A bare icon row, not a pill: three glyphs in the footer's muted tone, the
+   active mode marked by a small brand-coloured dot beneath its icon. */
 .marketing .foot-theme {
   display: inline-flex;
   align-items: center;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 2px;
-  background: var(--surface-card);
+  gap: 10px;
 }
 .marketing .foot-theme button {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
   border: 0;
   background: transparent;
-  padding: 5px 10px;
-  font-size: 11.5px;
-  letter-spacing: 0.02em;
+  padding: 0;
   color: var(--fg-muted);
-  border-radius: 999px;
   cursor: pointer;
   font-family: inherit;
 }
@@ -1197,12 +1261,28 @@
   color: var(--fg);
 }
 .marketing .foot-theme button.is-active {
-  background: var(--surface-muted);
   color: var(--fg);
 }
+/* Active marker: a 3px brand dot centred 3px beneath the icon. */
+.marketing .foot-theme button.is-active::after {
+  content: "";
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--brand);
+}
+.marketing .foot-theme button:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
 .marketing .foot-theme svg {
-  width: 13px;
-  height: 13px;
+  width: 14px;
+  height: 14px;
 }
 
 /* ---------- Responsive (light) ---------- */
@@ -1303,8 +1383,33 @@
      plate is wider than a narrow viewport, so the right-anchored crop shows the
      tree plus a strip of wall — the widened left scrim plus the tighter copy
      width keep every line on the calm wall strip, never over the canopy. */
+  /* Below 880px the ride-over mechanism reverts to a plain stack: the coda flows
+     back after the FAQ, the reserved height and apron are dropped, and the top
+     fade returns to the coda itself (the .coda::after override below). Expansion
+     may push the photo down on mobile — decided and accepted. */
+  .marketing .closing {
+    min-height: 0;
+  }
+  .marketing .closing .coda {
+    /* Back in flow — but must stay `relative`, not `static`: the plate and the
+       ::before/::after overlays are absolute and must keep resolving against
+       the coda, not against the (much taller) .closing wrapper. */
+    position: relative;
+    inset: auto;
+    height: auto;
+    padding-top: 0;
+  }
+  .marketing #faq::after {
+    display: none;
+  }
   .marketing .coda {
     min-height: 380px;
+  }
+  /* Restore the simple percentage offsets against the static 380px box. */
+  .marketing .coda-plate {
+    top: -2.1%;
+    bottom: -4.9%;
+    height: auto;
   }
   .marketing .coda-title {
     font-size: 22px;
