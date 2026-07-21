@@ -12,7 +12,7 @@ const points = [
   {
     icon: "server",
     t: "Your infrastructure",
-    b: "Docker on your laptop, an IMAP poller on a Pi, or a Lambda chain in your own AWS account. The data path is yours either way.",
+    b: "Docker on your laptop, an IMAP poller on a Raspberry Pi, or a Lambda chain in your own AWS account. The data path is yours either way.",
   },
   {
     icon: "sparkles",
