@@ -908,12 +908,14 @@
 
 /* ---------- Closing scene (FAQ riding over the coda photograph) ---------- */
 /* FAQ and Coda share one positioning context so the photograph can sit BEHIND
-   the FAQ: the coda is pulled out of flow and bottom-anchored, the FAQ stays in
-   normal flow on top, and opening an answer slides the FAQ's soft bottom apron
-   DOWN over the still photograph instead of pushing it. min-height reserves the
-   composition so neither the photo nor the footer moves for any answer at
-   desktop widths — see the tuned value below. Below 880px this all reverts to a
-   plain stack (the coda flows after the FAQ) in the responsive block. */
+   the FAQ: the coda is pulled out of flow and bottom-anchored, and the FAQ rides
+   translucently on top. The paper→photo dissolve is a static gradient on the
+   coda itself (its ::after), so opening an answer moves only the FAQ's text —
+   the photograph, the dissolve, and the footer all hold still. min-height
+   reserves the composition so neither the photo nor the footer moves for any
+   answer at desktop widths — see the tuned value below. Below 880px this all
+   reverts to a plain stack (the coda flows after the FAQ) in the responsive
+   block. */
 .marketing .closing {
   position: relative;
   overflow: hidden;
@@ -930,8 +932,8 @@
    construction the hero opens with. Three layers: ::before is a blurred copy of
    the plate stretched to cover (an ambient tone-matched underlay for the left
    half), .coda-plate is the sharp photograph sized by HEIGHT so the entire tree
-   fits — air above the crown, pot on the floor — and ::after carries the left
-   copy scrim (the soft TOP edge now lives on the FAQ apron, not here). The
+   fits — air above the crown, pot on the floor — and ::after composites the left
+   copy scrim plus the static paper→photo top dissolve (pinned to this box). The
    bottom edge is a clean crop: the photograph runs to the scene's last pixel and
    lands on the footer's restored hairline (a fade through the pot reads as an
    error; a crop through the scene reads as photography). */
@@ -946,11 +948,11 @@
   padding: 0;
 }
 /* Out-of-flow, bottom-anchored scene. The box is 220px taller than the old
-   clamp so the photograph extends UP past the FAQ's rest position — its real
-   top edge is always hidden behind the opaque FAQ block, and only the FAQ apron
-   (a soft fade) reveals the photo below. padding-top = the overhang (220px) so
-   the flex-centred copy lands in the VISIBLE bottom clamp region, exactly as
-   before. */
+   clamp so the photograph extends UP past the FAQ's rest position — the 220px
+   overhang exists so the sharp plate's real top edge sits inside the static
+   dissolve's fully-opaque head (see `.coda::after`), never behind the FAQ.
+   padding-top = the overhang (220px) so the flex-centred copy lands in the
+   VISIBLE bottom clamp region, exactly as before. */
 .marketing .closing .coda {
   position: absolute;
   left: 0;
@@ -1019,25 +1021,42 @@
 .dark .marketing .coda-plate {
   background-image: url("./assets/coda-room-dark.webp");
 }
-/* Composited overlay: a horizontal left scrim carries the copy (legibility
-   never rides on the photo). The soft TOP edge is no longer here — it moved to
-   the FAQ apron (#faq::after) so it travels with the FAQ's bottom when an answer
-   opens. No bottom stops either — the photograph is deliberately cropped by the
-   footer hairline. */
+/* Composited overlay: the horizontal left scrim carries the copy (legibility
+   never rides on the photo) PLUS the paper→photo TOP dissolve. The dissolve
+   lives here, on this STATIC bottom-anchored box, with PIXEL stops — that is the
+   whole point of moving it off the FAQ apron: it cannot travel when an answer
+   opens and grows the FAQ, so the visible transition line is pinned to the
+   photograph. The opaque head runs to 112px because the sharp plate's hard top
+   edge sits `220px − 0.239 × clamp` below this box's top (62px at clamp 660,
+   105px at clamp 480) and must stay hidden under solid surface. The ~170px fall
+   below that reproduces the pace of the original pre-pin fade (30% of the old
+   clamp). No bottom stops — the photograph is deliberately cropped by the footer
+   hairline. */
 .marketing .coda::after {
   content: "";
   position: absolute;
   inset: 0;
   z-index: 0;
-  background: linear-gradient(
-    to right,
-    var(--surface) 0%,
-    color-mix(in oklch, var(--surface) 88%, transparent) 18%,
-    color-mix(in oklch, var(--surface) 60%, transparent) 34%,
-    color-mix(in oklch, var(--surface) 30%, transparent) 48%,
-    color-mix(in oklch, var(--surface) 10%, transparent) 60%,
-    transparent 72%
-  );
+  background:
+    linear-gradient(
+      to right,
+      var(--surface) 0%,
+      color-mix(in oklch, var(--surface) 88%, transparent) 18%,
+      color-mix(in oklch, var(--surface) 60%, transparent) 34%,
+      color-mix(in oklch, var(--surface) 30%, transparent) 48%,
+      color-mix(in oklch, var(--surface) 10%, transparent) 60%,
+      transparent 72%
+    ),
+    linear-gradient(
+      to bottom,
+      var(--surface) 0px,
+      var(--surface) 112px,
+      color-mix(in oklch, var(--surface) 84%, transparent) 144px,
+      color-mix(in oklch, var(--surface) 60%, transparent) 176px,
+      color-mix(in oklch, var(--surface) 36%, transparent) 210px,
+      color-mix(in oklch, var(--surface) 14%, transparent) 244px,
+      transparent 280px
+    );
   pointer-events: none;
 }
 /* Lift the copy above the photo/overlay layers; the wrap centers vertically as
@@ -1079,31 +1098,30 @@
   margin-top: 0;
 }
 /* ---------- FAQ ---------- */
-/* The FAQ rides in normal flow ON TOP of the bottom-anchored coda photograph.
-   Its opaque surface hides the photo's true top edge; its apron (::after) is the
-   soft dissolve into the photo and travels with the FAQ's bottom when an answer
-   opens. */
+/* The FAQ rides in normal flow OVER the bottom-anchored coda photograph. It is
+   deliberately translucent: the paper→photo dissolve is the coda's own static
+   ::after gradient, which never moves — opening an answer slides only the text
+   down over it. The tint here is a legibility scrim: invisible over plain paper
+   at rest, and just enough paper behind the deepest answer lines when they
+   reach the photograph. */
 .marketing #faq {
   position: relative;
   z-index: 1;
-  background: var(--surface);
+  background: color-mix(in oklch, var(--surface) 62%, transparent);
 }
-/* The apron IS the photograph's soft top edge. PIXEL stops only — percentage
-   stops against a growing box collapse into a hard line as the FAQ expands. */
+/* Soft bottom edge for the scrim above — NOT the scene transition. It travels
+   with the FAQ's bottom, but it only feathers the faint 62% tint, so the move
+   is imperceptible; the visible dissolve stays pinned to the photograph. */
 .marketing #faq::after {
   content: "";
   position: absolute;
   top: 100%;
   left: 0;
   right: 0;
-  height: 72px;
-  /* Starts just shy of opaque: the plate's hard top edge is hidden behind the
-     FAQ's own surface, so the apron only needs to ease surface into photograph —
-     a lighter start lets the wall's tone reach the hairline. */
+  height: 56px;
   background: linear-gradient(
     to bottom,
-    color-mix(in oklch, var(--surface) 88%, transparent),
-    color-mix(in oklch, var(--surface) 34%, transparent) 34%,
+    color-mix(in oklch, var(--surface) 62%, transparent),
     transparent
   );
   pointer-events: none;
@@ -1384,9 +1402,9 @@
      tree plus a strip of wall — the widened left scrim plus the tighter copy
      width keep every line on the calm wall strip, never over the canopy. */
   /* Below 880px the ride-over mechanism reverts to a plain stack: the coda flows
-     back after the FAQ, the reserved height and apron are dropped, and the top
-     fade returns to the coda itself (the .coda::after override below). Expansion
-     may push the photo down on mobile — decided and accepted. */
+     back after the FAQ, the reserved height and the scrim fade are dropped, and
+     the top fade returns to the coda itself (the .coda::after override below).
+     Expansion may push the photo down on mobile — decided and accepted. */
   .marketing .closing {
     min-height: 0;
   }
@@ -1401,6 +1419,12 @@
   }
   .marketing #faq::after {
     display: none;
+  }
+  /* Stacked layout has nothing behind the FAQ, so the legibility scrim is
+     pointless — a translucent tint would just show through to nothing. Keep it
+     clean and opaque-free. */
+  .marketing #faq {
+    background: transparent;
   }
   .marketing .coda {
     min-height: 380px;
