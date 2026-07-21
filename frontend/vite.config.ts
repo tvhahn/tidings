@@ -45,11 +45,21 @@ const MARKETING_FAQ_JSON_LD = {
   })),
 };
 
-// Dev-only swap of the root index.html script tag. The file ships with
-// `main-marketing.tsx` so the production marketing entry builds correctly,
-// but in dev (default `pnpm dev` on :5173 and `pnpm demo:dev` on :5176)
-// we want the real React SPA at `/`. `--mode marketing` opts back into the
-// marketing entry for local marketing iteration (`pnpm marketing:dev`).
+// Swap of the root index.html script tag. The file ships with
+// `main-marketing.tsx` so the deployed marketing entry (the `--mode demo`
+// build for gettidings.com) builds correctly, but everywhere else we want the
+// real React SPA at `/`:
+//   - dev serve — default `pnpm dev` on :5173 and `pnpm demo:dev` on :5176.
+//   - plain `pnpm build` (mode is neither "demo" nor "marketing") — the
+//     self-hosted app shell baked into Dockerfile.prod and served at `/` by
+//     FastAPI. Without this the image would ship the marketing landing at `/`.
+// The two entries that MUST keep `main-marketing.tsx` at `/`:
+//   - `--mode marketing` serve (`pnpm marketing:dev`) — local marketing work.
+//   - `--mode demo` build (`pnpm demo:build`) — the gettidings.com artifact,
+//     whose root `dist/index.html` IS the marketing landing (the app lives at
+//     `/demo/` via demo/index.html, which already points at main.tsx).
+// Note demo differs by command: demo *serve* swaps to the SPA (so the demo app
+// renders at `/` on :5176), demo *build* does not (marketing at `/`).
 function devEntrySwap(command: "serve" | "build", mode: string): Plugin {
   return {
     name: "tidings-dev-entry-swap",
@@ -57,7 +67,8 @@ function devEntrySwap(command: "serve" | "build", mode: string): Plugin {
       order: "pre",
       handler(html, ctx) {
         if (ctx.path !== "/" && ctx.path !== "/index.html") return html;
-        if (command === "serve" && mode !== "marketing") {
+        const shouldSwap = mode !== "marketing" && (command === "serve" || mode !== "demo");
+        if (shouldSwap) {
           // Swap to the real SPA entry. The demo dev surface keeps a light
           // default via data-surface="demo"; the real app surface drops the
           // marker entirely so it keeps its "system" theme default.
@@ -99,13 +110,15 @@ function demoHtmlMeta(): Plugin {
   };
 }
 
-// Deployed-marketing-only meta (SEO + unfurl cards + JSON-LD). The same
-// frontend/index.html is ALSO the self-hosted app shell — plain `pnpm build`
-// emits it as dist/index.html, Dockerfile.prod bakes that into the image, and
-// FastAPI serves it at `/` (src/api/main.py:347). A self-hosted install must
-// never ship a gettidings.com canonical, so none of this may live statically
-// in the source file. Only the `--mode demo` bundle (the artifact deployed to
-// gettidings.com) gets these tags; `apply: "build"` keeps dev pages clean.
+// Deployed-marketing-only meta (SEO + unfurl cards + JSON-LD). frontend/index.html
+// is the shared source for two very different root shells: the `--mode demo`
+// build turns it into the gettidings.com marketing landing (this meta applies),
+// while plain `pnpm build` swaps its entry to main.tsx (devEntrySwap) so
+// Dockerfile.prod bakes the self-hosted app shell that FastAPI serves at `/`
+// (src/api/main.py). A self-hosted install must never ship a gettidings.com
+// canonical, so none of this may live statically in the source file — and this
+// plugin is registered for `--mode demo` only (see the isDemo gate below), with
+// `apply: "build"` keeping any dev page clean regardless.
 function marketingHtmlMeta(): Plugin {
   return {
     name: "marketing-html-meta",
