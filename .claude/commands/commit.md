@@ -34,6 +34,7 @@ Based on the above git context, create a structured commit following these requi
 - Identify the primary purpose of the changes
 - Note any new files, deletions, or significant refactoring
 - Assess the scope and impact of modifications
+- Decide whether the change is user-visible per the §Changelog conventions in `docs/guides/releases.md`. If it is, add or amend one `## [Unreleased]` bullet in `CHANGELOG.md` and stage it with this commit; if it isn't, skip the changelog. Follow releases.md for the rules — don't restate them here.
 
 ### 2. Stage Appropriate Files
 - Add relevant untracked files to staging area if needed

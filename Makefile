@@ -1,4 +1,4 @@
-.PHONY: clean data lint requirements sync_data_to_s3 sync_data_from_s3 dev-api dev-frontend dev dev-attach dev-restart dev-demo dev-marketing dev-preview dev-docs build-frontend serve test test-ci test-fast openapi verify verify-graph frontend-typecheck demo-build verify-backend verify-frontend verify-frontend-slop verify-e2e screenshots docs-screenshots marketing-screenshots verify-docs verify-openapi verify-demo-api verify-canon prod-smoke audit agent-token agent-token-show agent-token-revoke sync-pii-patterns pii-collision-check
+.PHONY: clean data lint requirements sync_data_to_s3 sync_data_from_s3 dev-api dev-frontend dev dev-attach dev-restart dev-demo dev-marketing dev-preview dev-docs build-frontend serve test test-ci test-fast openapi verify verify-graph frontend-typecheck demo-build verify-backend verify-frontend verify-frontend-slop verify-e2e screenshots docs-screenshots marketing-screenshots verify-docs verify-openapi verify-demo-api verify-canon check-changelog prod-smoke audit agent-token agent-token-show agent-token-revoke sync-pii-patterns pii-collision-check
 
 #################################################################################
 # GLOBALS                                                                       #
@@ -207,8 +207,16 @@ prod-smoke:
 ## Canon link check: broken links/paths in agent-facing context files, unmarked docs/specs/
 ## references (local-only tree, dangles in the public clone), missing AGENTS.md symlinks.
 ## Mirrored in the public-tree CI job (.github/workflows/ci.yml); keep the two in sync.
-verify-canon:
+## Also runs the changelog format lint (check-changelog) as a doc-integrity prereq.
+verify-canon: check-changelog
 	uv run python scripts/checks/check_canon_links.py
+
+## Changelog format lint: heading grammar (## [X.Y.Z] — YYYY-MM-DD / one [Unreleased], descending
+## semver), Keep-a-Changelog subsection whitelist, dangling SHA/#NNN refs in entry bodies, and
+## release-notes extraction safety (mirrors the release.yml awk slice). Stdlib-only, runs in verify
+## via verify-canon; invoke directly with `make check-changelog`.
+check-changelog:
+	uv run python scripts/checks/check_changelog.py
 
 ## Demo API artifacts: regenerate the manifest + filtered OpenAPI, fail on drift, then run the structural gate.
 ## Regen is deterministic (byte-stable), so a clean tree stays clean; a stale committed artifact is caught here.

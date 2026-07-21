@@ -43,6 +43,22 @@ If `main` has unreleasable work-in-progress when a critical bug is reported agai
 
 If `main` is releasable (the common case), just commit the fix to `main` and cut a patch release directly. No branch needed.
 
+## Changelog conventions
+
+[`CHANGELOG.md`](../../CHANGELOG.md) is the source of truth for what shipped. These rules keep it curated between releases so cutting one is a rename, not a rewrite.
+
+**Where entries live.** Every in-progress entry goes under `## [Unreleased]`. The file's order is fixed: top matter → `## Versioning` → `## [Unreleased]` → released version entries, newest-first. Never open a second in-progress section.
+
+**What earns an entry.** User-visible changes only: UI, `/api/v1/*` contract, `data/config.json` keys, the install/upgrade path, new or changed parser support, and docs that self-hosters act on. Internal refactors, CI/tooling, tests, and agent-workflow changes get no entry — the commit is the record for those.
+
+**Altitude and length.** One bullet per capability, not per commit. Keep each to 1–3 lines. When you extend a feature that already has an Unreleased bullet, amend that bullet instead of stacking a new one. Link the relevant guide for depth rather than inlining the detail.
+
+**Entry grammar.** Version headers are `## [X.Y.Z] — YYYY-MM-DD`. Subsections come only from the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) set — `### Added`, `### Changed`, `### Deprecated`, `### Removed`, `### Fixed`, `### Security` — and only the ones with entries.
+
+**Banned content.** No commit SHAs, no PR or issue numbers, no internal process narrative, no references to private history, no exclamation marks. `Changed`/`Fixed` bullets describe the delta relative to the latest **public** release — never against something older or against unreleased trunk.
+
+**Enforcement.** `make verify` runs [`scripts/checks/check_changelog.py`](../../scripts/checks/check_changelog.py), a mechanical lint covering heading grammar, dangling SHA/PR references, and release-notes extraction safety. It does not judge altitude or wording — that editorial call lives here and in the `/commit` skill, which flags a user-visible change and asks for the bullet at commit time.
+
 ## The release ritual
 
 About 5 minutes of work when you decide to cut one. Run through the checklist top-to-bottom.
@@ -77,11 +93,11 @@ git diff --stat          # commit refreshed images if any changed
 
 ### 2. Update the changelog
 
-Open [`CHANGELOG.md`](../../CHANGELOG.md) and:
+Cutting a release is the moment you curate `## [Unreleased]` down to release notes, following the [Changelog conventions](#changelog-conventions) above. Open [`CHANGELOG.md`](../../CHANGELOG.md) and:
 
-1. Rename `## [Unreleased]` to `## [X.Y.Z] — YYYY-MM-DD` (today's date).
-2. Add a fresh empty `## [Unreleased]` block at the top with the standard subsection headers (`### Added`, `### Changed`, `### Fixed`, etc. — only those that have entries).
-3. Skim the section and rewrite anything that reads like an internal commit message into release-note prose (the "what changed for the user" framing). Self-hosters read this.
+1. Dedupe and compress the `## [Unreleased]` entries per the conventions — one bullet per capability, per-commit noise folded away, anything reading like an internal commit message rewritten into "what changed for the user" prose. Self-hosters read this.
+2. Rename `## [Unreleased]` to `## [X.Y.Z] — YYYY-MM-DD` (today's date).
+3. Add a fresh empty `## [Unreleased]` block above it, ready for the next cycle's entries (add subsection headers only as entries arrive).
 
 ### 3. Bump the version
 
