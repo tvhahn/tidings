@@ -7,21 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] — 2026-07-21
+
+Initial open-source release.
+
 ### Security
 
-- **Pre-release PII sweep and hardened release gates.** Parser test fixtures
-  were resynthesized with synthetic merchants, amounts, reference numbers,
-  card digits, and filenames; the shipped seed configs
-  (`category_overrides.json`, `blocked_companies.json`) now carry generic
-  defaults; worked examples in docstrings and agent commands use invented
-  businesses; the agent-access guide's illustrative token is an obvious
-  placeholder. The release audit (`scripts/audit_oss_release.py`) gains Luhn
-  card validation, Anthropic-key/JWT/ARN patterns, fixture-filename scanning,
-  and a blob-level history scan; the fixture scrubber masks card last-4s and
-  Interac references; CI can run the personal-token scan from a repository
-  secret instead of silently skipping. A tracked `pre-push` hook (remote
-  allowlist + tree audit) and a Claude Code pre-tool-use guard round out the
-  defenses.
+- **Pre-release PII protections.** Parser test fixtures use synthetic
+  merchants, amounts, reference numbers, card digits, and filenames; the
+  shipped seed configs (`category_overrides.json`, `blocked_companies.json`)
+  carry generic defaults; worked examples in docstrings and agent commands use
+  invented businesses; the agent-access guide's illustrative token is an
+  obvious placeholder. A release-time audit (`scripts/pii/audit_oss_release.py`)
+  scans the shipped tree — Luhn card validation, Anthropic-key/JWT/ARN
+  patterns, fixture-filename checks, and a blob-level history scan — and runs
+  in CI as a blocking release gate over the whole tree (`dev/` included),
+  backed by a tracked `pre-push` hook (remote allowlist + tree audit).
 
 ### Added
 
@@ -54,19 +55,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mid-month comparisons become like-for-like for statement-imported
   accounts. Which headline style did you keep? Tell us in the discussion
   thread — one will graduate to default permanence.
-- **Forecast accuracy fix for statement importers.** Spending history curves
-  previously excluded statement-created rows *and* email rows enriched by a
-  statement import — up to a quarter of real spending invisible to
-  projections. Both now count.
-- **Operator tooling restored after the release scrub.** The `dev/` script
-  tree dropped during the PII cutover is back, minus what was superseded:
-  `dev/cli/` carries the category-maintenance CLIs behind the
+- **Forecast accuracy for statement importers.** Spending history curves count
+  statement-created rows *and* email rows enriched by a statement import — up
+  to a quarter of real spending that a naive email-only projection would miss.
+- **Operator tooling.** The `dev/` script tree ships the operator CLIs and
+  eval harness: `dev/cli/` carries the category-maintenance CLIs behind the
   `/review-categories` and `/fix-categories` slash commands (the yearly
   insights gatherer now works on both storage backends via the storage
   factories, and the DynamoDB backup/restore pair reads its region from
   `AWS_REGION`), and `dev/eval_harness/` re-arms the `make dev-eval-harness`
-  Streamlit prompt-eval harness (`uv sync --extra eval`). The old standalone
-  Lambda and IMAP e2e scripts return as opt-in pytest integration tests in
+  Streamlit prompt-eval harness (`uv sync --extra eval`). The standalone
+  Lambda and IMAP e2e scripts ship as opt-in pytest integration tests in
   `tests/integration/` — env-gated, self-cleaning, excluded from every
   default gate.
 
@@ -153,6 +152,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   wherever you are reviewing spending.
 - `GET /llms.txt` — every instance serves a plain-text orientation file for
   agents.
+- Dual-backend storage: DynamoDB for AWS deployments, SQLite for self-hosted use, selected automatically based on configuration.
+- Demo mode with seeded sample data (`data/demo.db`) so new users can explore the dashboard without connecting any real accounts.
+- Docker Compose production stack via `Dockerfile.prod` and the root `docker-compose.yml` — one `docker compose up` gets you a working FastAPI + React + SQLite install.
+- IMAP poller daemon (`src/finance/imap_poller.py`) that automatically ingests bank alert emails from a dedicated Gmail account, shipped as a separate `imap-poller` Compose service sharing the `finance_data` volume.
+- Unified notification service (`src/finance/notification_service.py`) with Ntfy, Twilio, and AWS SNS providers plus a log-only fallback; the active provider is auto-selected from environment variables so zero-config deployments still work.
+- AWS Lambda deployment path for serverless users: email → Amazon SES → S3 → Lambda → DynamoDB → notification provider.
+- Canadian bank email parsers for RBC, CIBC, MBNA, Simplii, and PC Financial, all inheriting from a shared `TransactionParser` base class.
+- PDF statement parsers for RBC Chequing and Simplii Chequing, with a WeasyPrint + Jinja2 synthetic-fixture generator for tests.
+- Optional OpenAI-powered transaction categorization (off by default when no API key is configured), with an opt-out Settings toggle (`ai_categorization_enabled`) that disables the OpenAI call and falls back to the existing `Miscellaneous` category. On by default when `OPENAI_API_KEY` is set, off otherwise; user choice is persisted.
+- Monthly spending summary Lambda triggered by AWS EventBridge for users on the serverless path.
+- FastAPI backend with `/api/v1/*` routes, a unified `{error, code, details}` error schema, and interactive OpenAPI docs at `/docs`.
+- React + Vite + TypeScript frontend dashboard covering budget tracking, spending insights, and transaction search.
+- Lambda secrets management via AWS SSM Parameter Store with a three-tier fallback loader (SSM → environment → `.env`).
+- Bulk transaction edits (`PATCH /api/v1/transactions/bulk`) and a consolidated `/api/v1/insights/context` endpoint to reduce frontend round-trips.
+- SQLite WAL mode with a 5-second busy timeout enabled by default for safer concurrent reads/writes on the self-hosted backend.
+- Schema versioning with an idempotent migration runner (`src/finance/migrations/`) wired into the local-DB bootstrap, so future schema changes upgrade existing installs cleanly instead of breaking them.
+- `GET /api/v1/health` endpoint exposing IMAP poll freshness, last parsed transaction, backend type, and version — paired with a sidebar status indicator (green / amber / red) and a click-through popover of the raw JSON. Uptime monitors can hit the endpoint directly.
+- Dynamic demo-data date shift: `src/finance/demo_loader.py` shifts seed transactions forward to the current calendar month at first-run load time (i.e. when the demo DB is empty), with a `DEMO_FREEZE_MONTH` env override for the static-demo fixture export path. Returning users who want a fresh anchor should remove `data/demo.db` (or `docker compose down -v`) before restarting.
+- Multi-arch Docker builds in CI (`linux/amd64` + `linux/arm64`) via a `docker-build.yml` workflow, so Raspberry Pi and Apple Silicon users stop hitting `exec format error`.
+- `.env.example` covering IMAP, notification provider, OpenAI, and AWS e2e-test configuration so self-hosters have a single reference for required environment variables.
+- Community and onboarding documentation: self-hosted-first README, `CONTRIBUTING.md` (centerpiece is a 4-step bank-parser tutorial), `CODE_OF_CONDUCT.md`, GitHub issue templates (bug, feature, and a structured `parser_broken` template), a pull-request template, a public `ROADMAP.md`, and step-by-step guides for Gmail IMAP setup and notification providers.
 
 ### Changed
 
@@ -176,21 +196,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   matrix becomes a whisper heat map with a legend and current-month marker;
   budget view state lives in the URL (`?view=monthly`). One segmented
   control style now serves both pages.
-- **Light mode and the base palette are now the default** for new users. A
+- **Light mode and the base palette are the default** for new users. A
   fresh install (or a browser with no saved preference) starts in light mode
   on the default palette instead of following the OS theme / Warm Paper.
   Anyone who has already picked a theme or palette keeps their choice.
-- **The `/tax` page and its CSV export no longer show country-specific tax
+- **The `/tax` page and its CSV export do not show country-specific tax
   line numbers** (e.g. Canada's "Line 34900"). The plain line labels are the
-  surface now; the `cra_ref` values stay in `tax_line_mappings.json` for
+  surface; the `cra_ref` values stay in `tax_line_mappings.json` for
   self-hosters who want them via a personal config copy.
-- Statement-import and manual-entry synthetic dates now emit an explicit UTC
-  offset (e.g. `-0800`) instead of a hardcoded `PST` abbreviation. Existing
-  rows are unaffected; this only changes the format of dates written on or
-  after this release.
+- Statement-import and manual-entry synthetic dates emit an explicit UTC
+  offset (e.g. `-0800`) rather than a hardcoded `PST` abbreviation.
 - Pin `ghcr.io/astral-sh/uv` base image to `0.11.14` in both `Dockerfile.prod`
   and `docker/imap_polling/Dockerfile` for reproducible release builds.
-- `.devcontainer/Dockerfile` no longer installs OpenAI Codex or Google
+- `.devcontainer/Dockerfile` does not install OpenAI Codex or Google
   Gemini CLIs by default. Maintainers and power users restore them by
   uncommenting the "Extra AI CLIs" snippet in the gitignored
   `.devcontainer/docker-compose.override.yml` (auto-copied from the
@@ -199,38 +217,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   devcontainers. Claude Code stays in the default image because the repo
   ships Claude Code skills as project artifacts.
   See [CONTRIBUTING.md](CONTRIBUTING.md) for the snippet.
-- `.github/workflows/docker-build.yml` now publishes `:master` to GHCR
-  on every push to trunk (was compile-check only). PRs still build
-  without pushing. Coordinates with `release.yml` (Part 2B): master
-  pushes own `:master`; tag pushes own `:vX.Y.Z` + `:latest`. No
-  `:latest` race. Closes the PLAN.md row "Wire `push: true` + registry
-  creds on multi-arch workflow."
-- **Compose-file defaults swapped for OSS launch.** Self-hosters' `docker
-  compose up` (no `-f`) now brings up the prod stack (the former
-  `docker-compose.prod.yml` is the new root `docker-compose.yml`). The
-  devcontainer stack moves to `.devcontainer/docker-compose.yml`.
-  Early-access users who run `docker compose up` expecting the devcontainer
-  must now use VSCode's "Reopen in Container" or
-  `docker compose -f .devcontainer/docker-compose.yml up`. The default
-  `.devcontainer/docker-compose.yml` no longer mounts `/var/run/docker.sock`
-  or `~/.aws`; restore both via `.devcontainer/docker-compose.override.yml`
-  (see the `.example` shipped alongside). Devcontainer workspace name flipped
-  from `expense-reporting` to `tidings`.
-- README rebranded `expense-reporting` → `Tidings` (project title, CI badge,
-  clone URL, vs-Firefly comparison-table header). Quickstart drops the
-  `cp .env.example .env` step — demo mode auto-detects an empty config and
-  the `.env` is only needed once you wire real IMAP credentials.
-  CONTRIBUTING gains "Devcontainer overrides" and "`c1`: launch Claude Code
-  in tmux" subsections under §1, documenting the three opt-in volume
-  snippets and the persistent-tmux helper baked into the image.
+- `.github/workflows/docker-build.yml` publishes `:main` to GHCR on every
+  push to trunk; PRs build without pushing (compile-check). Coordinates with
+  `release.yml`: trunk pushes own `:main`; tag pushes own `:vX.Y.Z` +
+  `:latest`, so there is no `:latest` race.
+- **Compose-file defaults are set for OSS launch.** Self-hosters' `docker
+  compose up` (no `-f`) brings up the prod stack (the root
+  `docker-compose.yml`). The devcontainer stack lives at
+  `.devcontainer/docker-compose.yml`; contributors use VSCode's "Reopen in
+  Container" or `docker compose -f .devcontainer/docker-compose.yml up`. The
+  default `.devcontainer/docker-compose.yml` does not mount
+  `/var/run/docker.sock` or `~/.aws`; restore both via
+  `.devcontainer/docker-compose.override.yml` (see the `.example` shipped
+  alongside).
+- Quickstart drops the `cp .env.example .env` step — demo mode auto-detects
+  an empty config and the `.env` is only needed once you wire real IMAP
+  credentials. `CONTRIBUTING.md` documents Devcontainer overrides (the three
+  opt-in volume snippets) and a `c1` helper that launches Claude Code in a
+  persistent tmux session baked into the image.
 
 ### Fixed
 
-- Remove broken reference to deleted `scripts/check_supply_chain_iocs.sh` in
-  `.github/workflows/ci.yml`. The script was retired in `6dddf61`; its CI
-  invocation was not cleaned up at the same time and has been failing on every
-  commit since. Supply-chain hardening is now covered by Dependabot, secret
-  scanning, and push protection in repo settings.
 - `imap_poller` no longer crash-loops when `IMAP_USER` or `IMAP_PASSWORD` is
   unset. The daemon now idles with a single log line; set both vars to enable
   polling. Fixes the bare-`docker compose up` UX for self-hosters who don't
@@ -247,45 +254,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.devcontainer/devcontainer.json` no longer enables the
   `docker-outside-of-docker` feature in the default contributor build.
   The feature auto-mounted the host's Docker socket regardless of what
-  `.devcontainer/docker-compose.yml` specified, undoing the security
-  posture Part 3C tried to establish (no host-daemon access on a fresh
-  clone). Maintainers and power users who build/push images from inside
-  the devcontainer restore the feature by adding it to the gitignored
-  `.devcontainer/devcontainer.local.json` — `CONTRIBUTING.md` has the
-  snippet. The `aws-cli` feature stays in the default image: it's a
-  binary install with no credential exposure, and removing it would
-  break maintainer ECR workflows once the socket override is restored.
-
-## [0.1.0] — 2026-04-22
-
-Initial open-source release.
-
-### Added
-
-- Dual-backend storage: DynamoDB for AWS deployments, SQLite for self-hosted use, selected automatically based on configuration.
-- Demo mode with seeded sample data (`data/demo.db`) so new users can explore the dashboard without connecting any real accounts.
-- Docker Compose production stack via `Dockerfile.prod` and the root `docker-compose.yml` — one `docker compose up` gets you a working FastAPI + React + SQLite install.
-- IMAP poller daemon (`src/finance/imap_poller.py`) that automatically ingests bank alert emails from a dedicated Gmail account, shipped as a separate `imap-poller` Compose service sharing the `finance_data` volume.
-- Unified notification service (`src/finance/notification_service.py`) with Ntfy, Twilio, and AWS SNS providers plus a log-only fallback; the active provider is auto-selected from environment variables so zero-config deployments still work.
-- AWS Lambda deployment path for serverless users: email → Amazon SES → S3 → Lambda → DynamoDB → notification provider.
-- Canadian bank email parsers for RBC, CIBC, MBNA, Simplii, and PC Financial, all inheriting from a shared `TransactionParser` base class.
-- PDF statement parsers for RBC Chequing and Simplii Chequing, with a WeasyPrint + Jinja2 synthetic-fixture generator for tests.
-- Optional OpenAI-powered transaction categorization (off by default when no API key is configured).
-- Monthly spending summary Lambda triggered by AWS EventBridge for users on the serverless path.
-- FastAPI backend with `/api/v1/*` routes, a unified `{error, code, details}` error schema, and interactive OpenAPI docs at `/docs`.
-- React + Vite + TypeScript frontend dashboard covering budget tracking, spending insights, and transaction search.
-- Lambda secrets management via AWS SSM Parameter Store with a three-tier fallback loader (SSM → environment → `.env`).
-- Bulk transaction edits (`PATCH /api/v1/transactions/bulk`) and a consolidated `/api/v1/insights/context` endpoint to reduce frontend round-trips.
-- SQLite WAL mode with a 5-second busy timeout enabled by default for safer concurrent reads/writes on the self-hosted backend.
-- Schema versioning with an idempotent migration runner (`src/finance/migrations/`) wired into the local-DB bootstrap, so future schema changes upgrade existing installs cleanly instead of breaking them.
-- `GET /api/v1/health` endpoint exposing IMAP poll freshness, last parsed transaction, backend type, and version — paired with a sidebar status indicator (green / amber / red) and a click-through popover of the raw JSON. Uptime monitors can hit the endpoint directly.
-- AI categorization opt-out — a Settings toggle (`ai_categorization_enabled`) that disables the OpenAI call and falls back to the existing `Miscellaneous` category. On by default when `OPENAI_API_KEY` is set, off otherwise; user choice is persisted.
-- Dynamic demo-data date shift: `src/finance/demo_loader.py` shifts seed transactions forward to the current calendar month at first-run load time (i.e. when the demo DB is empty), with a `DEMO_FREEZE_MONTH` env override for the static-demo fixture export path. Returning users who want a fresh anchor should remove `data/demo.db` (or `docker compose down -v`) before restarting.
-- Multi-arch Docker builds in CI (`linux/amd64` + `linux/arm64`) via a new `docker-build.yml` workflow, so Raspberry Pi and Apple Silicon users stop hitting `exec format error`.
-- CI-enforced PII scanning across the whole tree, including `dev/`, via `.github/workflows/ci.yml` and a matching `.githooks/pre-push` hook.
-- Parameterized AWS Lambda end-to-end test harness (`dev/e2e/test_lambda_e2e.py`) driven by `E2E_EMAIL_BUCKET` / `E2E_USER_ID` env vars so contributors can point it at their own Lambda without editing source.
-- `.env.example` covering IMAP, notification provider, OpenAI, and AWS e2e-test configuration so self-hosters have a single reference for required environment variables.
-- Community and onboarding documentation: self-hosted-first README, `CONTRIBUTING.md` (centerpiece is a 4-step bank-parser tutorial), `CODE_OF_CONDUCT.md`, GitHub issue templates (bug, feature, and a structured `parser_broken` template), a pull-request template, a public `ROADMAP.md`, and step-by-step guides for Gmail IMAP setup and notification providers.
+  `.devcontainer/docker-compose.yml` specified, undoing the no-host-daemon
+  security posture on a fresh clone. Maintainers and power users who
+  build/push images from inside the devcontainer restore the feature by
+  adding it to the gitignored `.devcontainer/devcontainer.local.json` —
+  `CONTRIBUTING.md` has the snippet. The `aws-cli` feature stays in the
+  default image: it's a binary install with no credential exposure, and
+  removing it would break maintainer ECR workflows once the socket override
+  is restored.
 
 ## Versioning
 

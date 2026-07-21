@@ -82,7 +82,7 @@ The default is demo mode — a seeded SQLite database (`data/demo.db`) of sample
 1. **Email** — copy `.env.example` to `.env` and add Gmail IMAP credentials. The [email setup guide](docs/guides/self-hosted-email-setup.md) covers the dedicated account, the App Password, and per-bank alert settings.
 2. **Timezone** — set yours under Settings → Timezone; "Detect from browser" picks it in a click. The default is `America/Los_Angeles`.
 3. **Notifications** — pick a provider in the [notifications guide](docs/guides/notifications-setup.md). The recommended default is ntfy: free, no account, works on iOS and Android.
-4. **Leave demo mode** — set `demo_mode: false` in `data/config.json`. Your transactions live in `data/finance.db`; the seeded demo data stays in its own database and never mixes with yours.
+4. **Leave demo mode** — set `demo_mode: false` in `data/config.json` (the container writes this file into its `finance_data` volume on first run, so edit it there rather than expecting it in a fresh checkout). Your transactions live in `data/finance.db`; the seeded demo data stays in its own database and never mixes with yours.
 
 Contributing rather than self-hosting? Use VS Code's "Reopen in Container" or `docker compose -f .devcontainer/docker-compose.yml up` for the dev environment — the root `docker compose up` is the self-hoster stack.
 

@@ -8,7 +8,7 @@ services:
         CLAUDE_CODE_VERSION: "latest"
         GIT_DELTA_VERSION: "0.18.2"
         ZSH_IN_DOCKER_VERSION: "1.2.0"
-    hostname: expense-reporting-devcontainer
+    hostname: tidings-devcontainer
     shm_size: '2gb'
     volumes:
       - ..:/workspace:cached
@@ -39,7 +39,7 @@ services:
     working_dir: /workspace
     command: sleep infinity
     networks:
-      - expense-reporting-network
+      - tidings-network
     # NET_ADMIN/NET_RAW were intentionally removed: they're a vestige of
     # Anthropic's reference Claude Code devcontainer template (which ships an
     # init-firewall.sh that needs them), but no firewall script is wired up
@@ -54,5 +54,5 @@ volumes:
   claude-code-config:
 
 networks:
-  expense-reporting-network:
+  tidings-network:
     driver: bridge

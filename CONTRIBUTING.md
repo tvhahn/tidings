@@ -92,7 +92,7 @@ In rough order of leverage:
 
 ## Running tests
 
-- Full gate: `make verify` (~3–5 min) — run this before every PR.
+- Full gate: `make verify` (a few minutes on a typical laptop, about a minute on a many-core machine) — run this before every PR.
 - Backend only (faster loop): `uv run pytest tests/ -m "not integration"`
 - Single file: `uv run pytest tests/unit/test_rbc_parser.py -v`
 - Keyword filter: `uv run pytest tests/unit/ -v -k purchase`

@@ -6,7 +6,7 @@
 - **Dependencies:** Edit `pyproject.toml`, then `uv sync`
 - **Test (backend):** `uv run pytest tests/ -m "not integration"` or `uv run pytest tests/unit/ -v`
 - **Test (frontend):** `cd frontend && pnpm test` (Vitest — utilities plus hook/component tests)
-- **Verify (all gates):** `make verify` — canon-doc links, backend pytest + ruff + pyright, frontend lint/typecheck/format/vitest + de-slop P0 gate, Playwright e2e, openapi drift. Runs the sub-targets as a parallel dependency graph; ~1 min on a many-core box. Use before committing non-trivial changes.
+- **Verify (all gates):** `make verify` — canon-doc links, backend pytest + ruff + pyright, frontend lint/typecheck/format/vitest + de-slop P0 gate, Playwright e2e, openapi drift. Runs the sub-targets as a parallel dependency graph; about a minute on a many-core box, a few minutes on a typical laptop. Use before committing non-trivial changes.
 - **Lint:** `ruff check src/ tests/` (auto-fix: `--fix`)
 - **Format:** `ruff format src/ tests/`
 - **Build Lambda image:** `bash docker/email_parsing/2_build_image.sh`
