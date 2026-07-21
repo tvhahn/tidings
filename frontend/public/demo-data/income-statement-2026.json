@@ -1,0 +1,491 @@
+{
+  "year": 2026,
+  "months": [
+    "2026-01",
+    "2026-02",
+    "2026-03",
+    "2026-04",
+    "2026-05",
+    "2026-06",
+    "2026-07",
+    "2026-08",
+    "2026-09",
+    "2026-10",
+    "2026-11",
+    "2026-12"
+  ],
+  "income": {
+    "companies": [
+      {
+        "company": "Northwind Labs Retainer",
+        "months": [2821.44, 2821.44, 2821.44, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "total": 8464.32
+      },
+      {
+        "company": "Ridge Studio Retainer",
+        "months": [2400, 2400, 2400, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "total": 7200
+      }
+    ],
+    "monthly_totals": [5221.44, 5221.44, 5221.44, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    "annual_total": 15664.32
+  },
+  "expense_sections": [
+    {
+      "type_name": "fixed",
+      "display_name": "Fixed expenses",
+      "categories": [
+        {
+          "category": "rent",
+          "months": [2150, 2150, 2150, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          "total": 6450,
+          "companies": [
+            {
+              "company": "Liberty Market Lofts",
+              "months": [2150, 2150, 2150, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 6450
+            }
+          ]
+        },
+        {
+          "category": "utilities",
+          "months": [112.46, 101.14, 92.13, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          "total": 305.73,
+          "companies": [
+            {
+              "company": "Toronto Hydro",
+              "months": [112.46, 101.14, 92.13, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 305.73
+            }
+          ]
+        },
+        {
+          "category": "internet",
+          "months": [80, 80, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          "total": 240,
+          "companies": [
+            {
+              "company": "Bell Fibe Internet",
+              "months": [80, 80, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 240
+            }
+          ]
+        },
+        {
+          "category": "communication/cell",
+          "months": [75, 75, 75, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          "total": 225,
+          "companies": [
+            {
+              "company": "Rogers Wireless",
+              "months": [75, 75, 75, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 225
+            }
+          ]
+        },
+        {
+          "category": "subscriptions",
+          "months": [55.72, 55.72, 55.72, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          "total": 167.16,
+          "companies": [
+            {
+              "company": "Netflix Standard",
+              "months": [17.99, 17.99, 17.99, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 53.97
+            },
+            {
+              "company": "Figma Professional",
+              "months": [16.5, 16.5, 16.5, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 49.5
+            },
+            {
+              "company": "Spotify Premium",
+              "months": [12.99, 12.99, 12.99, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 38.97
+            },
+            {
+              "company": "New York Times Digital",
+              "months": [4.25, 4.25, 4.25, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 12.75
+            },
+            {
+              "company": "iCloud Storage 200 GB",
+              "months": [3.99, 3.99, 3.99, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 11.97
+            }
+          ]
+        },
+        {
+          "category": "insurance",
+          "months": [28, 28, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          "total": 84,
+          "companies": [
+            {
+              "company": "Square One Tenant Insurance",
+              "months": [28, 28, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 84
+            }
+          ]
+        },
+        {
+          "category": "service charges/fees",
+          "months": [16.95, 16.95, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          "total": 33.9,
+          "companies": [
+            {
+              "company": "CIBC Smart Account Fee",
+              "months": [16.95, 16.95, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 33.9
+            }
+          ]
+        }
+      ],
+      "monthly_totals": [2518.13, 2506.81, 2480.85, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "annual_total": 7505.79
+    },
+    {
+      "type_name": "variable",
+      "display_name": "Variable expenses",
+      "categories": [
+        {
+          "category": "groceries",
+          "months": [728.1, 513.26, 571.88, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          "total": 1813.24,
+          "companies": [
+            {
+              "company": "Loblaws Queen West",
+              "months": [392.6, 240.19, 178.41, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 811.2
+            },
+            {
+              "company": "Metro Liberty Village",
+              "months": [100.87, 145.67, 234.2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 480.74
+            },
+            {
+              "company": "FreshCo Liberty Village",
+              "months": [111.83, 107.12, 141.7, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 360.65
+            },
+            {
+              "company": "Maple Leaf Gardens Loblaws",
+              "months": [108.21, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 108.21
+            },
+            {
+              "company": "Kensington Fruit Market",
+              "months": [14.59, 20.28, 17.57, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 52.44
+            }
+          ]
+        },
+        {
+          "category": "restaurant/dining",
+          "months": [258.44, 587.32, 395.67, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          "total": 1241.43,
+          "companies": [
+            {
+              "company": "Cibo Wine Bar King West",
+              "months": [0, 83.97, 72.68, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 156.65
+            },
+            {
+              "company": "Queen Mother Cafe",
+              "months": [32.22, 58.74, 62.53, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 153.49
+            },
+            {
+              "company": "Pizzeria Libretto Ossington",
+              "months": [43.97, 44.95, 51.26, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 140.18
+            },
+            {
+              "company": "Sud Forno Queen",
+              "months": [31.31, 44.03, 46.16, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 121.5
+            },
+            {
+              "company": "Arvo Coffee",
+              "months": [46.91, 48.51, 21.2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 116.62
+            },
+            {
+              "company": "Time Out Market Lisboa",
+              "months": [0, 97.92, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 97.92
+            },
+            {
+              "company": "Banh Mi Boys Queen",
+              "months": [17.77, 42.66, 37.12, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 97.55
+            },
+            {
+              "company": "La Palma",
+              "months": [0, 0, 70.86, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 70.86
+            },
+            {
+              "company": "Bar Sybanne",
+              "months": [0, 61.39, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 61.39
+            },
+            {
+              "company": "Fox and John's Liberty Village",
+              "months": [0, 28.91, 23.32, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 52.23
+            },
+            {
+              "company": "Tim Hortons King & Strachan",
+              "months": [21.2, 14.94, 4.52, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 40.66
+            },
+            {
+              "company": "Balzac's King West",
+              "months": [22.01, 15.73, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 37.74
+            },
+            {
+              "company": "Louie Coffee Shop",
+              "months": [16.89, 17.45, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 34.34
+            },
+            {
+              "company": "NEO Coffee Bar",
+              "months": [26.16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 26.16
+            },
+            {
+              "company": "A Brasileira",
+              "months": [0, 18.99, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 18.99
+            },
+            {
+              "company": "Pastéis de Belém",
+              "months": [0, 9.13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 9.13
+            },
+            {
+              "company": "Sam James Coffee Bar",
+              "months": [0, 0, 6.02, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 6.02
+            }
+          ]
+        },
+        {
+          "category": "savings",
+          "months": [400, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          "total": 500,
+          "companies": [
+            {
+              "company": "Tangerine Savings",
+              "months": [400, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 500
+            }
+          ]
+        },
+        {
+          "category": "general transportation",
+          "months": [145.05, 121.57, 132.4, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          "total": 399.02,
+          "companies": [
+            {
+              "company": "PRESTO Reload (TTC)",
+              "months": [120, 80, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 280
+            },
+            {
+              "company": "Uber Canada",
+              "months": [25.05, 41.57, 52.4, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 119.02
+            }
+          ]
+        },
+        {
+          "category": "sports and recreation",
+          "months": [132, 134, 108, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          "total": 374,
+          "companies": [
+            {
+              "company": "Solis Movement King West",
+              "months": [96, 102, 108, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 306
+            },
+            {
+              "company": "Studio Lagree King",
+              "months": [36, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 68
+            }
+          ]
+        },
+        {
+          "category": "miscellaneous",
+          "months": [180, 0, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          "total": 260,
+          "companies": [
+            {
+              "company": "Priya Sharma",
+              "months": [180, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 180
+            },
+            {
+              "company": "CIBC ATM Withdrawal",
+              "months": [0, 0, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 80
+            }
+          ]
+        },
+        {
+          "category": "liquor/beer/wine",
+          "months": [33.37, 91.19, 121.07, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          "total": 245.63,
+          "companies": [
+            {
+              "company": "LCBO Liberty Village",
+              "months": [33.37, 91.19, 121.07, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 245.63
+            }
+          ]
+        },
+        {
+          "category": "hygiene/personal care",
+          "months": [85.18, 68.13, 83.31, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          "total": 236.62,
+          "companies": [
+            {
+              "company": "Shoppers Drug Mart Liberty North",
+              "months": [48.03, 68.13, 83.31, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 199.47
+            },
+            {
+              "company": "Rexall King & Bathurst",
+              "months": [37.15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 37.15
+            }
+          ]
+        },
+        {
+          "category": "hobbies",
+          "months": [56.22, 33.54, 33.39, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          "total": 123.15,
+          "companies": [
+            {
+              "company": "Type Books Queen West",
+              "months": [56.22, 33.54, 33.39, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 123.15
+            }
+          ]
+        },
+        {
+          "category": "entertainment",
+          "months": [25.25, 46.94, 45.7, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          "total": 117.89,
+          "companies": [
+            {
+              "company": "TIFF Bell Lightbox",
+              "months": [25.25, 46.94, 45.7, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 117.89
+            }
+          ]
+        },
+        {
+          "category": "household items",
+          "months": [24.83, 14.92, 56.88, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          "total": 96.63,
+          "companies": [
+            {
+              "company": "Shoppers Drug Mart Liberty North (household)",
+              "months": [24.83, 14.92, 56.88, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 96.63
+            }
+          ]
+        }
+      ],
+      "monthly_totals": [2068.44, 1710.87, 1628.3, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "annual_total": 5407.61
+    },
+    {
+      "type_name": "lumpy",
+      "display_name": "Irregular / one-time",
+      "categories": [
+        {
+          "category": "travel",
+          "months": [0, 1505.06, 147.85, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          "total": 1652.91,
+          "companies": [
+            {
+              "company": "Air Canada",
+              "months": [0, 802.45, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 802.45
+            },
+            {
+              "company": "Airbnb",
+              "months": [0, 702.61, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 702.61
+            },
+            {
+              "company": "Enterprise Rent-A-Car",
+              "months": [0, 0, 147.85, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 147.85
+            }
+          ]
+        },
+        {
+          "category": "technology",
+          "months": [0, 0, 495.43, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          "total": 495.43,
+          "companies": [
+            {
+              "company": "Apple Store Eaton Centre",
+              "months": [0, 0, 309.84, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 309.84
+            },
+            {
+              "company": "Best Buy Yonge & Dundas",
+              "months": [0, 0, 185.59, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 185.59
+            }
+          ]
+        },
+        {
+          "category": "gasoline",
+          "months": [0, 0, 100.85, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          "total": 100.85,
+          "companies": [
+            {
+              "company": "Petro-Canada Liberty Village",
+              "months": [0, 0, 100.85, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 100.85
+            }
+          ]
+        },
+        {
+          "category": "house maintenance",
+          "months": [0, 0, 70.7, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          "total": 70.7,
+          "companies": [
+            {
+              "company": "Canadian Tire King West",
+              "months": [0, 0, 70.7, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              "total": 70.7
+            }
+          ]
+        }
+      ],
+      "monthly_totals": [0, 1505.06, 814.83, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "annual_total": 2319.89
+    }
+  ],
+  "total_expenses_monthly": [4586.57, 5722.74, 4923.98, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  "total_expenses_annual": 15233.29,
+  "net_monthly": [634.87, -501.3, 297.46, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  "net_annual": 431.03,
+  "savings_rate_monthly": [12.2, -9.6, 5.7, null, null, null, null, null, null, null, null, null],
+  "savings_rate_annual": 2.8,
+  "projection": {
+    "annualized_income": 62657.28,
+    "annualized_expenses": 60933.16,
+    "annualized_net": 1724.12,
+    "months_elapsed": 3
+  },
+  "committed_floor": 7505.79
+}

@@ -1,0 +1,46 @@
+---
+title: More guides
+description: Contributor-facing guides that live in the repository and open on GitHub.
+---
+
+import { LinkCard, CardGrid } from '@astrojs/starlight/components';
+
+These contributor-facing guides live in the repository's `docs/guides/` directory and open on GitHub. They cover operational and tooling topics for people working on Tidings itself, so most self-hosters won't need them.
+
+<CardGrid>
+	<LinkCard
+		title="Environment management"
+		description="uv setup, Python environment, and dependency management."
+		href="https://github.com/tvhahn/tidings/blob/main/docs/guides/environment-management.md"
+	/>
+	<LinkCard
+		title="Dev surfaces"
+		description="The frontend port map: the five dev surfaces, port-override flags, and BrowserRouter basename rules."
+		href="https://github.com/tvhahn/tidings/blob/main/docs/guides/dev-surfaces.md"
+	/>
+	<LinkCard
+		title="DevContainer startup"
+		description="DevContainer lifecycle and environment priming."
+		href="https://github.com/tvhahn/tidings/blob/main/docs/guides/devcontainer-startup.md"
+	/>
+	<LinkCard
+		title="Slash commands"
+		description="Category management, test review, spending insights, and doc review slash commands."
+		href="https://github.com/tvhahn/tidings/blob/main/docs/guides/slash-commands.md"
+	/>
+	<LinkCard
+		title="Static-hosted demo"
+		description="Building, previewing, and regenerating fixtures for the static Cloudflare Pages demo."
+		href="https://github.com/tvhahn/tidings/blob/main/docs/guides/static-hosted-demo.md"
+	/>
+	<LinkCard
+		title="DynamoDB cost analysis"
+		description="The DynamoDB cost model and sizing assumptions."
+		href="https://github.com/tvhahn/tidings/blob/main/docs/guides/dynamodb-cost-analysis.md"
+	/>
+	<LinkCard
+		title="Releases"
+		description="Versioning policy, branching model, and the step-by-step release ritual."
+		href="https://github.com/tvhahn/tidings/blob/main/docs/guides/releases.md"
+	/>
+</CardGrid>

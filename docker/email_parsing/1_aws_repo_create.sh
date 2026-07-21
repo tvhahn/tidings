@@ -1,0 +1,1 @@
+aws ecr create-repository --repository-name email-parsing --region us-west-2 --image-scanning-configuration scanOnPush=true --image-tag-mutability MUTABLE

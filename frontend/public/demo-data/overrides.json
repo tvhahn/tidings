@@ -1,0 +1,270 @@
+{
+  "overrides": [
+    {
+      "company": "A Brasileira",
+      "category": "restaurant/dining"
+    },
+    {
+      "company": "Air Canada",
+      "category": "travel"
+    },
+    {
+      "company": "Airbnb",
+      "category": "travel"
+    },
+    {
+      "company": "Apple Store Eaton Centre",
+      "category": "technology"
+    },
+    {
+      "company": "Arvo Coffee",
+      "category": "restaurant/dining"
+    },
+    {
+      "company": "Balzac's King West",
+      "category": "restaurant/dining"
+    },
+    {
+      "company": "Banh Mi Boys Queen",
+      "category": "restaurant/dining"
+    },
+    {
+      "company": "Bar Sybanne",
+      "category": "restaurant/dining"
+    },
+    {
+      "company": "Bell Fibe Internet",
+      "category": "internet"
+    },
+    {
+      "company": "Best Buy Yonge & Dundas",
+      "category": "technology"
+    },
+    {
+      "company": "CIBC ATM Withdrawal",
+      "category": "miscellaneous"
+    },
+    {
+      "company": "CIBC Smart Account Fee",
+      "category": "service charges/fees"
+    },
+    {
+      "company": "Canadian Tire King West",
+      "category": "house maintenance"
+    },
+    {
+      "company": "Cibo Wine Bar King West",
+      "category": "restaurant/dining"
+    },
+    {
+      "company": "Cineplex Yonge-Dundas",
+      "category": "entertainment"
+    },
+    {
+      "company": "Enterprise Rent-A-Car",
+      "category": "travel"
+    },
+    {
+      "company": "Figma Professional",
+      "category": "subscriptions"
+    },
+    {
+      "company": "Fox and John's Liberty Village",
+      "category": "restaurant/dining"
+    },
+    {
+      "company": "FreshCo Liberty Village",
+      "category": "groceries"
+    },
+    {
+      "company": "Green P Parking",
+      "category": "general transportation"
+    },
+    {
+      "company": "Home Depot Stockyards",
+      "category": "house maintenance"
+    },
+    {
+      "company": "Hover Domain Renewal",
+      "category": "subscriptions"
+    },
+    {
+      "company": "IKEA North York",
+      "category": "furniture"
+    },
+    {
+      "company": "Indigo Eaton Centre",
+      "category": "hobbies"
+    },
+    {
+      "company": "Kensington Fruit Market",
+      "category": "groceries"
+    },
+    {
+      "company": "LCBO Bay & King",
+      "category": "liquor/beer/wine"
+    },
+    {
+      "company": "LCBO Liberty Village",
+      "category": "liquor/beer/wine"
+    },
+    {
+      "company": "LCBO Queens Quay",
+      "category": "liquor/beer/wine"
+    },
+    {
+      "company": "La Palma",
+      "category": "restaurant/dining"
+    },
+    {
+      "company": "Liberty Market Lofts",
+      "category": "rent"
+    },
+    {
+      "company": "Loblaws Queen West",
+      "category": "groceries"
+    },
+    {
+      "company": "Louie Coffee Shop",
+      "category": "restaurant/dining"
+    },
+    {
+      "company": "Maple Leaf Gardens Loblaws",
+      "category": "groceries"
+    },
+    {
+      "company": "Metro Liberty Village",
+      "category": "groceries"
+    },
+    {
+      "company": "Mill Street Brew Pub",
+      "category": "restaurant/dining"
+    },
+    {
+      "company": "NEO Coffee Bar",
+      "category": "restaurant/dining"
+    },
+    {
+      "company": "Netflix Standard",
+      "category": "subscriptions"
+    },
+    {
+      "company": "New York Times Digital",
+      "category": "subscriptions"
+    },
+    {
+      "company": "Northwind Labs Retainer",
+      "category": "income"
+    },
+    {
+      "company": "PRESTO Reload (TTC)",
+      "category": "general transportation"
+    },
+    {
+      "company": "Pastéis de Belém",
+      "category": "restaurant/dining"
+    },
+    {
+      "company": "Petro-Canada Liberty Village",
+      "category": "gasoline"
+    },
+    {
+      "company": "Pilot Coffee Roasters",
+      "category": "restaurant/dining"
+    },
+    {
+      "company": "Pizzeria Libretto Ossington",
+      "category": "restaurant/dining"
+    },
+    {
+      "company": "Pure Spirits Oyster House",
+      "category": "restaurant/dining"
+    },
+    {
+      "company": "Queen Mother Cafe",
+      "category": "restaurant/dining"
+    },
+    {
+      "company": "Rexall King & Bathurst",
+      "category": "hygiene/personal care"
+    },
+    {
+      "company": "Ridge Studio Retainer",
+      "category": "income"
+    },
+    {
+      "company": "Rogers Wireless",
+      "category": "communication/cell"
+    },
+    {
+      "company": "Sam James Coffee Bar",
+      "category": "restaurant/dining"
+    },
+    {
+      "company": "Shoppers Drug Mart Liberty North",
+      "category": "hygiene/personal care"
+    },
+    {
+      "company": "Shoppers Drug Mart Liberty North (household)",
+      "category": "household items"
+    },
+    {
+      "company": "Solis Movement King West",
+      "category": "sports and recreation"
+    },
+    {
+      "company": "Spotify Premium",
+      "category": "subscriptions"
+    },
+    {
+      "company": "Square One Tenant Insurance",
+      "category": "insurance"
+    },
+    {
+      "company": "Studio Lagree King",
+      "category": "sports and recreation"
+    },
+    {
+      "company": "Sud Forno Queen",
+      "category": "restaurant/dining"
+    },
+    {
+      "company": "TIFF Bell Lightbox",
+      "category": "entertainment"
+    },
+    {
+      "company": "Tangerine Savings",
+      "category": "savings"
+    },
+    {
+      "company": "Tim Hortons King & Strachan",
+      "category": "restaurant/dining"
+    },
+    {
+      "company": "Time Out Market Lisboa",
+      "category": "restaurant/dining"
+    },
+    {
+      "company": "Toronto Hydro",
+      "category": "utilities"
+    },
+    {
+      "company": "Type Books Queen West",
+      "category": "hobbies"
+    },
+    {
+      "company": "Uber Canada",
+      "category": "general transportation"
+    },
+    {
+      "company": "Winners Stockyards",
+      "category": "clothing"
+    },
+    {
+      "company": "iCloud Storage 200 GB",
+      "category": "subscriptions"
+    }
+  ],
+  "count": 66,
+  "version": 1
+}

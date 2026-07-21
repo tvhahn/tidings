@@ -1,0 +1,27 @@
+<figure class="docs-figure" aria-label="The AWS path: SES-inbound email lands as .eml objects in S3, a Lambda runs the same parser pipeline and writes to DynamoDB, publishing SNS notifications.">
+  <div class="df-flow">
+    <div class="df-node">
+      <span class="df-node__t">Email</span>
+      <span class="df-node__s">via SES inbound</span>
+    </div>
+    <svg class="df-arrow" viewBox="0 0 18 12" aria-hidden="true"><path d="M0 6 H14 M10.5 2 L15 6 L10.5 10" fill="none" stroke="currentColor" stroke-width="1.5" /></svg>
+    <div class="df-node">
+      <span class="df-node__t">S3</span>
+      <span class="df-node__s df-mono df-mono--fit">.eml objects</span>
+    </div>
+    <svg class="df-arrow" viewBox="0 0 18 12" aria-hidden="true"><path d="M0 6 H14 M10.5 2 L15 6 L10.5 10" fill="none" stroke="currentColor" stroke-width="1.5" /></svg>
+    <div class="df-node">
+      <span class="df-node__t">Lambda</span>
+      <span class="df-node__s">same parser pipeline, in Docker</span>
+    </div>
+    <svg class="df-arrow" viewBox="0 0 18 12" aria-hidden="true"><path d="M0 6 H14 M10.5 2 L15 6 L10.5 10" fill="none" stroke="currentColor" stroke-width="1.5" /></svg>
+    <div class="df-node df-node--accent">
+      <span class="df-node__t">DynamoDB</span>
+      <span class="df-node__s">Transactions table</span>
+    </div>
+  </div>
+  <div class="df-fanout">
+    <span>the Lambda also publishes each new transaction to</span>
+    <span class="df-pill">SNS (SMS)</span>
+  </div>
+</figure>

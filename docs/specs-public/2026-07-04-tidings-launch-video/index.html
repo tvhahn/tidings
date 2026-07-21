@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@hyperframes/core/dist/hyperframe.runtime.iife.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@hyperframes/shader-transitions/dist/index.global.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,600&family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        /* Tidings brand — warm paper, rust accent.
+           Hex values are the sRGB serialization of the oklch tokens in
+           DESIGN.md: HyperShader's capture parser cannot read oklch(), and
+           any unparsed color silently downgrades the s3→s4 shader transition
+           to a plain CSS crossfade. */
+        --bg: #fdfaf4; /* oklch(0.985 0.008 80) */
+        --ink: #2b221b; /* oklch(0.26 0.018 60) */
+        --muted: #72665e; /* oklch(0.52 0.02 60) */
+        --rust: #c1552c; /* oklch(0.58 0.15 40) */
+        --hairline: #e1d9cf80; /* oklch(0.89 0.015 70 / 0.5) */
+        --hairline-solid: #d6ccc0; /* oklch(0.85 0.02 70) */
+        --slot: #f2eee7; /* oklch(0.95 0.01 78) */
+        --card: #ffffff;
+        --font-serif: "Source Serif 4", serif;
+        --font-sans: "Inter", sans-serif;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .scene {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--bg);
+      }
+      .scene-content {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        box-sizing: border-box;
+        position: relative;
+        z-index: 1;
+      }
+      .clip {
+      }
+
+      .display {
+        font-family: var(--font-serif);
+        font-weight: 600;
+        letter-spacing: -0.015em;
+        line-height: 1.2;
+        color: var(--ink);
+        text-align: center;
+      }
+      .sans {
+        font-family: var(--font-sans);
+        font-weight: 400;
+        color: var(--muted);
+      }
+      .num {
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* --- Scene 3: delivery-flow cards --- */
+      .mail-card {
+        position: absolute;
+        width: 430px;
+        background: var(--card);
+        border: 1px solid var(--hairline);
+        border-radius: 10px;
+        padding: 18px 22px 20px;
+        left: 140px;
+      }
+      .mail-card .mail-head {
+        font-family: var(--font-sans);
+        font-size: 15px;
+        color: var(--muted);
+        margin-bottom: 10px;
+      }
+      .mail-card .mail-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 16px;
+        font-family: var(--font-sans);
+        font-size: 17px;
+      }
+      .mail-card .merchant {
+        font-weight: 500;
+        color: var(--ink);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .mail-card .amount {
+        font-weight: 600;
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .journal-card {
+        position: absolute;
+        left: 1180px;
+        top: 296px;
+        width: 520px;
+        background: var(--card);
+        border: 1px solid var(--hairline);
+        border-radius: 10px;
+        padding: 24px 26px;
+      }
+      .journal-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--hairline);
+      }
+      .journal-head .day {
+        font-family: var(--font-serif);
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        font-size: 26px;
+        color: var(--ink);
+      }
+      .journal-head .total {
+        font-family: var(--font-sans);
+        font-weight: 600;
+        font-size: 20px;
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+      }
+      .journal-row {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        padding-top: 16px;
+        font-family: var(--font-sans);
+        font-size: 16px;
+      }
+      .journal-row .merchant {
+        font-weight: 500;
+        color: var(--ink);
+        white-space: nowrap;
+      }
+      .journal-row .cat {
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .journal-row .amount {
+        margin-left: auto;
+        font-weight: 600;
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .envelope-slot {
+        position: absolute;
+        left: 798px;
+        top: 336px;
+        width: 144px;
+        height: 144px;
+        border-radius: 999px;
+        background: var(--slot);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .flow-claims {
+        position: absolute;
+        left: 0;
+        top: 750px;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        gap: 84px;
+      }
+      .flow-claims .claim {
+        font-family: var(--font-serif);
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        font-size: 38px;
+        color: var(--ink);
+      }
+
+      /* --- Scene 4: browser frame --- */
+      .browser-frame {
+        width: 1150px;
+        background: var(--card);
+        border: 1px solid var(--hairline);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .browser-bar {
+        height: 46px;
+        display: flex;
+        align-items: center;
+        padding: 0 20px;
+        border-bottom: 1px solid var(--hairline);
+        position: relative;
+      }
+      .browser-dots {
+        display: flex;
+        gap: 8px;
+      }
+      .browser-dots span {
+        width: 11px;
+        height: 11px;
+        border-radius: 999px;
+        background: var(--slot);
+        border: 1px solid var(--hairline);
+      }
+      .browser-address {
+        position: absolute;
+        left: 0;
+        right: 0;
+        text-align: center;
+        font-family: var(--font-sans);
+        font-size: 15px;
+        color: var(--muted);
+      }
+      .browser-frame img {
+        display: block;
+        width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="main"
+      data-composition-id="main"
+      data-width="1920"
+      data-height="1080"
+      data-start="0"
+      data-duration="32"
+    >
+      <!-- SCENE 1 (0–4s) — opening line, visible from t=0 -->
+      <div
+        class="scene clip"
+        id="s1"
+        data-start="0"
+        data-duration="4"
+        data-track-index="0"
+        data-screen-label="Scene 1 — opening line"
+      >
+        <div class="scene-content">
+          <h1 id="s1-line" class="display" style="font-size: 64px; max-width: 1300px;">
+            Your bank already emails you every transaction.
+          </h1>
+        </div>
+      </div>
+
+      <!-- SCENE 2 (4–8s) — thesis + wordmark -->
+      <div
+        class="scene clip"
+        id="s2"
+        data-start="4"
+        data-duration="4"
+        data-track-index="0"
+        data-screen-label="Scene 2 — thesis and wordmark"
+        style="visibility:hidden;"
+      >
+        <div class="scene-content" style="gap: 64px;">
+          <h1 id="s2-line" class="display" style="font-size: 58px; max-width: 1350px;">
+            Tidings turns those emails into a private spending journal.
+          </h1>
+          <div id="s2-mark" style="display: flex; flex-direction: column; align-items: center; gap: 14px;">
+            <img src="logo-wordmark.svg" alt="Tidings" style="width: 250px; display: block;" />
+            <div
+              id="s2-underline"
+              style="width: 250px; height: 2px; background: var(--rust); transform-origin: left center;"
+            ></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SCENE 3 (8–17s) — delivery flow diagram. SHADER ANCHOR (opacity:0) -->
+      <div
+        class="scene clip"
+        id="s3"
+        data-start="8"
+        data-duration="9"
+        data-track-index="0"
+        data-screen-label="Scene 3 — delivery flow"
+        style="opacity:0;"
+      >
+        <div class="scene-content">
+          <!-- offset inset: shifts the whole group +40px right / +44px down so the
+               diagram + claims read optically centered in the 1920×1080 frame -->
+          <div id="s3-stage" style="position: absolute; inset: 44px -40px -44px 40px;">
+            <!-- connector paths -->
+            <svg
+              viewBox="0 0 1920 1080"
+              style="position: absolute; inset: 0; width: 100%; height: 100%;"
+              fill="none"
+            >
+              <path
+                id="s3-path-a"
+                d="M 570 258 C 700 258, 720 408, 796 408"
+                stroke="var(--hairline-solid)"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-dasharray="360"
+                stroke-dashoffset="360"
+              />
+              <path
+                id="s3-path-b"
+                d="M 570 408 L 796 408"
+                stroke="var(--hairline-solid)"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-dasharray="240"
+                stroke-dashoffset="240"
+              />
+              <path
+                id="s3-path-c"
+                d="M 570 558 C 700 558, 720 408, 796 408"
+                stroke="var(--hairline-solid)"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-dasharray="360"
+                stroke-dashoffset="360"
+              />
+              <path
+                id="s3-path-d"
+                d="M 944 408 L 1178 408"
+                stroke="var(--hairline-solid)"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-dasharray="250"
+                stroke-dashoffset="250"
+              />
+            </svg>
+
+            <!-- email alert cards -->
+            <div class="mail-card" id="s3-mail-1" style="top: 200px;">
+              <div class="mail-head">Transaction alert · RBC</div>
+              <div class="mail-row">
+                <span class="merchant">Loblaws Queen West</span>
+                <span class="amount">$84.17</span>
+              </div>
+            </div>
+            <div class="mail-card" id="s3-mail-2" style="top: 350px;">
+              <div class="mail-head">Card purchase · CIBC</div>
+              <div class="mail-row">
+                <span class="merchant">Tim Hortons King &amp; Strachan</span>
+                <span class="amount">$7.63</span>
+              </div>
+            </div>
+            <div class="mail-card" id="s3-mail-3" style="top: 500px;">
+              <div class="mail-head">Deposit notice · Simplii</div>
+              <div class="mail-row">
+                <span class="merchant">Payroll deposit</span>
+                <span class="amount">$2,184.55</span>
+              </div>
+            </div>
+
+            <!-- envelope node -->
+            <div class="envelope-slot" id="s3-envelope">
+              <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="5" width="18" height="14" rx="2.5"></rect>
+                <path d="m3.5 7.5 8.5 6 8.5-6"></path>
+              </svg>
+            </div>
+
+            <!-- journal card -->
+            <div class="journal-card" id="s3-journal">
+              <div class="journal-head">
+                <span class="day">Tue, March 17</span>
+                <span class="total">$91.80</span>
+              </div>
+              <div class="journal-row" id="s3-jrow-1">
+                <span class="merchant">Loblaws Queen West</span>
+                <span class="cat">· Groceries</span>
+                <span class="amount">$84.17</span>
+              </div>
+              <div class="journal-row" id="s3-jrow-2">
+                <span class="merchant">Tim Hortons King &amp; Strachan</span>
+                <span class="cat">· Restaurant Dining</span>
+                <span class="amount">$7.63</span>
+              </div>
+            </div>
+
+            <!-- claims -->
+            <div class="flow-claims">
+              <span class="claim" id="s3-claim-1">No Plaid.</span>
+              <span class="claim" id="s3-claim-2">No credentials shared.</span>
+              <span class="claim" id="s3-claim-3">No manual entry.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SCENE 4 (17–23s) — product reveal. SHADER ANCHOR (opacity:0) -->
+      <div
+        class="scene clip"
+        id="s4"
+        data-start="17"
+        data-duration="6"
+        data-track-index="0"
+        data-screen-label="Scene 4 — product reveal"
+        style="opacity:0;"
+      >
+        <div class="scene-content" style="gap: 30px;">
+          <div id="s4-drift" style="display: flex; flex-direction: column; align-items: center; gap: 30px;">
+            <div class="browser-frame">
+              <div class="browser-bar">
+                <div class="browser-dots"><span></span><span></span><span></span></div>
+                <div class="browser-address">tidings.local · journal</div>
+              </div>
+              <img src="screenshot-journal.webp" alt="Tidings journal" />
+            </div>
+            <p id="s4-caption" class="sans num" style="font-size: 21px;">
+              Groceries is $14 over ceiling.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- SCENE 5 (23–26s) — open source -->
+      <div
+        class="scene clip"
+        id="s5"
+        data-start="23"
+        data-duration="3"
+        data-track-index="0"
+        data-screen-label="Scene 5 — open source"
+        style="visibility:hidden;"
+      >
+        <div class="scene-content" style="gap: 28px;">
+          <h1 id="s5-line-1" class="display" style="font-size: 72px;">Open source. Self-hosted.</h1>
+          <p id="s5-line-2" class="sans" style="font-size: 28px;">
+            Runs on your machine, from the emails you already receive.
+          </p>
+        </div>
+      </div>
+
+      <!-- SCENE 6 (26–32s) — closing tagline -->
+      <div
+        class="scene clip"
+        id="s6"
+        data-start="26"
+        data-duration="6"
+        data-track-index="0"
+        data-screen-label="Scene 6 — tagline"
+        style="visibility:hidden;"
+      >
+        <div class="scene-content" style="gap: 56px;">
+          <h1 class="display" style="font-size: 118px; display: flex; align-items: baseline; gap: 0.32em;">
+            <span id="s6-word-1">Your spending,</span>
+            <span id="s6-word-2" style="display: inline-flex; flex-direction: column; align-items: flex-start;">
+              <em style="font-style: italic;">delivered.</em>
+              <span
+                id="s6-underline"
+                style="width: 100%; height: 3px; margin-top: 12px; background: var(--rust); transform-origin: left center;"
+              ></span>
+            </span>
+          </h1>
+          <p id="s6-url" class="sans" style="font-size: 23px;">
+            gettidings.com · demo at gettidings.com/demo
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+
+      // --- Non-anchor scene visibility toggles (autoAlpha) ---
+      tl.set("#s1", { autoAlpha: 0 }, 4.0);
+      tl.set("#s2", { autoAlpha: 1 }, 4.0);
+      tl.set("#s2", { autoAlpha: 0 }, 8.0);
+      // s3, s4 are shader anchors — HyperShader pins the anchor elements' opacity
+      // on every tick (it keeps s4 visible forever after the 16.75s transition),
+      // so anchors are retired by hiding their scene-content instead: scenes
+      // composite with transparent backgrounds, and without this s5/s6 render on
+      // top of the s4 screenshot.
+      tl.set("#s3", { opacity: 1 }, 8.0); // first anchor must be explicitly shown
+      tl.set("#s4 .scene-content", { autoAlpha: 0 }, 23.0);
+      tl.set("#s5", { autoAlpha: 1 }, 23.0);
+      tl.set("#s5", { autoAlpha: 0 }, 26.0);
+      tl.set("#s6", { autoAlpha: 1 }, 26.0);
+
+      // === SCENE 1 (0–4s) — opening line ===
+      tl.from("#s1-line", { y: 8, autoAlpha: 0, duration: 1.1, ease: "sine.out" }, 0.4);
+      tl.to("#s1-line", { y: -4, duration: 2.2, ease: "sine.inOut" }, 1.6);
+
+      // === SCENE 2 (4–8s) — thesis + wordmark ===
+      tl.from("#s2-line", { y: 8, autoAlpha: 0, duration: 1.0, ease: "sine.out" }, 4.3);
+      tl.from("#s2-mark", { y: 6, autoAlpha: 0, duration: 0.9, ease: "sine.out" }, 5.1);
+      tl.fromTo(
+        "#s2-underline",
+        { scaleX: 0 },
+        { scaleX: 1, duration: 0.8, ease: "power2.inOut" },
+        5.8
+      );
+      tl.to("#s2-line", { y: -4, duration: 1.8, ease: "sine.inOut" }, 6.0);
+
+      // === SCENE 3 (8–17s) — delivery flow. SHADER ANCHOR, no exit tweens ===
+      // whole diagram drifts up very slowly for the entire scene
+      tl.to("#s3-stage", { y: -8, duration: 8.6, ease: "none" }, 8.3);
+
+      // email cards, one at a time
+      tl.from("#s3-mail-1", { y: 14, autoAlpha: 0, duration: 0.7, ease: "sine.out" }, 8.3);
+      tl.from("#s3-mail-2", { y: 14, autoAlpha: 0, duration: 0.7, ease: "sine.out" }, 8.8);
+      tl.from("#s3-mail-3", { y: 14, autoAlpha: 0, duration: 0.7, ease: "sine.out" }, 9.3);
+
+      // envelope node
+      tl.from("#s3-envelope", { autoAlpha: 0, duration: 0.7, ease: "sine.out" }, 9.7);
+
+      // connector paths draw left to right
+      tl.to("#s3-path-a", { strokeDashoffset: 0, duration: 1.0, ease: "power1.inOut" }, 9.9);
+      tl.to("#s3-path-b", { strokeDashoffset: 0, duration: 1.0, ease: "power1.inOut" }, 10.1);
+      tl.to("#s3-path-c", { strokeDashoffset: 0, duration: 1.0, ease: "power1.inOut" }, 10.3);
+
+      // single path continues to the journal card
+      tl.to("#s3-path-d", { strokeDashoffset: 0, duration: 0.9, ease: "power1.inOut" }, 11.2);
+
+      // journal card assembles
+      tl.from("#s3-journal", { y: 10, autoAlpha: 0, duration: 0.8, ease: "sine.out" }, 11.8);
+      tl.from("#s3-jrow-1", { y: 8, autoAlpha: 0, duration: 0.6, ease: "sine.out" }, 12.4);
+      tl.from("#s3-jrow-2", { y: 8, autoAlpha: 0, duration: 0.6, ease: "sine.out" }, 12.8);
+
+      // three quiet claims, one at a time — done by 15.7 so the finished
+      // composition holds a full second before the 16.75s shader wipe
+      tl.from("#s3-claim-1", { y: 8, autoAlpha: 0, duration: 0.7, ease: "sine.out" }, 13.4);
+      tl.from("#s3-claim-2", { y: 8, autoAlpha: 0, duration: 0.7, ease: "sine.out" }, 14.2);
+      tl.from("#s3-claim-3", { y: 8, autoAlpha: 0, duration: 0.7, ease: "sine.out" }, 15.0);
+
+      // === SCENE 4 (17–23s) — product reveal (shader reveals this) ===
+      // slow upward drift for the whole scene, no zoom
+      tl.fromTo("#s4-drift", { y: 16 }, { y: -16, duration: 6.0, ease: "none" }, 17.0);
+      // caption arrives after a beat
+      tl.from("#s4-caption", { y: 6, autoAlpha: 0, duration: 0.9, ease: "sine.out" }, 20.0);
+
+      // === SCENE 5 (23–26s) — open source ===
+      tl.from("#s5-line-1", { y: 8, autoAlpha: 0, duration: 0.8, ease: "sine.out" }, 23.3);
+      tl.from("#s5-line-2", { y: 8, autoAlpha: 0, duration: 0.8, ease: "sine.out" }, 24.0);
+      tl.to("#s5-line-1", { y: -4, duration: 1.6, ease: "sine.inOut" }, 24.2);
+
+      // === SCENE 6 (26–32s) — tagline. Final scene, exit OK ===
+      tl.from("#s6-word-1", { autoAlpha: 0, duration: 1.0, ease: "sine.out" }, 26.4);
+      tl.from("#s6-word-2", { x: -8, autoAlpha: 0, duration: 0.9, ease: "power2.out" }, 27.5);
+      tl.fromTo(
+        "#s6-underline",
+        { scaleX: 0 },
+        { scaleX: 1, duration: 0.9, ease: "power2.inOut" },
+        28.2
+      );
+      tl.from("#s6-url", { y: 6, autoAlpha: 0, duration: 0.9, ease: "sine.out" }, 29.2);
+      // hold two seconds, fade to cream
+      tl.to("#s6 .scene-content", { autoAlpha: 0, duration: 0.8, ease: "sine.inOut" }, 31.2);
+
+      // --- Shader: one gentle cross-warp at the product reveal (s3 → s4) ---
+      window.HyperShader.init({
+        bgColor:
+          getComputedStyle(document.documentElement).getPropertyValue("--bg").trim() ||
+          "#faf8f4",
+        scenes: ["s3", "s4"],
+        timeline: tl,
+        transitions: [{ time: 16.75, shader: "cross-warp-morph", duration: 0.5 }],
+      });
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

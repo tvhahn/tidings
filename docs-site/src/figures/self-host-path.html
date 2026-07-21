@@ -1,0 +1,23 @@
+<figure class="docs-figure" aria-label="The self-host path: a Gmail inbox is polled over IMAP, each email is detected, parsed and categorized, written to SQLite, and served by FastAPI to the React dashboard.">
+  <div class="df-flow">
+    <div class="df-node">
+      <span class="df-node__t">Gmail inbox</span>
+      <span class="df-node__s">forwarded bank emails</span>
+    </div>
+    <svg class="df-arrow" viewBox="0 0 18 12" aria-hidden="true"><path d="M0 6 H14 M10.5 2 L15 6 L10.5 10" fill="none" stroke="currentColor" stroke-width="1.5" /></svg>
+    <div class="df-node">
+      <span class="df-node__t">IMAP poller</span>
+      <span class="df-node__s">detect · parse · categorize</span>
+    </div>
+    <svg class="df-arrow" viewBox="0 0 18 12" aria-hidden="true"><path d="M0 6 H14 M10.5 2 L15 6 L10.5 10" fill="none" stroke="currentColor" stroke-width="1.5" /></svg>
+    <div class="df-node df-node--accent">
+      <span class="df-node__t">SQLite</span>
+      <span class="df-node__s df-mono df-mono--fit">data/finance.db</span>
+    </div>
+    <svg class="df-arrow" viewBox="0 0 18 12" aria-hidden="true"><path d="M0 6 H14 M10.5 2 L15 6 L10.5 10" fill="none" stroke="currentColor" stroke-width="1.5" /></svg>
+    <div class="df-node">
+      <span class="df-node__t">FastAPI + React</span>
+      <span class="df-node__s">the dashboard</span>
+    </div>
+  </div>
+</figure>

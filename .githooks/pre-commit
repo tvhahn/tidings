@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+#
+# pre-commit — commit-time PII guard for the Tidings public-release tree.
+#
+# This is the single implementation of the staged-diff PII scan. Both entry
+# points share it: git invokes this hook directly at commit time (via
+# core.hooksPath .githooks/), and the Claude Code PreToolUse guard
+# (.claude/hooks/pii-guard.sh) delegates to it so there is exactly one scan.
+#
+# It scans ONLY the ADDED lines of the staged diff against the untracked
+# .pii-patterns file beside the main checkout's .git dir. Rationale for
+# added-lines-only: a scrub commit's `-` (removed) lines contain the very
+# values being deleted; scanning the whole diff would block the commit that
+# fixes a leak. A value appearing only on removed lines is leaving the tree —
+# allow it. HEAD-tree safety is separately enforced by pre-push and CI archive
+# audits.
+#
+# On a match it blocks (exit 1) with a count-only message; the matched text is
+# never printed, since hook output lands in transcripts.
+#
+# When .pii-patterns is absent (public clones, contributors without the
+# maintainer's pattern file), this no-ops instantly (exit 0), so public users
+# are unaffected.
+#
+# This hook is advisory and bypassable with `git commit --no-verify`.
+
+set -euo pipefail
+
+# .pii-patterns is local-only (.git/info/exclude), so it exists beside the
+# main checkout's .git dir and never in a linked worktree. Anchor on the
+# shared git common dir, not --show-toplevel, or worktree sessions silently
+# disarm the guard.
+git_common="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || exit 0
+patterns="$(dirname "$git_common")/.pii-patterns"
+[ -f "$patterns" ] || exit 0
+
+# Public-attribution lines are dropped before matching — github.com/<owner>
+# (including the regex-escaped `github\.com` form in the pre-push allowlist),
+# ghcr.io, and copyright headers. Copied verbatim from pii-guard.sh's
+# allow_context, which mirrors PROJECT_TOKEN_ALLOW_CONTEXT in
+# scripts/pii/audit_oss_release.py.
+allow_context='github\\?\.com|ghcr\.io|Copyright|SPDX-FileCopyrightText'
+
+# Scan ONLY added lines of the staged diff: lines starting with `+` but not the
+# `+++` file header (whose payload is a filename, not content). Strip comment/
+# blank lines from the patterns file before handing it to grep -f — a comment
+# containing regex metacharacters would otherwise error grep out, and grep's
+# failure would read as "no match" (silently disarming the guard).
+#
+# Guard the pipeline against set -e: grep exits 1 on no-match, which is the
+# common (clean) case and must not abort the hook.
+added_lines="$(git diff --cached -U0 | grep -E '^\+' | grep -vE '^\+\+\+ ')" || true
+
+if printf '%s\n' "$added_lines" \
+  | grep -viE "$allow_context" \
+  | grep -qiEf <(grep -vE '^[[:space:]]*(#|$)' "$patterns"); then
+  count="$(git diff --cached --name-only | wc -l | tr -d '[:space:]')"
+  echo "pre-commit: staged added lines match a .pii-patterns token across ${count} staged file(s) — commit blocked. Removed lines are exempt, so a scrub commit that only deletes the value passes. Review the staged changes before retrying (bypass: unstage the offending content)." >&2
+  exit 1
+fi
+
+exit 0

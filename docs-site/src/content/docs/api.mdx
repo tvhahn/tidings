@@ -1,0 +1,24 @@
+---
+title: API reference
+description: Versioned /api/v1/ routes with a unified error shape. Generated from the live OpenAPI spec.
+template: splash
+tableOfContents: false
+---
+
+import ApiEndpointIndex from '../../components/ApiEndpointIndex.astro';
+import ScalarReference from '../../components/ScalarReference.astro';
+
+Every route mounts under `/api/v1/` on your own instance — `http://localhost:8000/api/v1/` by default — and returns errors in one unified shape. The schema below is generated from the live OpenAPI spec and drift-checked in CI; the running app serves its own copy at `/openapi.json`, plus Swagger UI at `/docs`.
+
+Authentication is an RFC-6750 bearer token. The dashboard itself doesn't need one; anything else — an agent, a script, another device — does:
+
+```bash
+curl -H "Authorization: Bearer $FINANCE_API_TOKEN" \
+  "http://localhost:8000/api/v1/summary?month=2026-03" | jq .
+```
+
+Issuing, scoping, and revoking tokens is covered in [Agent access](/agent-access/). To try the API before installing anything, the demo journal is served read-only at `https://gettidings.com/demo/api/v1` (no auth), with its schema at `https://gettidings.com/demo/api/openapi.json`.
+
+<ApiEndpointIndex />
+
+<ScalarReference />

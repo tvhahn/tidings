@@ -1,0 +1,1354 @@
+/* Tidings marketing site — editorial, quiet-luxury */
+
+.marketing,
+.marketing *,
+.marketing *::before,
+.marketing *::after {
+  box-sizing: border-box;
+}
+.marketing {
+  background: var(--surface);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.55;
+  font-variant-numeric: tabular-nums;
+}
+.marketing a {
+  color: inherit;
+  text-decoration: none;
+}
+.marketing button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.marketing .wrap {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 32px;
+}
+
+/* Icon slot — shared with the app's transaction rows */
+.marketing .slot {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  color: var(--fg-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.marketing .slot svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* ---------- Nav ---------- */
+.marketing .nav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: color-mix(in oklch, var(--surface) 95%, transparent);
+  backdrop-filter: saturate(1.05) blur(6px);
+  border-bottom: 1px solid color-mix(in oklch, var(--border) 90%, transparent);
+}
+.marketing .nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+}
+.marketing .nav-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.marketing .nav-brand img {
+  width: 26px;
+  height: 26px;
+}
+.marketing .nav-links {
+  display: flex;
+  gap: 26px;
+  font-size: 13.5px;
+  color: var(--fg-muted);
+}
+.marketing .nav-links a:hover {
+  color: var(--fg);
+}
+.marketing .nav-cta {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.marketing .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: 14px;
+  font-weight: 500;
+}
+.marketing .btn-ghost {
+  color: var(--fg-2);
+  background: transparent;
+}
+.marketing .btn-ghost:hover {
+  background: var(--surface-muted);
+}
+.marketing .btn-primary {
+  background: var(--fg);
+  color: var(--surface);
+  border-color: var(--fg);
+}
+.marketing .btn-primary:hover {
+  background: var(--paper-800);
+}
+.marketing .btn-outline {
+  border-color: var(--border-strong);
+  color: var(--fg-2);
+}
+.marketing .btn-outline:hover {
+  background: var(--surface-muted);
+  color: var(--fg);
+}
+
+/* ---------- Hero ---------- */
+.marketing .hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  /* Give the hero most of the viewport so the next section's kicker peeks above
+     the fold as a scroll cue. svh where supported, vh fallback; 64px = nav. */
+  min-height: calc(82vh - 64px);
+  min-height: calc(82svh - 64px);
+  /* Generous bottom padding keeps every text line on the wall — only the
+     table "shelf" lives below the copy block. */
+  padding: 88px 0 clamp(130px, 16vh, 190px);
+  /* The copy scrim's negative inset can poke past the viewport at narrow
+     widths; clip (not hidden — no new scroll container) keeps 390px clean. */
+  overflow-x: clip;
+}
+/* Photographic "room" backdrop — warm wall, oak table edge, small olive plant
+   at right. Anchored bottom so the table edge sits along the hero's base; cover
+   crops the sides. Sits behind content, never intercepts clicks, and its
+   z-index (0) stays well below the sticky nav (z-index 20). */
+.marketing .hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  /* 74% (not bottom) slides the visible window up the plate so the table
+     reads as a slim shelf instead of a deep surface — the bottom fade
+     dissolves the cut. Mobile overrides back to center bottom. */
+  background: url("./assets/hero-room.webp") center 84% / cover no-repeat;
+  pointer-events: none;
+}
+/* Feathered fades so the photo dissolves into the page background at both
+   edges — the top so the nav sits on the plain surface, the bottom so the
+   table never ends in a hard cut when the hero bottom is exposed above the
+   fold (tall viewports). Anchored on var(--surface) (never a literal
+   cream/white) so both fades work in dark mode too. */
+.marketing .hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(
+    to bottom,
+    var(--surface) 0%,
+    var(--surface) 12%,
+    color-mix(in oklch, var(--surface) 62%, transparent) 26%,
+    color-mix(in oklch, var(--surface) 24%, transparent) 38%,
+    transparent 48%,
+    transparent 89%,
+    color-mix(in oklch, var(--surface) 55%, transparent) 96%,
+    var(--surface) 100%
+  );
+  pointer-events: none;
+}
+/* Dark mode gets a true night plate (images/edits restyle of the day photo,
+   same composition): moonlight from the left, the olive as a silhouette, one
+   firefly over the table. The browser only fetches the plate the active
+   theme applies. */
+.dark .marketing .hero::before {
+  background-image: url("./assets/hero-room-dark.webp");
+}
+/* The first section after the hero sits closer so its kicker and title top
+   peek above the fold — the scroll cue that the page continues. */
+.marketing .hero + section {
+  padding-top: 40px;
+}
+/* Lift hero content above the photo/fade layers. */
+.marketing .hero .wrap {
+  position: relative;
+  z-index: 1;
+}
+/* Whisper of a feathered surface lift behind the copy block — at ~1440px the
+   olive's outermost leaf tips reach the copy's left margin; this melts them
+   back without reading as a shape. Sits above the photo (the .wrap stacking
+   context) but below the text. */
+.marketing .hero-copy {
+  position: relative;
+}
+.marketing .hero-copy::before {
+  content: "";
+  position: absolute;
+  inset: -10% -14% -16%;
+  z-index: -1;
+  background: radial-gradient(
+    56% 60% at 44% 50%,
+    color-mix(in oklch, var(--surface) 55%, transparent),
+    transparent 72%
+  );
+  pointer-events: none;
+}
+.marketing .hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 11fr) minmax(0, 9fr);
+  gap: 56px;
+  align-items: center;
+}
+.marketing .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--brand);
+  font-weight: 500;
+}
+.marketing .eyebrow .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--brand);
+}
+.marketing .hero-visual {
+  min-width: 0;
+}
+/* Pull the journal screenshot past the content column toward the viewport
+   edge, stopping 56px short — exactly flush read as a layout accident. Below
+   ~1272px the max() floors at 0 and the shot stays inside the column.
+   (.shot.hero-shot so this wins over .shot's margin reset below.) */
+.marketing .shot.hero-shot {
+  margin-right: calc(-1 * max(0px, (100vw - 1160px) / 2 - 56px));
+}
+.marketing .hero-ctas-note {
+  font-size: 12.5px;
+  color: var(--fg-secondary);
+  margin-left: 8px;
+}
+.marketing .h1 {
+  font-family: var(--font-serif);
+  font-size: clamp(44px, 6vw, 76px);
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+  font-weight: 500;
+  margin: 22px 0 22px;
+  max-width: 18ch;
+}
+.marketing .h1 em {
+  font-style: italic;
+  color: var(--brand);
+  font-weight: 500;
+}
+.marketing .lead {
+  font-size: 19px;
+  line-height: 1.55;
+  /* --fg-secondary to match the hero's other secondary text over the photo
+     (hero-meta, hero-ctas-note) — muted grey washes out on the room plate. */
+  color: var(--fg-secondary);
+  max-width: 52ch;
+  margin-bottom: 28px;
+}
+.marketing .hero-ctas {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.marketing .hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  row-gap: 10px;
+  margin-top: 28px;
+  font-size: 12.5px;
+  /* --fg-secondary, not --fg-muted: these lines sit low in the hero where the
+     photo's table edge darkens the ground, and muted grey loses too much. */
+  color: var(--fg-secondary);
+}
+.marketing .hero-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.marketing .hero-meta svg {
+  width: 14px;
+  height: 14px;
+  color: var(--fg-2);
+}
+/* ---------- Browser-framed screenshot (shared marketing art) ---------- */
+.marketing .shot {
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-card);
+  overflow: hidden;
+  box-shadow:
+    0 1px 2px oklch(0.6 0.02 60 / 0.05),
+    0 20px 60px -20px oklch(0.5 0.04 65 / 0.28);
+}
+/* Deepen the hero screenshot's shadow slightly so the browser frame reads as
+   floating in the room. Scoped to the hero shot only — the shared .shot rule is
+   untouched. Kept soft and calm; no heavy drop shadow. */
+.marketing .shot.hero-shot {
+  box-shadow:
+    0 2px 6px oklch(0.55 0.03 60 / 0.08),
+    0 34px 80px -28px oklch(0.45 0.05 65 / 0.4);
+}
+.marketing .shot-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-muted);
+}
+.marketing .shot-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--paper-400);
+}
+.marketing .shot-label {
+  margin-left: 10px;
+  font-size: 11.5px;
+  color: var(--fg-muted);
+  font-family: var(--font-mono);
+}
+.marketing .shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ---------- Section ---------- */
+.marketing section {
+  padding: 88px 0;
+}
+.marketing .section-eyebrow {
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--brand);
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+.marketing .section-title {
+  font-family: var(--font-serif);
+  font-size: clamp(32px, 3.6vw, 44px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-weight: 500;
+  margin: 0 0 14px;
+  max-width: 22ch;
+}
+.marketing .section-sub {
+  font-size: 17px;
+  line-height: 1.55;
+  color: var(--fg-muted);
+  max-width: 56ch;
+  margin: 0 0 40px;
+}
+
+/* ---------- How it works ---------- */
+/* Email → envelope → journal flow diagram */
+.marketing .flow {
+  display: grid;
+  grid-template-columns: minmax(0, 30fr) minmax(28px, 8fr) auto minmax(28px, 8fr) minmax(0, 34fr);
+  align-items: center;
+  margin: 16px 0 64px;
+}
+/* Suppress the auto minimum so nowrap mock text ellipsizes instead of
+   widening the track (the 390px overflow class this redesign kills). */
+.marketing .flow > * {
+  min-width: 0;
+}
+.marketing .flow-emails {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.marketing .flow-email {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-card);
+  padding: 10px 14px;
+  box-shadow: 0 1px 2px oklch(0.6 0.02 60 / 0.04);
+}
+.marketing .flow-email-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 10.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  margin-bottom: 5px;
+}
+.marketing .flow-email-body {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.marketing .flow-email-merchant {
+  font-size: 13px;
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.marketing .flow-email-amt {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.marketing .flow-link {
+  width: 100%;
+  height: 100%;
+  align-self: stretch;
+  min-height: 64px;
+}
+.marketing .flow-link path {
+  fill: none;
+  stroke: color-mix(in oklch, var(--brand) 50%, transparent);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.marketing .flow-mail {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  padding: 0 6px;
+}
+.marketing .flow-mail-node {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  border: 1.5px solid var(--brand);
+  background: color-mix(in oklch, var(--brand) 7%, var(--surface-card));
+  color: var(--brand);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+/* Absolutely positioned so connector lines aim at the node's center. */
+.marketing .flow-mail-label {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  font-size: 11.5px;
+  color: var(--fg-muted);
+  text-align: center;
+  line-height: 1.5;
+}
+.marketing .flow-mail-label code {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-2);
+}
+.marketing .flow-journal {
+  border: 1px solid color-mix(in oklch, var(--brand) 35%, var(--border));
+  background: color-mix(in oklch, var(--brand) 3%, var(--surface-card));
+  border-radius: 12px;
+  padding: 12px 16px;
+  box-shadow: 0 1px 2px oklch(0.6 0.02 60 / 0.04);
+}
+.marketing .flow-journal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13.5px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+.marketing .flow-journal-total {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.marketing .flow-journal-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid color-mix(in oklch, var(--border) 55%, transparent);
+  font-size: 12.5px;
+}
+.marketing .flow-journal-merchant {
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.marketing .flow-journal-cat {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--pill-bg);
+  color: var(--pill-fg);
+  white-space: nowrap;
+}
+.marketing .flow-journal-amt {
+  margin-left: auto;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+/* Vertical connector for the stacked (mobile) diagram */
+.marketing .flow-down {
+  display: none;
+  width: 1.5px;
+  height: 28px;
+  margin: 10px auto;
+  background: color-mix(in oklch, var(--brand) 50%, transparent);
+}
+
+/* Numbered steps */
+.marketing .howit {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+}
+.marketing .howit-item {
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+}
+.marketing .howit-num {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  color: var(--brand);
+  letter-spacing: 0.02em;
+  margin-bottom: 10px;
+}
+.marketing .howit-title {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+.marketing .howit-body {
+  font-size: 14px;
+  color: var(--fg-muted);
+  line-height: 1.6;
+}
+.marketing .howit-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 32px 0 0;
+  font-size: 13px;
+  color: var(--fg-muted);
+}
+.marketing .howit-foot svg {
+  color: var(--fg-2);
+  flex-shrink: 0;
+}
+
+/* ---------- Features (editorial alt rows) ---------- */
+.marketing .features {
+  padding-top: 40px;
+}
+.marketing .feat {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 72px;
+  align-items: center;
+  padding: 32px 0;
+}
+.marketing .feat.flip {
+  direction: rtl;
+}
+.marketing .feat.flip > * {
+  direction: ltr;
+}
+.marketing .feat-title {
+  font-family: var(--font-serif);
+  font-size: 34px;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  font-weight: 500;
+  margin: 0 0 14px;
+  max-width: 18ch;
+}
+.marketing .feat-body {
+  font-size: 15.5px;
+  color: var(--fg-muted);
+  line-height: 1.65;
+  margin-bottom: 14px;
+  max-width: 48ch;
+}
+.marketing .feat-list {
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.marketing .feat-list li {
+  display: flex;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--fg-2);
+  align-items: flex-start;
+}
+.marketing .feat-list svg {
+  width: 16px;
+  height: 16px;
+  color: var(--brand);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.marketing .feat-link {
+  display: inline-block;
+  margin-top: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--brand);
+}
+.marketing .feat-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---------- Architecture of trust (light, on warm paper) ---------- */
+.marketing .arch {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 72px;
+  align-items: start;
+}
+.marketing .arch-points {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-bottom: 30px;
+}
+.marketing .arch-point {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.marketing .arch-point-icon {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--brand) 8%, var(--surface-card));
+  color: var(--brand);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.marketing .arch-point-t {
+  font-size: 14.5px;
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+.marketing .arch-point-b {
+  font-size: 13.5px;
+  color: var(--fg-muted);
+  line-height: 1.55;
+  max-width: 46ch;
+}
+.marketing .arch-card {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-card);
+  padding: 28px 30px;
+  box-shadow:
+    0 1px 2px oklch(0.6 0.02 60 / 0.04),
+    0 12px 32px -14px oklch(0.52 0.04 65 / 0.18);
+}
+.marketing .arch-card-title {
+  font-family: var(--font-serif);
+  font-size: 23px;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+  margin: 0 0 22px;
+}
+.marketing .arch-path {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.marketing .arch-node {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.marketing .arch-node-num,
+.marketing .arch-node-icon {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.marketing .arch-node-num {
+  border: 1px dashed color-mix(in oklch, var(--brand) 55%, transparent);
+  color: var(--brand);
+  font-family: var(--font-serif);
+  font-size: 14px;
+}
+.marketing .arch-node-icon {
+  background: var(--surface-muted);
+  color: var(--fg-2);
+}
+.marketing .arch-node-t {
+  font-size: 14px;
+  font-weight: 500;
+  margin-top: 1px;
+}
+.marketing .arch-node-b {
+  font-size: 12.5px;
+  color: var(--fg-muted);
+  margin-top: 1px;
+}
+.marketing .arch-node-mono {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--fg-2);
+}
+.marketing .arch-dash {
+  border-left: 1.5px dashed color-mix(in oklch, var(--brand) 45%, transparent);
+  height: 20px;
+  margin: 4px 0 4px 14px;
+}
+.marketing .arch-caption {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 22px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+  font-size: 12.5px;
+  color: var(--fg-muted);
+}
+.marketing .arch-caption svg {
+  color: var(--fg-2);
+  flex-shrink: 0;
+}
+
+/* ---------- Get started (open source) ---------- */
+.marketing .gs {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: 72px;
+  align-items: start;
+  margin-bottom: 32px;
+}
+/* The pre's long quickstart line must scroll inside the card, not widen
+   the grid track (same auto-minimum suppression as .flow). */
+.marketing .gs > * {
+  min-width: 0;
+}
+/* Mirror variant: card left / copy right. The rtl grid reverses the track
+   order so the wider 6fr column (and the card, DOM-second) lands on the left;
+   children are flipped back to ltr. Same mechanism as .feat.flip. */
+.marketing .gs.flip {
+  direction: rtl;
+}
+.marketing .gs.flip > * {
+  direction: ltr;
+}
+.marketing .gs-ctas {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.marketing .gs-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  row-gap: 8px;
+  margin-top: 22px;
+  font-size: 12.5px;
+  color: var(--fg-muted);
+}
+.marketing .gs-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.marketing .gs-meta svg {
+  width: 14px;
+  height: 14px;
+  color: var(--brand);
+}
+.marketing .gs-card {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-card);
+  padding: 24px 26px;
+  box-shadow:
+    0 1px 2px oklch(0.6 0.02 60 / 0.04),
+    0 12px 32px -14px oklch(0.52 0.04 65 / 0.18);
+}
+.marketing .gs-card-title {
+  font-family: var(--font-serif);
+  font-size: 19px;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+  margin: 0 0 14px;
+}
+/* The terminal block is the one legitimately dark surface on the page —
+   a code artifact, not a UI surface, so its colors are fixed. */
+.marketing .gs-term {
+  margin: 0;
+  border-radius: 10px;
+  padding: 16px 18px;
+  background: oklch(0.23 0.015 60);
+  color: oklch(0.93 0.012 80);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.75;
+  overflow-x: auto;
+}
+/* Three tones only inside the dark terminal (no syntax rainbow): commands
+   brightest, JSON output dimmer, the $ prompt and the annotation dimmest. */
+.marketing .gs-term-cmd {
+  color: oklch(0.96 0.012 80);
+}
+.marketing .gs-term-out {
+  color: oklch(0.8 0.012 80);
+}
+.marketing .gs-term-prompt {
+  color: oklch(0.62 0.012 80);
+}
+.marketing .gs-term-ellipsis {
+  color: oklch(0.62 0.012 80);
+  font-style: italic;
+}
+/* The agents-card session has a curl line wider than the card; wrap it inside
+   the box instead of scrolling. Scoped to #agents so the open-source card's
+   quickstart terminal keeps its no-wrap behavior. */
+.marketing #agents .gs-term {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-x: visible;
+}
+.marketing .gs-term-note {
+  font-size: 12.5px;
+  color: var(--fg-muted);
+  margin: 12px 0 18px;
+}
+.marketing .gs-term-note code {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--fg-2);
+}
+.marketing .gs-card .feat-link {
+  margin-top: 4px;
+}
+/* With no live star/fork counts (v1), the card footer hugs its content. A
+   future build-time GitHub fetch can slot counts in as more .gs-foot-fact spans. */
+.marketing .gs-foot {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.marketing .gs-foot-repo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--fg-2);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.marketing .gs-foot-repo svg {
+  flex-shrink: 0;
+  color: var(--fg-muted);
+}
+.marketing .gs-foot-fact {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+
+/* ---------- Coda (the closing scene) ---------- */
+/* The coda IS the photograph — the page closes on the same text-over-room
+   construction the hero opens with. Three layers: ::before is a blurred copy of
+   the plate stretched to cover (an ambient tone-matched underlay for the left
+   half), .coda-plate is the sharp photograph sized by HEIGHT so the entire tree
+   fits — air above the crown, pot on the floor — and ::after composites the
+   copy scrim plus a short top fade toward the FAQ. The bottom edge is a clean
+   crop: the photograph runs to the section's last pixel and lands on the
+   footer's restored hairline (a fade through the pot reads as an error; a crop
+   through the scene reads as photography). */
+.marketing .coda {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  /* A touch over half the viewport, capped — taller than a band so the scene can
+     breathe, but still clearly shorter than the hero so it reads as a close. */
+  min-height: clamp(480px, 62vh, 660px);
+  padding: 0;
+}
+/* Ambient underlay: the plate itself, blurred and slightly overscaled (the
+   scale hides the blur's edge bleed). Wherever the sharp plate's left mask
+   fades out, this shows through — tones match by construction, both themes. */
+.marketing .coda::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: url("./assets/coda-room.webp") right 40% / cover no-repeat;
+  filter: blur(16px) saturate(1.02);
+  transform: scale(1.08);
+  pointer-events: none;
+}
+/* The sharp plate. The element itself carries the photograph's 3:2 aspect and
+   right-anchors at 107% of the section's height (the top/bottom offsets
+   reproduce the old `right 30%` vertical crop), so the whole frame is in
+   view — air above the crown, pot on the floor. Because the box IS the image,
+   the mask's stops live in image space: the fade always covers the photo's
+   left edge and never drifts onto the tree, at any viewport (section-relative
+   stops were the old hard-seam bug — on wide screens the image edge landed
+   right of the fully-opaque stop). The max() terms take over when the plate is
+   wider than the viewport: they pin the fade to the screen's leftmost
+   4vw–26vw instead, which is what the ≤880px override used to hand-tune. */
+.marketing .coda-plate {
+  position: absolute;
+  top: -2.1%;
+  bottom: -4.9%;
+  right: 0;
+  aspect-ratio: 3 / 2;
+  z-index: 0;
+  background: url("./assets/coda-room.webp") center / cover no-repeat;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent max(0%, calc(100% - 96vw)),
+    #000 max(30%, calc(100% - 74vw))
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent max(0%, calc(100% - 96vw)),
+    #000 max(30%, calc(100% - 74vw))
+  );
+  pointer-events: none;
+}
+/* Dark mode swaps both layers to the night plate (same composition, re-lit —
+   fireflies over the tree). Only the active theme's plate is fetched. */
+.dark .marketing .coda::before,
+.dark .marketing .coda-plate {
+  background-image: url("./assets/coda-room-dark.webp");
+}
+/* Composited overlay: a horizontal left scrim carries the copy (legibility
+   never rides on the photo) over a short top fade that dissolves the scene's
+   upper edge into the page surface below the FAQ. No bottom stops — the
+   photograph is deliberately cropped by the footer hairline instead. */
+.marketing .coda::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    linear-gradient(
+      to right,
+      var(--surface) 0%,
+      color-mix(in oklch, var(--surface) 88%, transparent) 18%,
+      color-mix(in oklch, var(--surface) 60%, transparent) 34%,
+      color-mix(in oklch, var(--surface) 30%, transparent) 48%,
+      color-mix(in oklch, var(--surface) 10%, transparent) 60%,
+      transparent 72%
+    ),
+    linear-gradient(
+      to bottom,
+      var(--surface) 0%,
+      color-mix(in oklch, var(--surface) 55%, transparent) 12%,
+      transparent 30%
+    );
+  pointer-events: none;
+}
+/* Lift the copy above the photo/overlay layers; the wrap centers vertically as
+   the section's flex child while its inner copy stays hard left on the wall. */
+.marketing .coda .wrap {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+}
+.marketing .coda-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  max-width: 34ch;
+  margin: 0;
+}
+.marketing .coda-title {
+  font-family: var(--font-serif);
+  font-size: clamp(28px, 3.4vw, 40px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-weight: 500;
+  margin: 0 0 16px;
+  max-width: none;
+  text-wrap: balance;
+}
+.marketing .coda-sub {
+  font-size: 17px;
+  line-height: 1.55;
+  color: var(--fg-muted);
+  max-width: 34ch;
+  margin: 0 0 30px;
+}
+/* The photograph crops onto the footer's own hairline — the same boundary
+   grammar as the sticky nav's border, so the page opens and closes with
+   matching hardware. Only the gap goes; the border stays. */
+.marketing .coda + footer {
+  margin-top: 0;
+}
+/* ---------- FAQ ---------- */
+.marketing .faq {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 64px;
+  align-items: flex-start;
+}
+.marketing .faq-items {
+  display: flex;
+  flex-direction: column;
+}
+.marketing .faq-item {
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--border);
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  padding: 18px 0;
+  cursor: pointer;
+}
+.marketing .faq-item:last-child {
+  border-bottom: 1px solid var(--border);
+}
+.marketing .faq-q {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 15.5px;
+  font-weight: 500;
+  color: var(--fg);
+}
+.marketing .faq-q svg {
+  width: 18px;
+  height: 18px;
+  color: var(--fg-muted);
+  transition: transform 160ms;
+}
+.marketing .faq-item.is-open .faq-q svg {
+  transform: rotate(45deg);
+}
+.marketing .faq-a {
+  font-size: 14px;
+  color: var(--fg-muted);
+  line-height: 1.6;
+  margin-top: 10px;
+}
+.marketing .faq-item:not(.is-open) .faq-a {
+  display: none;
+}
+
+/* ---------- Footer ---------- */
+.marketing footer {
+  border-top: 1px solid var(--border);
+  padding: 56px 0 44px;
+  margin-top: 48px;
+  background: var(--surface-card);
+}
+.marketing .foot-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1.6fr;
+  gap: 40px;
+  margin-bottom: 36px;
+}
+.marketing .foot-col h4 {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  margin: 0 0 14px;
+}
+.marketing .foot-col ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--fg-2);
+}
+.marketing .foot-col a:hover {
+  color: var(--fg);
+}
+.marketing .foot-brand {
+  font-size: 20px;
+}
+.marketing .foot-brand img {
+  width: 24px;
+  height: 24px;
+}
+.marketing .foot-about {
+  font-size: 13.5px;
+  color: var(--fg-muted);
+  line-height: 1.6;
+  max-width: 30ch;
+  margin-top: 12px;
+}
+.marketing .foot-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--fg-muted);
+}
+.marketing .foot-signoff {
+  text-align: right;
+}
+.marketing .foot-signoff-t {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.marketing .foot-signoff-t em {
+  font-style: italic;
+  color: var(--brand);
+  font-weight: 600;
+}
+.marketing .foot-signoff-b {
+  font-size: 12px;
+  color: var(--fg-muted);
+  line-height: 1.5;
+  margin-top: 6px;
+}
+
+/* ---------- Footer theme picker ---------- */
+.marketing .foot-theme {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px;
+  background: var(--surface-card);
+}
+.marketing .foot-theme button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  padding: 5px 10px;
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  color: var(--fg-muted);
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.marketing .foot-theme button:hover {
+  color: var(--fg);
+}
+.marketing .foot-theme button.is-active {
+  background: var(--surface-muted);
+  color: var(--fg);
+}
+.marketing .foot-theme svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* ---------- Responsive (light) ---------- */
+@media (max-width: 880px) {
+  .marketing .howit,
+  .marketing .gs {
+    grid-template-columns: 1fr;
+  }
+  .marketing .gs {
+    gap: 40px;
+  }
+  /* Stack copy-first (DOM order) when the mirror grid collapses. */
+  .marketing .gs.flip {
+    direction: ltr;
+  }
+  .marketing .foot-signoff {
+    grid-column: 1 / -1;
+    text-align: left;
+  }
+  .marketing .howit {
+    gap: 24px;
+  }
+  /* Flow diagram stacks: emails → envelope → journal */
+  .marketing .flow {
+    grid-template-columns: 1fr;
+    margin-bottom: 48px;
+  }
+  .marketing .flow-link {
+    display: none;
+  }
+  .marketing .flow-down {
+    display: block;
+  }
+  .marketing .flow-mail {
+    justify-self: center;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+  .marketing .flow-mail-label {
+    position: static;
+    transform: none;
+  }
+  .marketing .feat {
+    grid-template-columns: 1fr;
+    gap: 36px;
+  }
+  .marketing .feat.flip {
+    direction: ltr;
+  }
+  .marketing .arch {
+    grid-template-columns: 1fr;
+    gap: 48px;
+  }
+  .marketing .faq {
+    grid-template-columns: 1fr;
+  }
+  .marketing .foot-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+  }
+  .marketing .hero {
+    padding: 48px 0 32px;
+  }
+  /* At narrow widths cover crops the sides; keep center bottom so the stacked
+     copy sits on clean wall — right-anchoring pulls the plant's foliage behind
+     the hero-meta text. min-height (from the base rule) still grows with the
+     stacked content, so nothing clips. */
+  .marketing .hero::before {
+    background-position: center bottom;
+  }
+  .marketing .hero-grid {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+  .marketing .hero-shot {
+    margin-right: 0;
+  }
+  /* Narrow widths: drop the mono fact so the repo slug has the full card
+     footer width and never widens the page (the 390px invariant). */
+  .marketing .gs-foot-fact {
+    display: none;
+  }
+  /* The anchor links collapse; the brand mark and the primary conversion
+     action ("Try the demo") stay reachable at every width. */
+  .marketing .nav-links {
+    display: none;
+  }
+  .marketing .nav-gh {
+    display: none;
+  }
+  .marketing .foot-bottom {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  /* Coda scene: shorten the band and narrow the copy column. The height-sized
+     plate is wider than a narrow viewport, so the right-anchored crop shows the
+     tree plus a strip of wall — the widened left scrim plus the tighter copy
+     width keep every line on the calm wall strip, never over the canopy. */
+  .marketing .coda {
+    min-height: 380px;
+  }
+  .marketing .coda-title {
+    font-size: 22px;
+    line-height: 1.14;
+  }
+  .marketing .coda-sub {
+    font-size: 13.5px;
+    margin-bottom: 22px;
+  }
+  .marketing .coda-inner,
+  .marketing .coda-sub {
+    max-width: 22ch;
+  }
+  .marketing .coda::after {
+    background:
+      linear-gradient(
+        to right,
+        var(--surface) 0%,
+        color-mix(in oklch, var(--surface) 90%, transparent) 40%,
+        color-mix(in oklch, var(--surface) 56%, transparent) 60%,
+        color-mix(in oklch, var(--surface) 24%, transparent) 76%,
+        transparent 90%
+      ),
+      linear-gradient(
+        to bottom,
+        var(--surface) 0%,
+        var(--surface) 5%,
+        color-mix(in oklch, var(--surface) 48%, transparent) 16%,
+        color-mix(in oklch, var(--surface) 16%, transparent) 26%,
+        transparent 34%
+      );
+  }
+}
+
+@media (max-width: 540px) {
+  .marketing .hero-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  /* Below ~540px the plate zooms hardest into the tree; pull the copy column in
+     to ~170px so the longest sub line still clears the canopy. */
+  .marketing .coda-inner,
+  .marketing .coda-sub {
+    max-width: 170px;
+  }
+}

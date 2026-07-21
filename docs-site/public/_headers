@@ -1,0 +1,14 @@
+# Cloudflare Pages header rules. Copied verbatim into dist/ by Astro.
+#
+# Everything Astro emits under /_astro/ carries a content hash in its filename
+# (styles, scripts, and the self-hosted font files added in astro.config.mjs's
+# `fonts` block), so the bytes behind a given URL can never change — a rebuild
+# produces a new filename instead. That makes these safe to cache forever.
+#
+# Without this, Pages serves /_astro/ with `max-age=14400, must-revalidate`
+# (4 hours). That default is fine for hashed CSS/JS, but it would have made
+# self-hosting the fonts a downgrade for repeat visitors: fonts.gstatic.com
+# used to hand them a year-long immutable cache, and a revalidation round-trip
+# on a cold-ish cache is exactly what reintroduces the swap this setup removes.
+/_astro/*
+  Cache-Control: public, max-age=31536000, immutable

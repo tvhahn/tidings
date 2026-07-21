@@ -1,0 +1,61 @@
+---
+title: How Tidings works
+description: The path a bank email takes to become a categorized transaction, and the rules that decide what changes when.
+---
+
+Tidings turns the transaction alerts your bank already sends into a private finance journal. Nothing is scraped, and no bank credentials are stored. Everything downstream reads from one local store, so the concepts on this page recur on every other page in this section.
+
+import PipelineFigure from '../../../components/figures/PipelineFigure.astro';
+import TwoQueuesFigure from '../../../components/figures/TwoQueuesFigure.astro';
+
+## The pipeline
+
+<PipelineFigure summary="Figure: a bank alert email travels bank → forwarder inbox → parser → categorization → local store, and every page reads from that one store." />
+
+Each transaction follows the same path:
+
+1. Your bank emails a transaction alert.
+2. Your [forwarder](/using/settings/) sends that email to Tidings.
+3. A deterministic, per-bank parser reads the amount, merchant, and date from the email.
+4. Your [category rules](/using/categorization/) (overrides) are checked first — matching the merchant by exact name, alias, or fuzzy similarity. A confident match applies the category and skips everything else.
+5. If you have opted into AI [categorization](/using/categorization/) under Settings → Intelligence, the categorizer runs next; otherwise the transaction stays uncategorized.
+6. The result is stored locally — SQLite on the self-hosted setup, DynamoDB on the AWS variant.
+
+Every page you see is a different read of that single store.
+
+## Two queues that sound alike
+
+The most confusable pair in Tidings is the difference between an email that never became a transaction and a transaction that has no category.
+
+<TwoQueuesFigure summary="Figure: a bank email either fails to parse — landing in Needs review as a quarantined email with no transaction — or becomes a transaction, which sits in the attention queue on Transactions until its category is confirmed." />
+
+- [Needs review](/using/needs-review/) holds raw emails no parser could read. They are quarantined, not transactions — no transaction exists for them until you recover one. This is where you go when a bank is not yet supported.
+- The attention queue on [Transactions](/using/transactions/) holds transactions that already exist but still need a category.
+
+One is about emails that failed to parse; the other is about transactions that need a decision. Keeping them apart saves a lot of confusion.
+
+## What changes when you edit
+
+Different edits reach different distances. Some rewrite history, some only shape what happens next.
+
+| Action | What it changes | Retroactive? |
+| --- | --- | --- |
+| Rename a category | Transactions, overrides, and budget groups everywhere | Yes, always |
+| Add a category rule (override) | New transactions from then on | No |
+| Add an auto-ignore rule | New transactions, unless you choose to apply it to history | No, unless applied |
+| Add a [merchant alias](/using/categorization/) | The display name only — nothing stored changes | No stored change |
+
+The distinction to hold onto: renaming a category is the one edit that reaches backward through everything you have already recorded. Rules and aliases shape the future or the surface, not the record.
+
+## The second way in
+
+Email misses things — a card that sends no alerts, a month before you set up forwarding. [Statements](/using/statements/) are the second ingestion path: you upload a bank PDF and Tidings parses the transactions it missed.
+
+## Time
+
+Your instance timezone decides which day and month a transaction belongs to, which is why the boundary matters for month totals. You set it in [settings](/using/settings/).
+
+## Where to go next
+
+- [Architecture](/architecture/) for the technical deep dive on the pipeline and storage.
+- [Quickstart](/quickstart/) to set up your own instance.

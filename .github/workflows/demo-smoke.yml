@@ -1,0 +1,173 @@
+name: Demo smoke
+
+on:
+  pull_request:
+    paths:
+      - "frontend/**"
+      - "scripts/demo/demo_endpoints.ts"
+      - "scripts/demo/generate_demo_fixtures.ts"
+      - "scripts/demo/check_demo_fixtures.py"
+      - "scripts/demo/generate_demo_api_manifest.ts"
+      - "scripts/demo/generate_demo_openapi.py"
+      - "scripts/demo/check_demo_api.py"
+      - ".github/workflows/demo-smoke.yml"
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - "scripts/demo/demo_endpoints.ts"
+      - "scripts/demo/generate_demo_fixtures.ts"
+      - "scripts/demo/check_demo_fixtures.py"
+      - "scripts/demo/generate_demo_api_manifest.ts"
+      - "scripts/demo/generate_demo_openapi.py"
+      - "scripts/demo/check_demo_api.py"
+      - ".github/workflows/demo-smoke.yml"
+
+jobs:
+  demo-smoke:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Materialize PII patterns
+        working-directory: ${{ github.workspace }}
+        env:
+          PII_PATTERNS: ${{ secrets.PII_PATTERNS }}
+        run: if [ -n "$PII_PATTERNS" ]; then printf '%s\n' "$PII_PATTERNS" > .pii-patterns; fi
+
+      - name: PII gate self-test
+        working-directory: ${{ github.workspace }}
+        # Proves the gate is armed before the fixture scans trust the alphabet:
+        # lints it and runs a runtime-assembled canary through the auditor.
+        # Fork-safe — with no secret the file is absent and the script skips green.
+        run: bash scripts/pii/check_pii_gate_armed.sh
+
+      - name: Verify demo fixtures contain only synthetic persona data
+        working-directory: ${{ github.workspace }}
+        run: |
+          # PII gate for the persona-anchored fixtures (2026-05-17 regen):
+          # everything belongs to the synthetic "Mira" persona. Demo/real
+          # behavior parity is asserted by the Playwright suite, not here.
+          set -e
+          DIR=frontend/public/demo-data
+          # The generic leak checks (emails, maintainer tokens) also sweep the
+          # demo-api artifacts (manifest/openapi/health). The persona-row-shape
+          # checks (forwarded_to, institution) stay scoped to demo-data — the
+          # filtered openapi.json carries schema defaults (e.g. "default@local")
+          # that are not persona rows.
+          LEAK_DIRS="frontend/public/demo-data frontend/public/demo-api"
+          fail=0
+
+          fwd=$(grep -rohE '"forwarded_to":\s*"[^"]+"' "$DIR" | sort -u || true)
+          if [ -n "$fwd" ] && [ "$fwd" != '"forwarded_to": "mira.tidings@example.com"' ]; then
+            echo "::error::demo fixtures contain non-persona forwarded_to values:"
+            echo "$fwd"
+            fail=1
+          fi
+
+          # Institution names are not PII; the persona uses real bank names so the
+          # demo looks like the product. Anything outside the parser/persona set
+          # suggests the fixtures were generated from a non-demo database.
+          inst=$(grep -rohE '"institution":\s*"[^"]+"' "$DIR" | sed -E 's/.*:\s*"([^"]+)"/\1/' | sort -u \
+            | grep -vxE 'RBC|CIBC|MBNA|Simplii|PC Financial|Tangerine' || true)
+          if [ -n "$inst" ]; then
+            echo "::error::demo fixtures contain unexpected institution values:"
+            echo "$inst"
+            fail=1
+          fi
+
+          # Any email address outside the persona's example.com namespace is a leak.
+          emails=$(grep -rohEi '[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}' $LEAK_DIRS | sort -u | grep -iv '@example\.com$' || true)
+          if [ -n "$emails" ]; then
+            echo "::error::demo fixtures contain non-example.com email addresses:"
+            echo "$emails"
+            fail=1
+          fi
+
+          # Maintainer token scan. .pii-patterns is untracked (gitignored) and
+          # materialized above from the PII_PATTERNS secret on the private repo;
+          # public forks have no secret, so it stays absent and this scan warns-
+          # and-skips (non-failing), same posture as ci.yml.
+          if [ -f .pii-patterns ]; then
+            patterns=$(grep -vE '^[[:space:]]*(#|$)' .pii-patterns | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' | paste -sd'|' -)
+            if grep -rqiE "$patterns" $LEAK_DIRS; then
+              echo "::error::demo fixtures match maintainer PII tokens:"
+              grep -rliE "$patterns" $LEAK_DIRS
+              fail=1
+            fi
+          else
+            echo "::warning::PII personal-token scan SKIPPED — no .pii-patterns/secret"
+          fi
+
+          if [ "$fail" -ne 0 ]; then
+            echo
+            echo "To fix: see docs/guides/static-hosted-demo.md → Fixture regeneration → Verify before commit."
+            exit 1
+          fi
+          echo "fixtures clean — persona data only"
+
+      - name: Cross-fixture consistency gate
+        working-directory: ${{ github.workspace }}
+        # stdlib-only script — the runner's python3 is enough, no uv needed
+        run: python3 scripts/demo/check_demo_fixtures.py
+
+      - name: Demo API artifact gate
+        working-directory: ${{ github.workspace }}
+        # stdlib-only script — the runner's python3 is enough, no uv needed
+        run: python3 scripts/demo/check_demo_api.py
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Build demo
+        run: pnpm demo:build
+
+      # Anti-rot for the launch SEO surface (2026-07-05-web-surfaces-launch):
+      # the deployed bundle must always carry the marketing meta, the demo
+      # noindex, and the static SEO files. Mirrors that spec's Phase 1/2 gates.
+      - name: Marketing SEO meta gate
+        run: |
+          grep -q 'rel="canonical" href="https://gettidings.com/"' dist/index.html
+          grep -q 'property="og:image"' dist/index.html
+          grep -q 'application/ld+json' dist/index.html
+          grep -q 'name="robots" content="noindex' dist/demo/index.html
+          # Prerendered landing body (2026-07-16 seo-and-agent-reach, L1/L5/L7):
+          # the marketing HTML must carry real copy for non-JS crawlers, and
+          # fonts are self-hosted (L13).
+          grep -q '<h1' dist/index.html
+          grep -q 'Five Canadian institutions' dist/index.html
+          grep -q 'How is Tidings different' dist/index.html
+          ! grep -q 'fonts.googleapis.com' dist/index.html
+          test -f dist/robots.txt
+          test -f dist/sitemap.xml
+          test -f dist/llms.txt
+          test -f dist/og-image.png
+
+      - name: Serve demo + run Playwright
+        run: |
+          pnpm exec serve dist -l 4173 &
+          SERVER_PID=$!
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:4173/ >/dev/null; then break; fi
+            sleep 1
+          done
+          pnpm exec playwright test
+          STATUS=$?
+          kill $SERVER_PID || true
+          exit $STATUS

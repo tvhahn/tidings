@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+#
+# pre-push — advisory guard for the Tidings public-release tree.
+#
+# Two checks, in order:
+#   1. Remote allowlist (maintainer clones only) — only push to
+#      github.com/tvhahn/tidings, so a stray `git push some-fork` cannot leak
+#      the tree to the wrong place. Armed only when the local-only
+#      .pii-patterns file exists (the same maintainer marker
+#      .claude/hooks/pii-guard.sh keys on); on public clones and forks it is
+#      skipped so contributors can push wherever they like.
+#   2. Archive-audit — export HEAD's tracked tree and run the OSS release audit
+#      (scripts/pii/audit_oss_release.py) over it. A `hit` (exit 1) blocks the push;
+#      a review-only result (exit 2) is allowed with a printed notice.
+#
+# This hook is advisory and bypassable with `git push --no-verify`. CI is the
+# authoritative gate; this only catches mistakes earlier and locally.
+#
+# Install (one-time, optional): git config core.hooksPath .githooks/
+
+set -euo pipefail
+
+remote_name="${1:-}"
+remote_url="${2:-}"
+
+# --- 1. remote allowlist (maintainer clones only) ------------------------------
+# Anchor on the shared git common dir, not --show-toplevel, so linked worktrees
+# still see the main checkout's .pii-patterns and stay armed.
+git_common="$(git rev-parse --path-format=absolute --git-common-dir)"
+pii_patterns="$(dirname "$git_common")/.pii-patterns"
+if [ -f "$pii_patterns" ] \
+  && ! printf '%s' "$remote_url" | grep -qE 'github\.com[:/]tvhahn/tidings(\.git)?/?$'; then
+  echo "pre-push: refusing to push to non-allowlisted remote '${remote_name}' (${remote_url})." >&2
+  echo "pre-push: only github.com/tvhahn/tidings is allowed from the maintainer clone. Bypass with --no-verify if intended." >&2
+  exit 1
+fi
+
+# --- 1b. secret-staleness warning (warn-only) --------------------------------
+# The .pii-patterns alphabet is mirrored into the PII_PATTERNS GitHub Actions
+# secret by `make sync-pii-patterns`, which also writes .pii-patterns.sha256
+# (the bare hex sha256 of the file) beside it. If the local file has changed
+# since that stamp — or was never synced — CI may be enforcing a stale
+# alphabet. Warn, never block: this must not change the exit code, and every
+# command substitution is guarded so it cannot trip set -euo pipefail.
+if [ -f "$pii_patterns" ]; then
+  pii_stamp="$(dirname "$git_common")/.pii-patterns.sha256"
+  current_sha="$(sha256sum "$pii_patterns" | cut -d' ' -f1)" || current_sha=""
+  stored_sha=""
+  if [ -f "$pii_stamp" ]; then
+    stored_sha="$(tr -d '[:space:]' < "$pii_stamp")" || stored_sha=""
+  fi
+  if [ -n "$current_sha" ] && [ "$current_sha" != "$stored_sha" ]; then
+    echo "pre-push: WARN — local .pii-patterns has changed since the last secret sync (or was never synced); CI may be enforcing a stale alphabet. Run 'make sync-pii-patterns'." >&2
+  fi
+fi
+
+# --- 2. archive-audit of HEAD ------------------------------------------------
+repo_root="$(git rev-parse --show-toplevel)"
+tmp_dir="$(mktemp -d)"
+trap 'rm -rf "$tmp_dir"' EXIT
+
+# Reports land in the gitignored logs/ tree so they survive the push and are
+# easy to open in the devcontainer; only HEAD's export stays in the
+# trap-removed tmp dir (it is the ephemeral scan target, not an artifact).
+# --include-matches un-redacts the report: it lands in gitignored logs/, is only
+# read by the maintainer locally, and redacted matches are useless for triage.
+audit_out="${repo_root}/logs/audit"
+mkdir -p "$audit_out"
+
+git archive HEAD | tar -x -C "$tmp_dir"
+
+set +e
+uv run python "${repo_root}/scripts/pii/audit_oss_release.py" \
+  --target "$tmp_dir" --output "${audit_out}/pre-push-audit" --include-matches
+audit_rc=$?
+set -e
+
+case "$audit_rc" in
+  0)
+    ;;
+  2)
+    echo "pre-push: audit reported review-only flags (exit 2) — allowing push. Disposition them before the public flip." >&2
+    ;;
+  *)
+    echo "pre-push: audit found hits (exit ${audit_rc}) — blocking push. Investigate every hit above." >&2
+    echo "pre-push: this is advisory; CI is authoritative. Bypass with --no-verify if you are certain." >&2
+    exit 1
+    ;;
+esac
+
+exit 0

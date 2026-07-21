@@ -1,0 +1,69 @@
+---
+/**
+ * CategorizationWaterfall — the tier cascade a new transaction falls through:
+ * your rules, then the (opt-in) AI categorizer, then Miscellaneous. Used on
+ * the Categorization page.
+ *
+ * CSS in src/styles/starlight-overrides.css (.df-waterfall / .df-*).
+ */
+interface Props {
+  summary?: string
+}
+
+const {
+  summary = "Figure: a new transaction falls through three tiers — your rules (exact, normalized, alias, then fuzzy match) always win; the AI categorizer runs only if you opted in; anything left lands in Miscellaneous and joins the attention queue.",
+} = Astro.props
+---
+
+<figure class="docs-figure" aria-label={summary}>
+  <div class="df-waterfall">
+    <div class="df-node">
+      <span class="df-node__t">
+        <span class="df-num">1</span>
+        Your rules
+        <span class="df-tag">always win</span>
+      </span>
+      <span class="df-node__s">exact name → normalized → alias → fuzzy (0.90 similarity or higher)</span>
+    </div>
+    <div class="df-waterfall__between">
+      <svg class="df-arrow df-arrow--down" viewBox="0 0 18 12" aria-hidden="true">
+        <path
+          d="M0 6 H14 M10.5 2 L15 6 L10.5 10"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+        />
+      </svg>
+      <span class="df-branch-label">no rule matched</span>
+    </div>
+    <div class="df-node">
+      <span class="df-node__t">
+        <span class="df-num">2</span>
+        AI categorizer
+        <span class="df-tag df-tag--muted">opt-in</span>
+      </span>
+      <span class="df-node__s">sees the merchant name and amount — runs only with categorization consent on</span>
+    </div>
+    <div class="df-waterfall__between">
+      <svg class="df-arrow df-arrow--down" viewBox="0 0 18 12" aria-hidden="true">
+        <path
+          d="M0 6 H14 M10.5 2 L15 6 L10.5 10"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+        />
+      </svg>
+      <span class="df-branch-label">AI off, or no confident answer</span>
+    </div>
+    <div class="df-node df-node--muted">
+      <span class="df-node__t">
+        <span class="df-num">3</span>
+        Miscellaneous
+      </span>
+      <span class="df-node__s">joins the attention queue and waits for your decision</span>
+    </div>
+  </div>
+  <figcaption class="df-caption">
+    The first confident answer wins — a rule you set beats the model, every time.
+  </figcaption>
+</figure>

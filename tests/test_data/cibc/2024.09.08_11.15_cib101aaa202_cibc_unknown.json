@@ -1,0 +1,8 @@
+{
+    "institution": "CIBC",
+    "name": "Carlos",
+    "amount": 1687.0,
+    "company": "GRANITE INSURANCE #204",
+    "transaction_type": "purchase",
+    "email_filepath": "tests/test_data/cibc/2024.09.08_11.15_cib101aaa202_cibc_unknown.txt"
+}

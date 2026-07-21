@@ -1,0 +1,59 @@
+# Maintainer / contributor override for the devcontainer stack.
+#
+# Copy this file to `.devcontainer/docker-compose.override.yml` (drop the
+# `.example` suffix) and uncomment the snippets you need. The override
+# file is gitignored, so your local additions never get committed.
+#
+# Docker Compose merges this file on top of `.devcontainer/docker-compose.yml`
+# automatically when both are present in the same directory. VSCode's
+# "Reopen in Container" picks it up via `devcontainer.json`'s
+# `dockerComposeFile`.
+
+services:
+  devcontainer:
+    # --- Extra AI CLIs (OpenAI Codex + Google Gemini) ---
+    # Bakes `codex` and `gemini` into the image alongside Claude Code, and
+    # writes an unattended-use ~/.codex/config.toml. Needed if you want the
+    # "OpenAI Codex" or "Google Gemini" AI providers in Settings →
+    # Intelligence. Requires a container rebuild ("Rebuild Container" in
+    # VS Code) after uncommenting.
+    # build:
+    #   args:
+    #     INSTALL_EXTRA_AI_CLIS: "true"
+
+    volumes:
+      # --- Persist Codex CLI login (pairs with INSTALL_EXTRA_AI_CLIS) ---
+      # Keeps ~/.codex (ChatGPT device-auth tokens) across container rebuilds,
+      # like the base file's claude-code-config volume does for Claude Code.
+      # Also uncomment the top-level `volumes:` block at the bottom.
+      # - codex-config:/home/node/.codex
+
+      # --- AWS credentials (Lambda E2E, live DynamoDB) ---
+      # Read-only mount of your host `~/.aws` directory so `aws` CLI,
+      # boto3, and live-DynamoDB integration tests can authenticate with
+      # your AWS account.
+      # - ~/.aws:/home/node/.aws:ro
+
+      # --- Docker socket (build/run prod stack from inside devcontainer) ---
+      # Lets you run `docker build`, `docker compose`, etc. from inside the
+      # devcontainer against the host's Docker daemon. Useful for building
+      # the prod images or driving the prod stack while developing.
+      # - /var/run/docker.sock:/var/run/docker.sock
+
+      # --- Host Claude Code config (power-user) ---
+      # Bind-mount your host `~/.claude` so any Claude Code sessions,
+      # history, and project links you have on the host are visible inside
+      # the container. Note: this mounts on top of the base file's
+      # `claude-code-config` named volume; the bind mount wins for reads.
+      # - ${HOME}/.claude:/home/node/.claude
+
+    # --- Always-on daily driver (auto-start + dev servers on boot) ---
+    # Uncomment these two lines if you want the devcontainer to survive
+    # reboots and auto-start the dev servers (frontend, backend, etc.)
+    # without needing VS Code to attach first.
+    # restart: unless-stopped
+    # command: bash -c 'bash /workspace/dev/start-dev-servers.sh 2>/dev/null || true; sleep infinity'
+
+# Pairs with the codex-config mount above.
+# volumes:
+#   codex-config:

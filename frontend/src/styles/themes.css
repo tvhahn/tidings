@@ -1,0 +1,305 @@
+/* Alternative color palettes.
+ *
+ * The default palette lives in index.css (`:root` + `.dark`). Palettes below
+ * are layered on top via `[data-palette="X"]` on <html>, orthogonal to the
+ * `.dark` class — each palette defines both a light and dark variant.
+ *
+ * Status hues (--status-success/warning/danger/info, --destructive) are
+ * intentionally NOT overridden per palette: green=good / red=bad is a
+ * learned semantic that should stay stable across themes for both
+ * accessibility and muscle memory. Their *-muted backgrounds DO adapt
+ * automatically because they derive from `--card` via `color-mix(...)`
+ * in index.css — so a warning banner gets a tinted-cream background on
+ * Warm Paper and a tinted-indigo background on Midnight without any
+ * per-palette code here.
+ *
+ * --brand is the palette-adaptive accent slot and IS overridden per
+ * palette (every block below defines both light and dark --brand). Use
+ * it for decorative counts, "this-is-current" markers, and aesthetic
+ * accents that should feel like they belong to the active palette
+ * (page title underline, TODAY pill, Sparkles icon, sparkline current
+ * month, attention badge — not the active-nav row, which is a neutral
+ * --accent pill). Prefer --brand over
+ * a status token whenever the element is *ornamental* rather than
+ * *semantic* — a count badge is ornamental; a red Delete button is not.
+ *
+ * Only override tokens that meaningfully differ from the base. Leaving
+ * a token out lets the default flow through, which keeps diffs focused.
+ */
+
+/* ============================================================
+   Warm Paper — cream backgrounds, warm brown text, rust accents
+   ============================================================ */
+
+/* Aligned to design_handoff_tidings/design_system/colors_and_type.css as the
+ * reference palette. Page and cards sit on pure white (both --background and
+ * --card map to #ffffff — cards are distinguished only by hairline borders).
+ * --muted / --accent carry the warm-paper tint for hover strips and selected
+ * nav rows. --foreground/--muted-foreground use paper-900/paper-500. */
+[data-palette="warm-paper"]:root {
+  --background: #ffffff;
+  --foreground: oklch(0.18 0.025 55);
+  --card: #ffffff;
+  --card-foreground: oklch(0.18 0.025 55);
+  --popover: oklch(0.975 0.006 75);
+  --popover-foreground: oklch(0.18 0.025 55);
+  /* Warm ink, not rust — BRAND.md: the rust accent is "never on a primary
+   * button or large fill". Primary actions read as deep espresso ink. */
+  --primary: oklch(0.27 0.028 52);
+  --primary-foreground: oklch(0.98 0.01 80);
+  --secondary: oklch(0.965 0.009 72);
+  --secondary-foreground: oklch(0.34 0.028 52);
+  --muted: oklch(0.975 0.006 75);
+  /* 0.55 L is the lightest this can go and keep 11–14px meta text at WCAG AA
+   * (4.86:1 on white cards, 4.67:1 on the paper surface). 0.62 measured 3.67:1. */
+  --muted-foreground: oklch(0.55 0.022 58);
+  --accent: oklch(0.965 0.009 72);
+  --accent-foreground: oklch(0.34 0.028 52);
+  --border: oklch(0.915 0.008 70);
+  --input: oklch(0.915 0.008 70);
+  --ring: oklch(0.6 0.06 55);
+  --brand: oklch(0.58 0.15 40);
+  --brand-foreground: oklch(0.98 0.01 80);
+  --fg-secondary: oklch(0.45 0.022 58);
+}
+
+/* Tidings "Evening" dark — --surface/--surface-card drop from 0.22 → 0.18
+ * lightness to keep cards distinguishable even when flush on the page. */
+.dark[data-palette="warm-paper"] {
+  --background: oklch(0.18 0.018 60);
+  --foreground: oklch(0.95 0.015 75);
+  --card: oklch(0.22 0.02 58);
+  --card-foreground: oklch(0.95 0.015 75);
+  --popover: oklch(0.22 0.02 58);
+  --popover-foreground: oklch(0.95 0.015 75);
+  --primary: oklch(0.93 0.02 75);
+  --primary-foreground: oklch(0.22 0.02 58);
+  --secondary: oklch(0.26 0.022 58);
+  --secondary-foreground: oklch(0.86 0.02 72);
+  --muted: oklch(0.26 0.022 58);
+  --muted-foreground: oklch(0.72 0.022 68);
+  --accent: oklch(0.3 0.025 58);
+  --accent-foreground: oklch(0.95 0.015 75);
+  --border: oklch(0.32 0.022 58);
+  --input: oklch(0.32 0.022 58);
+  --ring: oklch(0.62 0.08 48);
+  --brand: oklch(0.72 0.15 45);
+  --brand-foreground: oklch(0.18 0.018 60);
+  --fg-secondary: oklch(0.84 0.022 68);
+}
+
+/* ============================================================
+   Nord — cool Scandinavian blue/grey (polar-night + snow-storm)
+   ============================================================ */
+
+/* Tidings structure: card sits on top of background as near-white with a
+ * subtle cool tint; hairline border does the separation, not a darker fill.
+ * Light-mode card is BRIGHTER than background (Nord "snow-storm" on
+ * "polar-night-paper") — this matches warm-paper's white-on-white hairline
+ * relationship. */
+[data-palette="nord"]:root {
+  --background: oklch(0.975 0.008 240);
+  --foreground: oklch(0.3 0.03 250);
+  --card: oklch(0.995 0.004 240);
+  --card-foreground: oklch(0.3 0.03 250);
+  --popover: oklch(0.99 0.006 240);
+  --popover-foreground: oklch(0.3 0.03 250);
+  --primary: oklch(0.5 0.09 235);
+  --primary-foreground: oklch(0.97 0.008 240);
+  --secondary: oklch(0.95 0.014 240);
+  --secondary-foreground: oklch(0.3 0.03 250);
+  --muted: oklch(0.95 0.014 240);
+  --muted-foreground: oklch(0.5 0.025 245);
+  --accent: oklch(0.93 0.02 240);
+  --accent-foreground: oklch(0.3 0.03 250);
+  --border: oklch(0.87 0.018 240);
+  --input: oklch(0.87 0.018 240);
+  --ring: oklch(0.55 0.08 235);
+  --brand: oklch(0.55 0.09 215);
+  --brand-foreground: oklch(0.97 0.008 240);
+  --fg-secondary: oklch(0.36 0.025 245);
+}
+
+.dark[data-palette="nord"] {
+  --background: oklch(0.29 0.025 255);
+  --foreground: oklch(0.93 0.012 235);
+  --card: oklch(0.33 0.025 255);
+  --card-foreground: oklch(0.93 0.012 235);
+  --popover: oklch(0.33 0.025 255);
+  --popover-foreground: oklch(0.93 0.012 235);
+  --primary: oklch(0.75 0.085 230);
+  --primary-foreground: oklch(0.29 0.025 255);
+  --secondary: oklch(0.38 0.025 255);
+  --secondary-foreground: oklch(0.93 0.012 235);
+  --muted: oklch(0.38 0.025 255);
+  --muted-foreground: oklch(0.76 0.018 235);
+  --accent: oklch(0.42 0.025 255);
+  --accent-foreground: oklch(0.93 0.012 235);
+  --border: oklch(0.41 0.025 255);
+  --input: oklch(0.41 0.025 255);
+  --ring: oklch(0.68 0.08 230);
+  --brand: oklch(0.72 0.09 210);
+  --brand-foreground: oklch(0.29 0.025 255);
+  --fg-secondary: oklch(0.86 0.018 235);
+}
+
+/* ============================================================
+   Midnight — deep indigo-black with saturated purple accents
+   ============================================================ */
+
+/* Tidings structure: card is near-white with a faint indigo cool-cast in
+ * light mode; hairline border separates it from the page. Identity comes
+ * from --brand (saturated purple), not from a darker card fill. */
+[data-palette="midnight"]:root {
+  --background: oklch(0.98 0.006 275);
+  --foreground: oklch(0.2 0.025 275);
+  --card: oklch(0.995 0.004 275);
+  --card-foreground: oklch(0.2 0.025 275);
+  --popover: oklch(0.99 0.006 275);
+  --popover-foreground: oklch(0.2 0.025 275);
+  --primary: oklch(0.45 0.15 275);
+  --primary-foreground: oklch(0.98 0.008 275);
+  --secondary: oklch(0.94 0.016 275);
+  --secondary-foreground: oklch(0.2 0.025 275);
+  --muted: oklch(0.94 0.016 275);
+  --muted-foreground: oklch(0.5 0.03 275);
+  --accent: oklch(0.92 0.02 275);
+  --accent-foreground: oklch(0.2 0.025 275);
+  --border: oklch(0.87 0.02 275);
+  --input: oklch(0.87 0.02 275);
+  --ring: oklch(0.55 0.14 275);
+  --brand: oklch(0.55 0.16 285);
+  --brand-foreground: oklch(0.98 0.008 275);
+  --fg-secondary: oklch(0.36 0.03 275);
+}
+
+.dark[data-palette="midnight"] {
+  --background: oklch(0.14 0.025 265);
+  --foreground: oklch(0.97 0.012 260);
+  --card: oklch(0.2 0.03 265);
+  --card-foreground: oklch(0.97 0.012 260);
+  --popover: oklch(0.2 0.03 265);
+  --popover-foreground: oklch(0.97 0.012 260);
+  --primary: oklch(0.75 0.17 275);
+  --primary-foreground: oklch(0.14 0.025 265);
+  --secondary: oklch(0.26 0.03 265);
+  --secondary-foreground: oklch(0.97 0.012 260);
+  --muted: oklch(0.26 0.03 265);
+  --muted-foreground: oklch(0.74 0.022 260);
+  --accent: oklch(0.3 0.035 265);
+  --accent-foreground: oklch(0.97 0.012 260);
+  --border: oklch(0.3 0.03 265);
+  --input: oklch(0.3 0.03 265);
+  --ring: oklch(0.68 0.16 275);
+  --brand: oklch(0.8 0.17 290);
+  --brand-foreground: oklch(0.14 0.025 265);
+  --fg-secondary: oklch(0.85 0.022 260);
+}
+
+/* ============================================================
+   Solarized — Ethan Schoonover's iconic palette (base3/base03)
+   ============================================================ */
+
+/* Tidings structure: Solarized base3 (#fdf6e3 — creamy paper) is preserved
+ * as the page surface, but cards lift to near-white with the same warm
+ * cast so the hairline border carries the visual separation rather than
+ * the historical "card darker than page" Solarized convention. */
+[data-palette="solarized"]:root {
+  --background: oklch(0.97 0.02 90);
+  --foreground: oklch(0.4 0.015 225);
+  --card: oklch(0.992 0.012 90);
+  --card-foreground: oklch(0.4 0.015 225);
+  --popover: oklch(0.985 0.016 90);
+  --popover-foreground: oklch(0.4 0.015 225);
+  --primary: oklch(0.55 0.14 235);
+  --primary-foreground: oklch(0.97 0.02 90);
+  --secondary: oklch(0.93 0.028 90);
+  --secondary-foreground: oklch(0.4 0.015 225);
+  --muted: oklch(0.93 0.028 90);
+  --muted-foreground: oklch(0.55 0.015 215);
+  --accent: oklch(0.9 0.034 90);
+  --accent-foreground: oklch(0.4 0.015 225);
+  --border: oklch(0.85 0.03 90);
+  --input: oklch(0.85 0.03 90);
+  --ring: oklch(0.6 0.13 235);
+  --brand: oklch(0.62 0.12 75);
+  --brand-foreground: oklch(0.97 0.02 90);
+  --fg-secondary: oklch(0.42 0.015 215);
+}
+
+.dark[data-palette="solarized"] {
+  --background: oklch(0.22 0.035 215);
+  --foreground: oklch(0.78 0.015 200);
+  --card: oklch(0.28 0.035 215);
+  --card-foreground: oklch(0.78 0.015 200);
+  --popover: oklch(0.28 0.035 215);
+  --popover-foreground: oklch(0.78 0.015 200);
+  --primary: oklch(0.65 0.14 235);
+  --primary-foreground: oklch(0.22 0.035 215);
+  --secondary: oklch(0.32 0.035 215);
+  --secondary-foreground: oklch(0.78 0.015 200);
+  --muted: oklch(0.32 0.035 215);
+  --muted-foreground: oklch(0.7 0.012 200);
+  --accent: oklch(0.36 0.035 215);
+  --accent-foreground: oklch(0.78 0.015 200);
+  --border: oklch(0.36 0.03 215);
+  --input: oklch(0.36 0.03 215);
+  --ring: oklch(0.68 0.13 235);
+  --brand: oklch(0.68 0.13 75);
+  --brand-foreground: oklch(0.22 0.035 215);
+  --fg-secondary: oklch(0.84 0.012 200);
+}
+
+/* ============================================================
+   Gruvbox — warm retro terminal (cream/brown + orange accent)
+   ============================================================ */
+
+/* Tidings structure: Gruvbox keeps its signature warm cream page surface
+ * (#fbf1c7-derived) but cards lift to a brighter cream so hairline borders
+ * (not card-darker-than-bg) carry separation. Brand orange remains
+ * unchanged as the palette identity. */
+[data-palette="gruvbox"]:root {
+  --background: oklch(0.945 0.035 85);
+  --foreground: oklch(0.3 0.025 60);
+  --card: oklch(0.978 0.018 85);
+  --card-foreground: oklch(0.3 0.025 60);
+  --popover: oklch(0.965 0.024 85);
+  --popover-foreground: oklch(0.3 0.025 60);
+  --primary: oklch(0.5 0.15 40);
+  --primary-foreground: oklch(0.95 0.035 85);
+  --secondary: oklch(0.915 0.04 85);
+  --secondary-foreground: oklch(0.3 0.025 60);
+  --muted: oklch(0.915 0.04 85);
+  --muted-foreground: oklch(0.48 0.03 60);
+  --accent: oklch(0.88 0.05 85);
+  --accent-foreground: oklch(0.3 0.025 60);
+  --border: oklch(0.82 0.045 80);
+  --input: oklch(0.82 0.045 80);
+  --ring: oklch(0.58 0.14 45);
+  --brand: oklch(0.55 0.16 60);
+  --brand-foreground: oklch(0.95 0.035 85);
+  --fg-secondary: oklch(0.36 0.03 60);
+}
+
+.dark[data-palette="gruvbox"] {
+  --background: oklch(0.23 0.012 65);
+  --foreground: oklch(0.87 0.05 85);
+  --card: oklch(0.28 0.014 65);
+  --card-foreground: oklch(0.87 0.05 85);
+  --popover: oklch(0.28 0.014 65);
+  --popover-foreground: oklch(0.87 0.05 85);
+  --primary: oklch(0.72 0.14 55);
+  --primary-foreground: oklch(0.23 0.012 65);
+  --secondary: oklch(0.33 0.015 65);
+  --secondary-foreground: oklch(0.87 0.05 85);
+  --muted: oklch(0.33 0.015 65);
+  --muted-foreground: oklch(0.74 0.04 85);
+  --accent: oklch(0.37 0.018 65);
+  --accent-foreground: oklch(0.87 0.05 85);
+  --border: oklch(0.37 0.015 65);
+  --input: oklch(0.37 0.015 65);
+  --ring: oklch(0.68 0.13 55);
+  --brand: oklch(0.75 0.16 55);
+  --brand-foreground: oklch(0.23 0.012 65);
+  --fg-secondary: oklch(0.86 0.04 85);
+}

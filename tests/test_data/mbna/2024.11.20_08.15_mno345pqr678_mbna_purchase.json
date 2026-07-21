@@ -1,0 +1,8 @@
+{
+    "institution": "MBNA",
+    "name": null,
+    "amount": 1234.56,
+    "company": "Air Canada Vacations",
+    "transaction_type": "purchase",
+    "email_filepath": "tests/test_data/mbna/2024.11.20_08.15_mno345pqr678_mbna_purchase.txt"
+}

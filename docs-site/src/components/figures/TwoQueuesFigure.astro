@@ -1,0 +1,62 @@
+---
+/**
+ * TwoQueuesFigure — the fork that separates the two queues people confuse:
+ * an email that never parsed (Needs review) versus a transaction that still
+ * needs a category (the attention queue). Used on "How Tidings works".
+ *
+ * CSS in src/styles/starlight-overrides.css (.df-fork / .df-*); see
+ * PipelineFigure.astro for why no <style> block lives here.
+ */
+interface Props {
+  summary?: string
+}
+
+const {
+  summary = "Figure: a bank email either fails to parse — landing in Needs review as a quarantined email with no transaction — or becomes a transaction, which joins the attention queue on Transactions until it has a confirmed category.",
+} = Astro.props
+---
+
+<figure class="docs-figure" aria-label={summary}>
+  <div class="df-fork">
+    <div class="df-node df-fork__trunk">
+      <span class="df-node__t">A bank email arrives</span>
+      <span class="df-node__s">the deterministic parsers try to read it</span>
+    </div>
+    <svg class="df-fork__split" viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M50 2 V8 C50 22 25 18 25 32" />
+      <path d="M50 2 V8 C50 22 75 18 75 32" />
+    </svg>
+    <div class="df-fork__col">
+      <span class="df-branch-label">no parser could read it</span>
+      <div class="df-node">
+        <span class="df-node__t">Needs review</span>
+        <span class="df-node__s">the raw email is quarantined — no transaction exists yet, and nothing is counted</span>
+      </div>
+      <p class="df-fork__note">
+        Recover it: retry after a parser fix, or enter the transaction by hand.
+      </p>
+    </div>
+    <div class="df-fork__col">
+      <span class="df-branch-label">parsed into a transaction</span>
+      <div class="df-node">
+        <span class="df-node__t">Transaction created</span>
+        <span class="df-node__s">a real row in the ledger, counted in your totals</span>
+      </div>
+      <svg class="df-arrow df-arrow--down" viewBox="0 0 18 12" aria-hidden="true">
+        <path
+          d="M0 6 H14 M10.5 2 L15 6 L10.5 10"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+        />
+      </svg>
+      <div class="df-node">
+        <span class="df-node__t">Attention queue</span>
+        <span class="df-node__s">on Transactions — holds rows that still need a category confirmed</span>
+      </div>
+      <p class="df-fork__note">
+        Decide: pick a category, or confirm the one already there.
+      </p>
+    </div>
+  </div>
+</figure>

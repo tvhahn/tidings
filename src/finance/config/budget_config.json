@@ -1,0 +1,80 @@
+{
+  "year": 2026,
+  "spending_ceiling": 0,
+  "categories": {},
+  "groups": [
+    {
+      "name": "Food & Dining",
+      "categories": [
+        "groceries",
+        "restaurant/dining",
+        "liquor/beer/wine"
+      ]
+    },
+    {
+      "name": "Housing",
+      "categories": [
+        "rent",
+        "utilities",
+        "house maintenance",
+        "major property upgrades",
+        "furniture",
+        "household items"
+      ]
+    },
+    {
+      "name": "Transport",
+      "categories": [
+        "gasoline",
+        "automotive maintenance",
+        "misc. car expense",
+        "car payment",
+        "general transportation"
+      ]
+    },
+    {
+      "name": "Health & Personal",
+      "categories": [
+        "health care",
+        "hygiene/personal care",
+        "counselling",
+        "sports and recreation"
+      ]
+    },
+    {
+      "name": "Entertainment",
+      "categories": [
+        "entertainment",
+        "hobbies",
+        "subscriptions",
+        "travel",
+        "vacation"
+      ]
+    },
+    {
+      "name": "Shopping",
+      "categories": [
+        "clothing",
+        "technology",
+        "computer",
+        "gifts",
+        "baby items"
+      ]
+    },
+    {
+      "name": "Bills & Services",
+      "categories": [
+        "insurance",
+        "communication/cell",
+        "internet",
+        "service charges/fees",
+        "professional membership",
+        "professional services",
+        "accounting services",
+        "education",
+        "tuition",
+        "taxes"
+      ]
+    }
+  ]
+}

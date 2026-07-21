@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "chrome-devtools": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@latest",
+        "--headless",
+        "--isolated",
+        "--chrome-arg=--no-sandbox",
+        "--chrome-arg=--disable-dev-shm-usage"
+      ],
+      "env": {}
+    },
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "Authorization": "Bearer REDACTED_PASTE_YOUR_CONTEXT7_KEY"
+      }
+    }
+  }
+}

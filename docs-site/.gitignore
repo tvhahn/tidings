@@ -1,0 +1,47 @@
+# build output
+dist/
+# generated types
+.astro/
+
+# dependencies
+node_modules/
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+
+# environment variables
+.env
+.env.production
+
+# macOS-specific files
+.DS_Store
+
+# Synced from /openapi.json by scripts/copy-openapi.mjs (regenerated each build)
+public/openapi.json
+
+# Synced from /INSTALL.md by scripts/copy-install.mjs (regenerated each build)
+public/install.md
+
+# Synced from /frontend/src/ by scripts/sync-tokens.mjs (regenerated each build).
+# Edit the source CSS in /frontend/src/, never these files.
+src/styles/tidings-tokens/
+
+# Synced from /docs/ by scripts/sync-content.mjs (regenerated each build).
+# Edit the source markdown in /docs/, never these files.
+src/content/docs/architecture.md
+src/content/docs/notifications.md
+src/content/docs/self-hosting/aws.md
+src/content/docs/self-hosting/email.md
+src/content/docs/self-hosting/email-to-s3.md
+src/content/docs/configuration.md
+src/content/docs/agent-access.md
+src/content/docs/add-a-parser.md
+src/content/docs/troubleshooting.md
+src/content/docs/backup-and-restore.md
+src/content/docs/upgrading.md
+src/content/docs/faq.md
+src/content/docs/s3-backup.md

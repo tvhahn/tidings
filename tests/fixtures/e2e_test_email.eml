@@ -1,0 +1,11 @@
+From: alerts@cibc.com
+To: demo@example.com
+X-Forwarded-To: demo@example.com
+Subject: Transaction Alert
+Date: {{DATE_PLACEHOLDER}}
+Content-Type: text/plain; charset="utf-8"
+
+Dear Carlos,
+      You've recently made a purchase with your CIBC Costco World Mastercard ending in 2210 for $1.23 at E2E TEST CAFE.
+You can sign on to your CIBC Online or Mobile Banking to view more details about this transaction.Sincerely,
+CIBC

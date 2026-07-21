@@ -1,0 +1,663 @@
+{
+  "current": {
+    "year_month": "2026-01",
+    "total_spending": 4586.57,
+    "spending_count": 60,
+    "deposit_total": 5221.44,
+    "deposit_count": 2,
+    "by_category": {
+      "restaurant/dining": {
+        "amount": 258.44,
+        "count": 23
+      },
+      "rent": {
+        "amount": 2150,
+        "count": 1
+      },
+      "internet": {
+        "amount": 80,
+        "count": 1
+      },
+      "utilities": {
+        "amount": 112.46,
+        "count": 1
+      },
+      "subscriptions": {
+        "amount": 55.72,
+        "count": 5
+      },
+      "groceries": {
+        "amount": 728.1,
+        "count": 10
+      },
+      "insurance": {
+        "amount": 28,
+        "count": 1
+      },
+      "general transportation": {
+        "amount": 145.05,
+        "count": 4
+      },
+      "communication/cell": {
+        "amount": 75,
+        "count": 1
+      },
+      "hygiene/personal care": {
+        "amount": 85.18,
+        "count": 2
+      },
+      "sports and recreation": {
+        "amount": 132,
+        "count": 4
+      },
+      "hobbies": {
+        "amount": 56.22,
+        "count": 1
+      },
+      "miscellaneous": {
+        "amount": 180,
+        "count": 1
+      },
+      "service charges/fees": {
+        "amount": 16.95,
+        "count": 1
+      },
+      "savings": {
+        "amount": 400,
+        "count": 1
+      },
+      "household items": {
+        "amount": 24.83,
+        "count": 1
+      },
+      "liquor/beer/wine": {
+        "amount": 33.37,
+        "count": 1
+      },
+      "entertainment": {
+        "amount": 25.25,
+        "count": 1
+      }
+    },
+    "by_company": {
+      "Arvo Coffee": {
+        "amount": 46.91,
+        "count": 7,
+        "category": "restaurant/dining"
+      },
+      "Liberty Market Lofts": {
+        "amount": 2150,
+        "count": 1,
+        "category": "rent"
+      },
+      "Bell Fibe Internet": {
+        "amount": 80,
+        "count": 1,
+        "category": "internet"
+      },
+      "Banh Mi Boys Queen": {
+        "amount": 17.77,
+        "count": 1,
+        "category": "restaurant/dining"
+      },
+      "NEO Coffee Bar": {
+        "amount": 26.16,
+        "count": 2,
+        "category": "restaurant/dining"
+      },
+      "Toronto Hydro": {
+        "amount": 112.46,
+        "count": 1,
+        "category": "utilities"
+      },
+      "Louie Coffee Shop": {
+        "amount": 16.89,
+        "count": 2,
+        "category": "restaurant/dining"
+      },
+      "Figma Professional": {
+        "amount": 16.5,
+        "count": 1,
+        "category": "subscriptions"
+      },
+      "Tim Hortons King & Strachan": {
+        "amount": 21.2,
+        "count": 4,
+        "category": "restaurant/dining"
+      },
+      "Balzac's King West": {
+        "amount": 22.01,
+        "count": 3,
+        "category": "restaurant/dining"
+      },
+      "Loblaws Queen West": {
+        "amount": 392.6,
+        "count": 4,
+        "category": "groceries"
+      },
+      "Spotify Premium": {
+        "amount": 12.99,
+        "count": 1,
+        "category": "subscriptions"
+      },
+      "Square One Tenant Insurance": {
+        "amount": 28,
+        "count": 1,
+        "category": "insurance"
+      },
+      "PRESTO Reload (TTC)": {
+        "amount": 120,
+        "count": 3,
+        "category": "general transportation"
+      },
+      "Rogers Wireless": {
+        "amount": 75,
+        "count": 1,
+        "category": "communication/cell"
+      },
+      "Queen Mother Cafe": {
+        "amount": 32.22,
+        "count": 1,
+        "category": "restaurant/dining"
+      },
+      "Metro Liberty Village": {
+        "amount": 100.87,
+        "count": 2,
+        "category": "groceries"
+      },
+      "Sud Forno Queen": {
+        "amount": 31.31,
+        "count": 2,
+        "category": "restaurant/dining"
+      },
+      "Maple Leaf Gardens Loblaws": {
+        "amount": 108.21,
+        "count": 1,
+        "category": "groceries"
+      },
+      "Shoppers Drug Mart Liberty North": {
+        "amount": 48.03,
+        "count": 1,
+        "category": "hygiene/personal care"
+      },
+      "FreshCo Liberty Village": {
+        "amount": 111.83,
+        "count": 2,
+        "category": "groceries"
+      },
+      "New York Times Digital": {
+        "amount": 4.25,
+        "count": 1,
+        "category": "subscriptions"
+      },
+      "Pizzeria Libretto Ossington": {
+        "amount": 43.97,
+        "count": 1,
+        "category": "restaurant/dining"
+      },
+      "Netflix Standard": {
+        "amount": 17.99,
+        "count": 1,
+        "category": "subscriptions"
+      },
+      "iCloud Storage 200 GB": {
+        "amount": 3.99,
+        "count": 1,
+        "category": "subscriptions"
+      },
+      "Solis Movement King West": {
+        "amount": 96,
+        "count": 3,
+        "category": "sports and recreation"
+      },
+      "Rexall King & Bathurst": {
+        "amount": 37.15,
+        "count": 1,
+        "category": "hygiene/personal care"
+      },
+      "Studio Lagree King": {
+        "amount": 36,
+        "count": 1,
+        "category": "sports and recreation"
+      },
+      "Kensington Fruit Market": {
+        "amount": 14.59,
+        "count": 1,
+        "category": "groceries"
+      },
+      "Type Books Queen West": {
+        "amount": 56.22,
+        "count": 1,
+        "category": "hobbies"
+      },
+      "Priya Sharma": {
+        "amount": 180,
+        "count": 1,
+        "category": "miscellaneous"
+      },
+      "CIBC Smart Account Fee": {
+        "amount": 16.95,
+        "count": 1,
+        "category": "service charges/fees"
+      },
+      "Tangerine Savings": {
+        "amount": 400,
+        "count": 1,
+        "category": "savings"
+      },
+      "Shoppers Drug Mart Liberty North (household)": {
+        "amount": 24.83,
+        "count": 1,
+        "category": "household items"
+      },
+      "LCBO Liberty Village": {
+        "amount": 33.37,
+        "count": 1,
+        "category": "liquor/beer/wine"
+      },
+      "TIFF Bell Lightbox": {
+        "amount": 25.25,
+        "count": 1,
+        "category": "entertainment"
+      },
+      "Uber Canada": {
+        "amount": 25.05,
+        "count": 1,
+        "category": "general transportation"
+      }
+    },
+    "deposits_by_company": {
+      "Ridge Studio Retainer": {
+        "amount": 2400,
+        "count": 1
+      },
+      "Northwind Labs Retainer": {
+        "amount": 2821.44,
+        "count": 1
+      }
+    },
+    "top_categories": [
+      {
+        "name": "rent",
+        "amount": 2150,
+        "count": 1
+      },
+      {
+        "name": "groceries",
+        "amount": 728.1,
+        "count": 10
+      },
+      {
+        "name": "savings",
+        "amount": 400,
+        "count": 1
+      },
+      {
+        "name": "restaurant/dining",
+        "amount": 258.44,
+        "count": 23
+      },
+      {
+        "name": "miscellaneous",
+        "amount": 180,
+        "count": 1
+      }
+    ]
+  },
+  "previous": {
+    "year_month": "2025-12",
+    "total_spending": 5987.33,
+    "spending_count": 76,
+    "deposit_total": 5221.44,
+    "deposit_count": 2,
+    "by_category": {
+      "restaurant/dining": {
+        "amount": 643.45,
+        "count": 31
+      },
+      "rent": {
+        "amount": 2150,
+        "count": 1
+      },
+      "internet": {
+        "amount": 80,
+        "count": 1
+      },
+      "utilities": {
+        "amount": 103.77,
+        "count": 1
+      },
+      "hygiene/personal care": {
+        "amount": 31.8,
+        "count": 1
+      },
+      "general transportation": {
+        "amount": 253,
+        "count": 8
+      },
+      "subscriptions": {
+        "amount": 55.72,
+        "count": 5
+      },
+      "sports and recreation": {
+        "amount": 90,
+        "count": 3
+      },
+      "groceries": {
+        "amount": 817.45,
+        "count": 9
+      },
+      "travel": {
+        "amount": 684.3,
+        "count": 1
+      },
+      "insurance": {
+        "amount": 28,
+        "count": 1
+      },
+      "communication/cell": {
+        "amount": 75,
+        "count": 1
+      },
+      "liquor/beer/wine": {
+        "amount": 185.41,
+        "count": 3
+      },
+      "entertainment": {
+        "amount": 51.93,
+        "count": 2
+      },
+      "hobbies": {
+        "amount": 136.9,
+        "count": 2
+      },
+      "clothing": {
+        "amount": 118.73,
+        "count": 1
+      },
+      "technology": {
+        "amount": 307.66,
+        "count": 2
+      },
+      "household items": {
+        "amount": 57.26,
+        "count": 1
+      },
+      "service charges/fees": {
+        "amount": 16.95,
+        "count": 1
+      },
+      "savings": {
+        "amount": 100,
+        "count": 1
+      }
+    },
+    "by_company": {
+      "Tim Hortons King & Strachan": {
+        "amount": 17.58,
+        "count": 3,
+        "category": "restaurant/dining"
+      },
+      "Liberty Market Lofts": {
+        "amount": 2150,
+        "count": 1,
+        "category": "rent"
+      },
+      "Arvo Coffee": {
+        "amount": 62.31,
+        "count": 10,
+        "category": "restaurant/dining"
+      },
+      "Bell Fibe Internet": {
+        "amount": 80,
+        "count": 1,
+        "category": "internet"
+      },
+      "Toronto Hydro": {
+        "amount": 103.77,
+        "count": 1,
+        "category": "utilities"
+      },
+      "Shoppers Drug Mart Liberty North": {
+        "amount": 31.8,
+        "count": 1,
+        "category": "hygiene/personal care"
+      },
+      "PRESTO Reload (TTC)": {
+        "amount": 80,
+        "count": 2,
+        "category": "general transportation"
+      },
+      "Figma Professional": {
+        "amount": 16.5,
+        "count": 1,
+        "category": "subscriptions"
+      },
+      "Louie Coffee Shop": {
+        "amount": 20.65,
+        "count": 2,
+        "category": "restaurant/dining"
+      },
+      "Solis Movement King West": {
+        "amount": 90,
+        "count": 3,
+        "category": "sports and recreation"
+      },
+      "Metro Liberty Village": {
+        "amount": 263.65,
+        "count": 3,
+        "category": "groceries"
+      },
+      "Air Canada": {
+        "amount": 684.3,
+        "count": 1,
+        "category": "travel"
+      },
+      "Spotify Premium": {
+        "amount": 12.99,
+        "count": 1,
+        "category": "subscriptions"
+      },
+      "Square One Tenant Insurance": {
+        "amount": 28,
+        "count": 1,
+        "category": "insurance"
+      },
+      "Rogers Wireless": {
+        "amount": 75,
+        "count": 1,
+        "category": "communication/cell"
+      },
+      "Green P Parking": {
+        "amount": 18.77,
+        "count": 1,
+        "category": "general transportation"
+      },
+      "Fox and John's Liberty Village": {
+        "amount": 37.19,
+        "count": 1,
+        "category": "restaurant/dining"
+      },
+      "Balzac's King West": {
+        "amount": 27.66,
+        "count": 3,
+        "category": "restaurant/dining"
+      },
+      "Loblaws Queen West": {
+        "amount": 394.08,
+        "count": 3,
+        "category": "groceries"
+      },
+      "LCBO Liberty Village": {
+        "amount": 63.37,
+        "count": 1,
+        "category": "liquor/beer/wine"
+      },
+      "Queen Mother Cafe": {
+        "amount": 66.75,
+        "count": 2,
+        "category": "restaurant/dining"
+      },
+      "TIFF Bell Lightbox": {
+        "amount": 51.93,
+        "count": 2,
+        "category": "entertainment"
+      },
+      "New York Times Digital": {
+        "amount": 4.25,
+        "count": 1,
+        "category": "subscriptions"
+      },
+      "Netflix Standard": {
+        "amount": 17.99,
+        "count": 1,
+        "category": "subscriptions"
+      },
+      "Banh Mi Boys Queen": {
+        "amount": 37.71,
+        "count": 2,
+        "category": "restaurant/dining"
+      },
+      "Sam James Coffee Bar": {
+        "amount": 5.06,
+        "count": 1,
+        "category": "restaurant/dining"
+      },
+      "FreshCo Liberty Village": {
+        "amount": 136.64,
+        "count": 2,
+        "category": "groceries"
+      },
+      "Uber Canada": {
+        "amount": 154.23,
+        "count": 5,
+        "category": "general transportation"
+      },
+      "iCloud Storage 200 GB": {
+        "amount": 3.99,
+        "count": 1,
+        "category": "subscriptions"
+      },
+      "Indigo Eaton Centre": {
+        "amount": 84.5,
+        "count": 1,
+        "category": "hobbies"
+      },
+      "La Palma": {
+        "amount": 73.94,
+        "count": 1,
+        "category": "restaurant/dining"
+      },
+      "Type Books Queen West": {
+        "amount": 52.4,
+        "count": 1,
+        "category": "hobbies"
+      },
+      "Pizzeria Libretto Ossington": {
+        "amount": 47.54,
+        "count": 1,
+        "category": "restaurant/dining"
+      },
+      "Winners Stockyards": {
+        "amount": 118.73,
+        "count": 1,
+        "category": "clothing"
+      },
+      "Apple Store Eaton Centre": {
+        "amount": 169.21,
+        "count": 1,
+        "category": "technology"
+      },
+      "Sud Forno Queen": {
+        "amount": 45.42,
+        "count": 3,
+        "category": "restaurant/dining"
+      },
+      "Best Buy Yonge & Dundas": {
+        "amount": 138.45,
+        "count": 1,
+        "category": "technology"
+      },
+      "LCBO Queens Quay": {
+        "amount": 67.84,
+        "count": 1,
+        "category": "liquor/beer/wine"
+      },
+      "Shoppers Drug Mart Liberty North (household)": {
+        "amount": 57.26,
+        "count": 1,
+        "category": "household items"
+      },
+      "Kensington Fruit Market": {
+        "amount": 23.08,
+        "count": 1,
+        "category": "groceries"
+      },
+      "CIBC Smart Account Fee": {
+        "amount": 16.95,
+        "count": 1,
+        "category": "service charges/fees"
+      },
+      "Tangerine Savings": {
+        "amount": 100,
+        "count": 1,
+        "category": "savings"
+      },
+      "LCBO Bay & King": {
+        "amount": 54.2,
+        "count": 1,
+        "category": "liquor/beer/wine"
+      },
+      "Cibo Wine Bar King West": {
+        "amount": 77.28,
+        "count": 1,
+        "category": "restaurant/dining"
+      },
+      "Pure Spirits Oyster House": {
+        "amount": 124.36,
+        "count": 1,
+        "category": "restaurant/dining"
+      }
+    },
+    "deposits_by_company": {
+      "Ridge Studio Retainer": {
+        "amount": 2400,
+        "count": 1
+      },
+      "Northwind Labs Retainer": {
+        "amount": 2821.44,
+        "count": 1
+      }
+    },
+    "top_categories": [
+      {
+        "name": "rent",
+        "amount": 2150,
+        "count": 1
+      },
+      {
+        "name": "groceries",
+        "amount": 817.45,
+        "count": 9
+      },
+      {
+        "name": "travel",
+        "amount": 684.3,
+        "count": 1
+      },
+      {
+        "name": "restaurant/dining",
+        "amount": 643.45,
+        "count": 31
+      },
+      {
+        "name": "technology",
+        "amount": 307.66,
+        "count": 2
+      }
+    ]
+  },
+  "delta_amount": -1400.76,
+  "delta_percent": -23.39540329328766,
+  "pace": null
+}

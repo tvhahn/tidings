@@ -1,0 +1,271 @@
+[build-system]
+requires = ["setuptools>=75.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tidings"
+version = "0.1.0"
+description = "A private finance journal built from the transaction emails you already receive"
+license = {file = "LICENSE"}
+requires-python = ">=3.12"
+dependencies = [
+    "openai",
+    "boto3",
+    "beautifulsoup4",
+    "instructor",
+    "python-dateutil",
+    "fastapi",
+    # Imported directly in 20+ modules — declared explicitly rather than
+    # relied on transitively via fastapi/openai.
+    "pydantic",
+    "uvicorn[standard]",
+    "pdfplumber",
+    # HEIC/HEIF → JPEG conversion for receipt attachments (L4,
+    # docs/specs/2026-07-09-receipts-and-tax).
+    "pillow-heif",
+    # Imported directly by src/api/routers/attachments.py (receipt conversion) —
+    # declared explicitly rather than relied on transitively via pillow-heif.
+    # The floor matches the former dev-group security pin.
+    "pillow>=12.1.1",
+    "python-multipart",
+    "requests",
+    # src/api/dependencies.py loads data/.env at import time — previously only
+    # a transitive dep of uvicorn[standard].
+    "python-dotenv>=1.2.1",
+    "twilio",
+    "argon2-cffi",
+]
+
+[project.optional-dependencies]
+# Prompt evaluation harness — dev-only, see dev/eval_harness/.
+# Install with: uv sync --extra eval
+eval = [
+    "streamlit>=1.32.0",
+    "streamlit-sortables>=0.3.0",
+]
+
+[dependency-groups]
+dev = [
+    "jupyterlab",
+    "pytest>=8.0",
+    "pytest-cov",
+    # xdist stays opt-in via CLI flags only (`-n <N>` in the Makefile test
+    # targets); it is deliberately kept out of addopts so ad-hoc
+    # `pytest path/to/file.py` runs stay serial and fast (see the
+    # [tool.pytest.ini_options] note on coverage being opt-in for the same reason).
+    "pytest-xdist",
+    "scipy",
+    "matplotlib",
+    "seaborn",
+    "pandas",
+    "scikit-learn",
+    "ipywidgets",
+    "tqdm",
+    "openpyxl",
+    "ruff",
+    "ipykernel",
+    "pip-audit",
+    # httpx: imported directly by tests/ (test_openai_categorization, asserts);
+    # no src/ import since chatgpt_oauth moved to subprocess — deptry enforces.
+    "httpx",
+    "pymupdf",
+    "weasyprint",
+    "jinja2",
+    "faker",
+    "pyright>=1.1.411",
+    "boto3-stubs[dynamodb]",
+    "hypothesis>=6.100",
+    "libcst>=1.8.6",
+    "moto[dynamodb]>=5.0",
+    "deptry>=0.25.1",
+]
+
+[tool.setuptools.packages.find]
+include = ["src*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+# Coverage is opt-in (Makefile `test` / `test-ci` / `verify-backend`) so that
+# ad-hoc `pytest path/to/file.py` runs stay fast and don't print the full
+# 100-row coverage table on every iteration.
+# strict_markers makes a typo'd marker like @pytest.mark.intgration fail
+# collection instead of silently skipping. (pytest 9 reads this as a top-level
+# ini key — putting `--strict-markers` in addopts doesn't take effect.)
+strict_markers = true
+filterwarnings = [
+    # AsyncMock coroutine leaks are real bugs — see the timeout test in
+    # tests/unit/test_summary_provider_cli.py for the canonical pattern.
+    # Promote to errors so they can't sneak back in.
+    "error::RuntimeWarning",
+]
+markers = [
+    "integration: tests that call external services (e.g. OpenAI API)",
+    "private_fixtures: tests that consume uncommitted real bank statements in tests/test_data/_private/ (opt in with RUN_PRIVATE_FIXTURES=1)",
+]
+
+[tool.coverage.run]
+# Branch coverage (not just line): an untaken `if`/`else` edge counts as a miss,
+# so the Makefile floor gates real path coverage. Config-sourced here, not via a
+# `--cov-branch` flag, to keep the invocation single-sourced in `make test-ci`.
+branch = true
+
+[tool.coverage.report]
+# exclude_also APPENDS to coverage's built-in defaults (keeps `pragma: no cover`);
+# exclude_lines would REPLACE them. Entries are regexes — single-quoted TOML
+# literals avoid backslash escaping. These are non-runtime lines by construction.
+exclude_also = [
+    'if TYPE_CHECKING:',
+    'raise NotImplementedError',
+    '@overload',
+    'def __repr__',
+    'if __name__ == .__main__.:',
+    '^\s*\.\.\.$',
+]
+
+[tool.deptry]
+# Dependency-hygiene gate (DEP001 missing / DEP002 unused-declared /
+# DEP003 transitive-import / DEP004 dev-vs-prod misplacement). Scans src/ only,
+# so anything imported only by tests/ or launched as a process shows up here and
+# is mapped below with the reason it is legitimate.
+# `src` is this repo's own first-party package (imported as `import src.finance…`);
+# without this deptry reports every internal import as a transitive dependency.
+known_first_party = ["src"]
+
+[tool.deptry.per_rule_ignores]
+# DEP002 — declared but not imported by src/. Each is a real, needed dependency
+# that deptry cannot see because it is run as a process or imported elsewhere:
+#   uvicorn         — ASGI server launched on the command line, never imported.
+#   python-multipart — form-upload parser FastAPI/Starlette load at runtime.
+#   streamlit / streamlit-sortables — the `eval` extra, harness-only (dev/eval_harness/).
+DEP002 = ["uvicorn", "python-multipart", "streamlit", "streamlit-sortables"]
+# DEP003 — botocore is boto3's own pinned core; `botocore.exceptions` ships with
+# every boto3 install, so importing it directly is safe rather than a hidden transitive.
+DEP003 = ["botocore"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "UP",   # pyupgrade
+    "SIM",  # flake8-simplify
+    "RUF",  # ruff-native rules
+    "N",    # pep8-naming
+    "C4",   # flake8-comprehensions
+    "PIE",  # flake8-pie
+    "TCH",  # flake8-type-checking
+    "PLE",  # pylint: errors
+    "PLW",  # pylint: warnings
+    "PLC",  # pylint: conventions
+    "A",    # flake8-builtins — builtin-name shadowing
+    "ERA",  # commented-out code
+    "FURB", # refurb modernizations (incl. Decimal constructor hygiene)
+    "G",    # flake8-logging-format — no eager f-strings in log calls
+    "LOG",  # flake8-logging
+    "PERF", # perflint
+    "PT",   # pytest style
+    "RET",  # flake8-return
+    "TRY400", # logger.exception over logger.error in except blocks (rest of TRY deliberately excluded — message-style noise)
+    "S",    # flake8-bandit — security lint
+    "DTZ",  # flake8-datetimez — naive datetime/date bans (today/now routed through app_timezone helpers)
+    # NOTE: PLR (refactor) intentionally excluded — too noisy (too-many-args,
+    # magic-number-comparison) for this codebase without a larger refactor.
+]
+ignore = [
+    "E501",    # line-length — handled by formatter
+    "SIM108",  # ternary-vs-if — often hurts readability in parsers
+    "PLW2901", # overwriting loop variable — idiomatic in several aggregators
+    "PLC0415", # import-outside-top-level — used for lazy loading and cycle avoidance
+    "PT019",   # fixture-param naming heuristic — 91 hits, high false-positive rate on this suite
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "N802",    # lowercase test fixture/helper names
+    "N803",    # fixture-class arguments often CamelCase (e.g. MockSummary)
+    "N806",    # test-local CamelCase variables
+    "B007",    # unused loop control var common in `for _ in range(N)` style
+    "B017",    # pytest.raises(Exception) is idiomatic for intentional broad catches
+    "PLW0108", # lambda-wrapping mocks is a common, readable test idiom
+    "RUF012",  # mock classes commonly carry mutable class attrs
+    "S101",    # asserts are the point of tests
+    "S105",    # fixture "passwords"/tokens are test data
+    "S106",    # ditto, as function args
+    "S110",    # deliberate swallow in tests/asserts.py helper
+    "S603",    # subprocess in git-hook / uv-guard tests runs repo-local commands
+    "S607",    # partial-path process start in the same hook tests
+    "S608",    # string-built SQL against throwaway fixture DBs
+]
+"src/api/dependencies.py" = [
+    "PLW0603", # singleton factory pattern relies on module-level globals
+]
+"src/api/routers/daily_summaries.py" = [
+    "PLW0603", # background task state carried via module globals
+]
+"src/api/routers/insights.py" = [
+    "PLW0603", # cached insight results live at module scope
+]
+"src/finance/app_config.py" = [
+    "PLW0603", # app-config singleton cached on first access
+]
+"src/finance/config_loader.py" = [
+    "PLW0603", # config cache populated lazily via module globals
+]
+"src/finance/notification_service.py" = [
+    "PLW0603", # notification-service singleton initialized lazily
+]
+"src/finance/chatgpt_oauth.py" = [
+    "PLW0603", # token cache mutated by exchange/refresh/disconnect at module scope
+]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI dependency-injection helpers are safe to call in default args.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Body",
+    "fastapi.Header",
+    "fastapi.Cookie",
+    "fastapi.Form",
+    "fastapi.File",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "lf"
+
+[tool.pyright]
+# tests/ is deliberately not typechecked: the strict-ratchet rules below
+# produce 600+ errors there and no gate (Makefile or CI) has ever enforced
+# them. Keeping include aligned with the gates means a bare `uv run pyright`
+# matches `make verify-backend` instead of silently disagreeing with it.
+include = ["src"]
+exclude = ["**/__pycache__", ".venv", "data", "docker"]
+pythonVersion = "3.12"
+pythonPlatform = "Linux"
+typeCheckingMode = "basic"
+reportMissingImports = "error"
+reportMissingTypeStubs = "none"
+# Custom strict subset — see docs/specs/_archive/2026-04-22-backend-pyright-strict-ratchet/
+# Opt into the three highest-AI-slop-value producer-side rules while leaving the
+# reportUnknown{Member,Variable,Argument}Type cascade off for now.
+reportMissingParameterType = "error"
+reportMissingTypeArgument = "error"
+reportUnknownParameterType = "error"
+# 2026-07-16 ratchet continuation: dead-logic + dead-code + unused-symbol batch.
+reportUnnecessaryComparison = "error"
+reportUnnecessaryIsInstance = "error"
+reportUnusedClass = "error"
+reportUnusedFunction = "error"
+reportConstantRedefinition = "error"
+reportUnusedImport = "error"
+reportPrivateUsage = "error"

@@ -1,0 +1,70 @@
+---
+// Server-rendered "Endpoints at a glance" index for the API page (L8/C5).
+// Reads the same public/openapi.json snapshot the markdown/llms surfaces use and
+// shares openapiSummary.mjs, so all three cannot drift (Trap 5). No client JS —
+// a plain <details> so the routes are crawlable and Pagefind-indexed.
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+import { endpointGroups } from '../lib/openapiSummary.mjs';
+
+// Resolved from process.cwd() (the docs-site root during `astro build`/`dev`):
+// Astro bundles this component's server module, relocating import.meta.url and
+// breaking a module-relative path.
+const specPath = resolve(process.cwd(), 'public', 'openapi.json');
+const spec = JSON.parse(readFileSync(specPath, 'utf8'));
+const groups = endpointGroups(spec);
+const routeCount = groups.reduce((n, g) => n + g.endpoints.length, 0);
+---
+
+<details class="api-index">
+	<summary>Endpoints at a glance ({routeCount} routes)</summary>
+	{
+		groups.map((group) => (
+			<div class="api-index-group">
+				<h3>{group.tag}</h3>
+				<ul>
+					{group.endpoints.map((endpoint) => (
+						<li>
+							<code>{endpoint.method} {endpoint.path}</code>
+							{endpoint.summary ? ` — ${endpoint.summary}` : ''}
+						</li>
+					))}
+				</ul>
+			</div>
+		))
+	}
+</details>
+
+<style>
+	.api-index {
+		margin: 0 auto 2rem;
+		max-width: 60rem;
+		border: 1px solid var(--sl-color-gray-5, #ccc);
+		border-radius: 0.5rem;
+		padding: 0.75rem 1rem;
+		text-align: left;
+	}
+	.api-index > summary {
+		cursor: pointer;
+		font-weight: 600;
+	}
+	.api-index-group {
+		margin-top: 1.25rem;
+	}
+	.api-index-group h3 {
+		margin: 0 0 0.5rem;
+		font-size: 1rem;
+	}
+	.api-index-group ul {
+		margin: 0;
+		padding-left: 1.25rem;
+	}
+	.api-index-group li {
+		margin: 0.2rem 0;
+		line-height: 1.45;
+	}
+	.api-index-group code {
+		white-space: nowrap;
+	}
+</style>

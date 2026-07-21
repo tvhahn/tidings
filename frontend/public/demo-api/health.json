@@ -1,0 +1,15 @@
+{
+  "status": "ok",
+  "version": "0.1.0",
+  "backend": "sqlite",
+  "imap_last_poll": "2026-03-19T08:12:00-04:00",
+  "imap_poll_age_seconds": 54,
+  "last_transaction_at": "2026-03-19T07:41:00-04:00",
+  "last_transaction_age_seconds": 1914,
+  "parse_failures_7d": 2,
+  "checked_at": "2026-03-19T08:13:00-04:00",
+  "auth_required": false,
+  "ai_categorization_status": "ok",
+  "ai_last_error_reason": null,
+  "quiet_institutions": 0
+}

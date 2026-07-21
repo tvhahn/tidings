@@ -1,0 +1,35 @@
+services:
+  finance:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-tvhahn}/tidings:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    ports:
+      - "8000:8000"
+    volumes:
+      - finance_data:/app/data
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    restart: unless-stopped
+
+  imap-poller:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-tvhahn}/tidings-imap-poller:latest
+    build:
+      context: .
+      dockerfile: docker/imap_polling/Dockerfile
+    volumes:
+      - finance_data:/app/data
+    environment:
+      - IMAP_SERVER=${IMAP_SERVER:-imap.gmail.com}
+      - IMAP_PORT=${IMAP_PORT:-993}
+      - IMAP_USER=${IMAP_USER:-}
+      - IMAP_PASSWORD=${IMAP_PASSWORD:-}
+      - IMAP_FOLDER=${IMAP_FOLDER:-INBOX}
+      - IMAP_POLL_INTERVAL=${IMAP_POLL_INTERVAL:-60}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    depends_on:
+      - finance
+    restart: unless-stopped
+
+volumes:
+  finance_data:

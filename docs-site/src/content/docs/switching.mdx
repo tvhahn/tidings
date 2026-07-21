@@ -1,0 +1,36 @@
+---
+title: Coming from Firefly III or Actual Budget?
+description: What Tidings deliberately leaves to those tools, what it does that they don't, and when to pick which.
+---
+
+Firefly III and Actual Budget are the established self-hosted finance tools, and both are good at what they set out to do. Tidings sets out to do something narrower. This page is the honest comparison.
+
+## What those tools are
+
+**Firefly III** is a full double-entry finance manager — accounts, balances, rules, reports. Data comes in through its companion Data Importer: CSV or CAMT files, or third-party bank-data providers where they cover your bank.
+
+**Actual Budget** is a local-first envelope-budgeting app in the YNAB tradition — you give every dollar a job and reconcile against accounts. Bank sync is user-initiated through providers such as SimpleFIN Bridge (North America, about $15 a year) or Enable Banking (Europe), alongside QIF, OFX, QFX, and CSV imports.
+
+Both are organized around accounts and balances, and getting data in means bank sync where a provider covers your bank, file exports where it doesn't, and manual entry in between.
+
+## What Tidings does instead
+
+Tidings builds a spending journal from the transaction alert emails your bank already sends. You forward the alerts to an inbox you control; a parser reads each one within a minute of arrival and files it once. No bank credentials, no sync provider, no import ritual — and no accounting system underneath. The trade is deliberate: give up account-balance bookkeeping, get a record of spending that maintains itself.
+
+## What you give up
+
+- **Double-entry accounting.** There are no accounts and no balances. Tidings records spending and income as a journal, not a ledger that reconciles to the penny. PDF statement upload exists to catch transactions that never arrived by email, not to manage accounts.
+- **Envelope budgeting.** Budgets in Tidings are annual targets read against the pace of the year, plus a top-level spending ceiling. There are no envelopes, no monthly rollover, no zero-based allocation.
+- **Bank coverage by sync.** Tidings needs a bank that emails transaction alerts. Parsers for five Canadian banks ship today; alerts from other banks can be rescued with AI extraction, and any bank that sends alert emails can be added by [writing a parser](/add-a-parser/).
+
+## What you gain
+
+- **No manual entry, and no credentials.** Nothing to type in, no aggregator holding your bank login, no sync subscription to maintain.
+- **A journal you actually read.** A month arrives one day at a time, with budgets paced to the year, a monthly briefing, and merchant signals — closer to a statement worth reading than a spreadsheet to maintain.
+- **An API built for agents.** Every route is a versioned `/api/v1/` endpoint with bearer-token auth, and the docs ship in machine-readable form. See [Tidings for agents](/for-agents/).
+
+## Run both if you like
+
+Tidings does not compete for your data — it reads emails the other tools never see. Keeping an accounting tool for balances and net worth alongside Tidings for the daily journal is a legitimate setup, not a compromise.
+
+Next: [A month in Tidings](/tour/), or the [Quickstart](/quickstart/).

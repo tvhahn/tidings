@@ -1,0 +1,8 @@
+/* Canonical Tidings brand tokens — source of truth lives in the frontend
+   (frontend/src/index.css). scripts/sync-tokens.mjs copies it (plus
+   styles/themes.css) into ./tidings-tokens/ on every dev/build so its bare
+   `@import "tailwindcss"` resolves against docs-site/node_modules — the
+   deploy build installs only docs-site deps, so importing the frontend file
+   directly by relative path fails there. Syncing avoids drift the same way
+   sync-content.mjs does for /docs/. */
+@import "./tidings-tokens/index.css";

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Test Fixture</title>
+  <meta name="author" content="expense-reporting test suite">
+  <meta name="description" content="Synthetic Simplii-shaped bank statement fixture. Not a real statement.">
+  <link rel="stylesheet" href="simplii_statement.css">
+</head>
+<body>
+
+  <div class="page-header">
+    <div class="title">your no fee chequing account</div>
+    <div class="meta-center">statement period: {{ period_start_text }} - {{ period_end_text }}</div>
+    <div class="meta-center">statement date: {{ statement_date_text }}</div>
+    <div class="meta-center">account number: {{ account_number }}</div>
+  </div>
+
+  <div class="address-block">
+    <div>{{ holder_name }}</div>
+    <div>OR {{ co_holder_name }}</div>
+    <div>{{ address_line1 }}</div>
+    <div>{{ address_city_province }}</div>
+    <div>{{ postal_code }}</div>
+  </div>
+
+  <div class="details-label">details</div>
+
+  <table class="txn-table">
+    <thead>
+      <tr class="header-row-1">
+        <th class="trans-col">trans.</th>
+        <th class="eff-col">eff.</th>
+        <th class="desc-col">transaction</th>
+        <th class="funds-lbl">funds</th>
+        <th class="inout-lbl">out</th>
+        <th class="funds-lbl">funds</th>
+        <th class="inout-lbl">in</th>
+        <th class="bal-col">balance</th>
+      </tr>
+      <tr class="header-row-2">
+        <th class="trans-col">date</th>
+        <th class="eff-col">date</th>
+        <th class="desc-col"></th>
+        <th colspan="2"></th>
+        <th colspan="2"></th>
+        <th class="bal-col"></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="trans-col">{{ opening_trans_date }}</td>
+        <td class="eff-col">{{ opening_eff_date }}</td>
+        <td class="desc-col">BALANCE FORWARD</td>
+        <td class="fout-amt" colspan="2"></td>
+        <td class="fin-amt" colspan="2"></td>
+        <td class="bal-col">{{ opening_balance }}</td>
+      </tr>
+      {% for txn in transactions %}
+      <tr>
+        <td class="trans-col">{{ txn.trans_date }}</td>
+        <td class="eff-col">{{ txn.eff_date }}</td>
+        <td class="desc-col">{{ txn.description }}</td>
+        <td class="fout-amt" colspan="2">{{ txn.withdrawal }}</td>
+        <td class="fin-amt" colspan="2">{{ txn.deposit }}</td>
+        <td class="bal-col">{{ txn.balance }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="end-markers">
+    <div>end of transactions</div>
+    <div class="totals-line">total funds out <span class="amt">{{ total_funds_out }}</span></div>
+    <div class="totals-line">total funds in <span class="amt">{{ total_funds_in }}</span></div>
+    <div class="totals-line">closing balance <span class="amt">{{ closing_balance }}</span></div>
+  </div>
+
+  <div class="legal-footer">
+    Simplii Financial is a division of CIBC. Banking services are not available in Quebec.
+  </div>
+
+</body>
+</html>

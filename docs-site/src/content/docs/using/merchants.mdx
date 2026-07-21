@@ -1,0 +1,35 @@
+---
+title: Merchants
+description: Read-only merchant intelligence over a trailing six months — recurring detection, burn rate, and price-change signals.
+---
+
+import ThemedScreenshot from '../../../components/ThemedScreenshot.astro';
+import CategoryTypeGlyph from '../../../components/figures/CategoryTypeGlyph.astro';
+
+The merchants page looks at who you pay, across the trailing six months. It is read-only — a view over your spending, not a place to edit it — and every figure is derived from data Tidings already has.
+
+<ThemedScreenshot id="merchants" alt="The merchants page listing recurring merchants with their classifications and amounts." />
+
+## Where the numbers come from
+
+Nothing new is collected here. The page is built entirely from your existing monthly summaries, the same per-month figures the rest of Tidings runs on. Results are cached for an hour, so a very recent edit — a re-categorized transaction, a merged alias — can lag until the cache refreshes.
+
+Merchants group by canonical alias, so the several raw names one merchant sends collect into a single entry.
+
+## How merchants are classified
+
+Over the six-month window each merchant is sorted by how it recurs:
+
+- <CategoryTypeGlyph kind="fixed" /> **Fixed** — present every month at a steady amount. These read as subscriptions.
+- <CategoryTypeGlyph kind="variable" /> **Variable** — present every month, but the amount moves.
+- <CategoryTypeGlyph kind="lumpy" /> **Lumpy** — present in some months, not others.
+
+The recurring burn rate is the sum of the fixed merchants' typical amounts — the spending locked in before the month begins. Discretionary spending is then this month's total minus that burn rate — what landed this month outside the subscriptions.
+
+## Price changes, new, and churned
+
+For a fixed merchant, Tidings compares its last two active months. If the amount changed by at least 5 percent and at least a dollar, the change is surfaced — a subscription that crept up, seen without you watching for it.
+
+A merchant is marked **new** when it appears in the last two months but was absent earlier in the window — two consecutive months, so a single one-off charge does not read as a new relationship. A merchant is marked **churned** when it was active earlier in the window but has gone silent for the last two months.
+
+For the types these classifications share with your budget, see [budgets](/using/budgets/); for how merchant aliases are set, see [categorization](/using/categorization/).

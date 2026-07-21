@@ -1,0 +1,59 @@
+# Tidings docs
+
+> A private finance journal built from the transaction emails you already receive. Self-hosted with Docker or AWS Lambda; data stays on your machine.
+
+## Welcome
+
+- [Tidings](https://docs.gettidings.com/index.md): A private finance journal from the transaction emails you already receive.
+- [Quickstart](https://docs.gettidings.com/quickstart.md): Three commands and a browser tab. The default is demo mode with seeded sample data.
+- [A month in Tidings](https://docs.gettidings.com/tour.md): A five-minute, screenshot-led walk through one month of spending — journal, summary, budgets, insights, merchants.
+- [Coming from Firefly III or Actual Budget?](https://docs.gettidings.com/switching.md): What Tidings deliberately leaves to those tools, what it does that they don't, and when to pick which.
+
+## Getting started
+
+- [Docker setup](https://docs.gettidings.com/self-hosting/docker.md): The everyday self-host path: SQLite on a shared Docker volume, IMAP poller as a sidecar, zero cloud dependencies.
+- [Email setup](https://docs.gettidings.com/self-hosting/email.md): Wire a dedicated Gmail inbox to the IMAP poller.
+- [Notifications](https://docs.gettidings.com/notifications.md): Pick a push or SMS provider for new-transaction alerts.
+
+## Using Tidings
+
+- [How Tidings works](https://docs.gettidings.com/using/how-it-works.md): The path a bank email takes to become a categorized transaction, and the rules that decide what changes when.
+- [The journal](https://docs.gettidings.com/using/journal.md): The day-grouped view of a month's spending, and why its totals differ from the full ledger.
+- [Transactions](https://docs.gettidings.com/using/transactions.md): The full ledger, including the refunds and transfers the journal filters out, plus the attention queue and the trash.
+- [Categorization](https://docs.gettidings.com/using/categorization.md): How the Categorize page names and categorizes your transactions, and how each mechanism reaches into your history differently.
+- [Needs review](https://docs.gettidings.com/using/needs-review.md): The quarantine for bank emails Tidings could not parse, and how retrying or setting them aside works.
+- [Summary](https://docs.gettidings.com/using/summary.md): The month-scoped overview — stat cards, a Trend or Flow visualization, and a category table with six months of context.
+- [Budgets](https://docs.gettidings.com/using/budgets.md): Annual per-category targets assessed by proration, a top-level spending ceiling, and the editor where you set them.
+- [Insights](https://docs.gettidings.com/using/insights.md): The monthly briefing workspace — always-on structured cards, a generated narrative, and exactly what Tidings sends to a model.
+- [Merchants](https://docs.gettidings.com/using/merchants.md): Read-only merchant intelligence over a trailing six months — recurring detection, burn rate, and price-change signals.
+- [Income statement](https://docs.gettidings.com/using/income-statement.md): An annual spreadsheet of income against expenses by month, grouped by budget category type.
+- [Statements](https://docs.gettidings.com/using/statements.md): Uploading a bank-issued PDF statement to reconcile and import transactions that never arrived by email.
+- [Tax receipts](https://docs.gettidings.com/using/tax.md): A year-scoped organizer that buckets claimable spending into lines, keeps the evidence, and exports a zip — records only, not advice.
+- [Settings](https://docs.gettidings.com/using/settings.md): One page over every setting, organized by scope — what lives in your browser, what applies to the whole instance, and what controls access.
+
+## Running it
+
+- [Configuration](https://docs.gettidings.com/configuration.md): Every data/config.json key: type, default, behavior, and what lives in .env instead.
+- [Backup and restore](https://docs.gettidings.com/backup-and-restore.md): Back up the data directory, restore it, and leave cleanly.
+- [Upgrading](https://docs.gettidings.com/upgrading.md): Pull-and-restart upgrades, automatic migrations, and rolling back.
+- [Troubleshooting](https://docs.gettidings.com/troubleshooting.md): Diagnose the failures self-hosters actually hit, most common first.
+- [FAQ](https://docs.gettidings.com/faq.md): Short answers on privacy, bank support, costs, and importing history.
+
+## Advanced (AWS)
+
+- [Email-to-S3 setup](https://docs.gettidings.com/self-hosting/email-to-s3.md): Route bank alert emails into the S3 bucket the AWS Lambda watches, using SES, a verified domain, and a receipt rule.
+- [AWS deployment](https://docs.gettidings.com/self-hosting/aws.md): Build the Docker image and deploy the parser to AWS Lambda.
+- [S3 backup](https://docs.gettidings.com/s3-backup.md): Mirror receipt attachments and statement PDFs to a bucket you own — the durability answer for the files the backup zip leaves out.
+
+## Contributing
+
+- [Add a parser](https://docs.gettidings.com/add-a-parser.md): Write a parser so Tidings recognizes a new bank's alert emails.
+
+## Reference
+
+- [Architecture](https://docs.gettidings.com/architecture.md): How Tidings turns bank emails into a transaction journal.
+- [Agent access](https://docs.gettidings.com/agent-access.md): Issue a bearer token so a local agent can call the Tidings API.
+- [Tidings for agents](https://docs.gettidings.com/for-agents.md): The machine-readable surfaces — llms.txt, raw-markdown docs, OpenAPI schemas, a public demo API, and bearer-token access to a real instance.
+- [Agent guide](https://docs.gettidings.com/agent-guide.md): A briefing for AI agents — what Tidings is, how the demo API behaves, and how to give a human the tour.
+- [API reference](https://docs.gettidings.com/api.md): Versioned /api/v1/ routes with a unified error shape. Generated from the live OpenAPI spec.
+- [More guides](https://docs.gettidings.com/guides.md): Contributor-facing guides that live in the repository and open on GitHub.

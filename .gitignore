@@ -1,0 +1,201 @@
+# Audit output (writing audit reports — see /home/node/.claude/plans/)
+.audit-output/
+
+# Local staging tree for the fresh-repo / public-release prep.
+/.release-staging/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+env/
+.venv/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+# Anchored to the repo root: `lib/` (unanchored) silently swallows nested
+# package directories like `docs-site/src/lib/`. Setuptools only emits the
+# top-level form anyway.
+/lib/
+/lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# DotEnv configuration
+.env*
+!.env.example
+
+# Database
+*.db
+*.rdb
+
+# Pycharm
+.idea
+
+# VS Code (allow tasks.json for shared dev workflow)
+.vscode/*
+!.vscode/tasks.json
+
+# Spyder
+.spyproject/
+
+# Jupyter NB Checkpoints
+.ipynb_checkpoints/
+
+# exclude data from source control by default. `/data/*` (not `/data/`) so
+# git still descends into the directory and the negation below can take
+# effect — `!` cannot re-include a child of a fully-excluded directory.
+/data/*
+# Exception: the synthetic demo seed is required by the unit test suite
+# (`test_seed_file_is_committed_and_parseable` and demo_loader tests).
+# Hand-maintained and 100% synthetic — no generator ships. All rows use
+# `forwarded_to: demo@example.com`, `institution: Demo Bank`.
+!/data/demo/
+/data/demo/*
+!/data/demo/seed.json
+
+# Private (uncommitted) bank-statement fixtures. Real customer PDFs must never
+# enter version control. Track only the placeholder + the README that
+# document the convention.
+tests/test_data/_private/*
+!tests/test_data/_private/.gitkeep
+!tests/test_data/_private/README.md
+
+# Mac OS-specific storage files
+.DS_Store
+
+# vim
+*.swp
+*.swo
+
+# Mypy cache
+.mypy_cache/
+
+# Tool caches. Each tool (pytest, ruff, Hypothesis) also drops its own nested
+# `.gitignore` with `*`, so these are belt-and-suspenders: protection no longer
+# depends on that nested file being re-created.
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+
+# keys
+key.txt
+
+notebooks/scratch/*.md
+logs/
+
+src_file_prompt.md
+
+s3_files.csv
+*.csv#
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+!frontend/src/lib/
+.pnpm-store/
+
+# Docs site (Astro Starlight)
+docs-site/node_modules/
+docs-site/dist/
+docs-site/.astro/
+
+# Playwright test artifacts
+frontend/test-results/
+
+# Vitest coverage output
+frontend/coverage/
+
+# Claude Code session-local config
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+
+# Night-watch autonomous scheduler. Track the source-of-truth scripts,
+# templates, and settings overlay; everything else under .night-watch/ is
+# runtime state (run logs, queue, dashboards, screenshots) and stays out.
+.night-watch/*
+!.night-watch/bin/
+!.night-watch/bin/lib/
+!.night-watch/templates/
+!.night-watch/headless-settings.json
+
+# MCP server registry (per-developer — carries context7 bearer token).
+# Copy .mcp.json.example to .mcp.json and paste your token.
+.mcp.json
+
+# Live-test compose overlays (host-side e2e against real credentials).
+# Must never be committable from a release working tree.
+docker-compose.*test*.yml
+
+# Devcontainer override (per-developer). Copy the .example file and
+# uncomment the snippets you need — see
+# .devcontainer/docker-compose.override.yml.example.
+.devcontainer/docker-compose.override.yml
+
+# Root compose override (per-deployment). Compose auto-merges it on top of
+# docker-compose.yml — used to feed .env credentials (AWS/IMAP/OpenAI) into
+# the prod stack. Never committable.
+docker-compose.override.yml
+
+# Devcontainer local config (per-developer). Legacy — build args in
+# devcontainer.json are ignored for compose-based devcontainers, so personal
+# build args like INSTALL_EXTRA_AI_CLIS belong in the (also gitignored)
+# .devcontainer/docker-compose.override.yml instead — see CONTRIBUTING.md.
+.devcontainer/devcontainer.local.json
+
+# Maintainer-personal dev scripts (kept locally, excluded from public repo —
+# contain hardcoded AWS bucket/account references that don't apply to others)
+dev/archive/
+
+# Real bank statements used for local parser testing — private, never commit
+data/samples/
+
+# Wrangler local state (Cloudflare Pages emulator: `wrangler pages dev`).
+# Pure per-developer cache — miniflare KV/D1/R2 blobs and build temp. Never
+# needed by the deploy, which is Pages git-integration, not wrangler upload.
+.wrangler/

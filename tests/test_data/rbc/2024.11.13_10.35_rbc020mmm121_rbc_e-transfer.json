@@ -1,0 +1,8 @@
+{
+    "institution": "RBC",
+    "name": "Robert",
+    "amount": 25.0,
+    "company": "MICHELLE ANDERSON | Trying out scheduled transfers this month. | D4BpQrStUv55",
+    "transaction_type": "e-transfer",
+    "email_filepath": "tests/test_data/rbc/2024.11.13_10.35_rbc020mmm121_rbc_e-transfer.txt"
+}

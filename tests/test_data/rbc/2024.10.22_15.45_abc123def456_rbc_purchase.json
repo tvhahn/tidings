@@ -1,0 +1,8 @@
+{
+    "institution": "RBC",
+    "name": "Demo User",
+    "amount": 127.53,
+    "company": "Costco Wholesale",
+    "transaction_type": "purchase",
+    "email_filepath": "tests/test_data/rbc/2024.10.22_15.45_abc123def456_rbc_purchase.txt"
+}

@@ -1,0 +1,173 @@
+name: Release
+
+# Fires when a `v*` tag is pushed to the repo. Gates on the backend test
+# suite + a PII audit of the exact tree being released, then builds
+# multi-arch Docker images of the prod stack, pushes them to GHCR, and
+# creates a GitHub Release whose body is the matching `## [X.Y.Z]` section
+# of CHANGELOG.md.
+#
+# Coordinates with docker-build.yml: that workflow publishes `:main` on
+# every push to trunk; this workflow owns `:vX.Y.Z` and `:latest`. See
+# docs/guides/releases.md → "How the release workflow works".
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  # Nothing publishes unless the tagged commit passes the test suite and the
+  # released tree audits clean. A tag can be pushed on a commit that never
+  # went through PR CI, so the gate re-runs the checks here instead of
+  # trusting a prior workflow run.
+  gate:
+    name: pre-release gate (tests + PII audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Backend test suite
+        run: uv run pytest tests/ -m "not integration" -q
+        env:
+          AWS_DEFAULT_REGION: us-west-2
+
+      - name: Materialize PII patterns
+        env:
+          PII_PATTERNS: ${{ secrets.PII_PATTERNS }}
+        run: if [ -n "$PII_PATTERNS" ]; then printf '%s\n' "$PII_PATTERNS" > .pii-patterns; fi
+
+      - name: PII gate self-test
+        # Proves the gate is armed before the release audit trusts the alphabet:
+        # lints it and runs a runtime-assembled canary through the auditor.
+        # Fork-safe — with no secret the file is absent and the script skips green.
+        run: bash scripts/pii/check_pii_gate_armed.sh
+
+      - name: PII audit of the released tree
+        run: |
+          # Audit the exact bytes that ship: the full tracked tree, which is what
+          # `git archive` emits (there is no .gitattributes / export-ignore here).
+          # The auditor resolves .pii-patterns from the checkout — written above
+          # from the PII_PATTERNS secret on the private repo — since it is untracked
+          # and therefore absent from the archive; in a public fork with no secret
+          # it falls back to the generic credential/email/phone scans.
+          # Exit 1 = blocking hits; exit 2 = review-only flags (allowed).
+          mkdir -p /tmp/release-tree
+          git archive "$GITHUB_SHA" | tar -x -C /tmp/release-tree
+          set +e
+          uv run python scripts/pii/audit_oss_release.py --target /tmp/release-tree
+          code=$?
+          set -e
+          if [ "$code" -eq 1 ]; then
+            echo "::error::PII audit found blocking hits — release aborted. See artifact."
+          fi
+          [ "$code" -ne 1 ]
+
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-pii-audit
+          path: /tmp/release-tree/audit-report.*
+          if-no-files-found: ignore
+
+  docker:
+    needs: gate
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: web
+            dockerfile: Dockerfile.prod
+            image: ghcr.io/${{ github.repository_owner }}/tidings
+          - name: imap-poller
+            dockerfile: docker/imap_polling/Dockerfile
+            image: ghcr.io/${{ github.repository_owner }}/tidings-imap-poller
+    name: build + push (${{ matrix.name }})
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute tags + labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ matrix.image }}
+          tags: |
+            type=ref,event=tag
+            type=raw,value=latest
+
+      - name: Build + push ${{ matrix.name }} (amd64 + arm64)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          provenance: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  github-release:
+    runs-on: ubuntu-latest
+    needs: docker
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract changelog section
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          # Match `## [VERSION]` as a literal substring at start of line.
+          # `awk -v ver=...` interpolation + regex would treat `[X.Y.Z]` as
+          # a character class; index() does a plain substring check.
+          awk -v needle="## [$VERSION]" '
+            index($0, needle) == 1 { in_section = 1; next }
+            in_section && /^## \[/ { exit }
+            in_section { print }
+          ' CHANGELOG.md > release-notes.md
+          if ! [ -s release-notes.md ]; then
+            echo "::error::No '## [$VERSION]' section in CHANGELOG.md. Bump it via the release ritual before tagging."
+            exit 1
+          fi
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PRERELEASE=""
+          if [[ "${GITHUB_REF_NAME}" =~ ^v0\. ]]; then
+            PRERELEASE="--prerelease"
+          fi
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file release-notes.md \
+            $PRERELEASE

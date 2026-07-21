@@ -1,0 +1,86 @@
+# ---------------------------------------------------------------------------
+# Stage 1 — Frontend build
+# ---------------------------------------------------------------------------
+# Pinned by digest. Resolved 2026-05-05 from registry-1.docker.io/library/node:20-slim.
+# See docs/guides/supply-chain-security.md.
+FROM node:20-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0 AS frontend-builder
+
+WORKDIR /build/frontend
+
+# Enable pnpm 10 via Corepack (ships with Node 20). Mirrors the version
+# used by ci.yml's pnpm/action-setup steps.
+RUN corepack enable && corepack prepare pnpm@10 --activate
+
+# Install deps first so the (slow) install layer caches across source-only edits.
+# pnpm-workspace.yaml carries the dependency `overrides`; without it a
+# --frozen-lockfile install trips ERR_PNPM_LOCKFILE_CONFIG_MISMATCH.
+COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
+
+# Build the production SPA (`tsc -b && vite build` — see frontend/package.json).
+COPY frontend/ ./
+RUN pnpm build
+
+# ---------------------------------------------------------------------------
+# Stage 2 — Production runtime
+# ---------------------------------------------------------------------------
+# Pinned by digest. Resolved 2026-04-30 from registry-1.docker.io/library/python:3.12-slim.
+# See docs/guides/supply-chain-security.md.
+FROM python:3.12-slim@sha256:46cb7cc2877e60fbd5e21a9ae6115c30ace7a077b9f8772da879e4590c18c2e3
+
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:0.11.14 /uv /usr/local/bin/uv
+
+WORKDIR /app
+
+# Copy dependency files
+COPY pyproject.toml uv.lock ./
+
+# Install production dependencies only
+RUN uv sync --no-group dev --no-editable
+
+# Copy source code. Demo seeding reads the pre-generated data/demo/seed.json
+# (src/finance/demo_loader.py); the generator script stays out of the image —
+# dev/** is export-ignored and absent from the public tree.
+COPY src/ src/
+COPY data/demo/ data/demo/
+
+# Copy the frontend build artifact from Stage 1 (no host-side build required).
+COPY --from=frontend-builder /build/frontend/dist frontend/dist/
+
+# Optional: agent CLIs (Claude Code, OpenAI Codex, Google Gemini) for the CLI
+# AI providers in Settings → Intelligence. Off by default — the published ghcr
+# image ships without them; self-hosters opt in by building locally with the
+# INSTALL_AI_CLIS build arg (see docker-compose.override.yml.example). Installs
+# Node 22 via NodeSource (unpinned, unlike the digest-pinned base images —
+# an accepted trade-off for an opt-in local build). CLI login state lands in
+# /home/tidings (~/.claude, ~/.codex, ~/.gemini); mount a volume there so
+# logins survive container recreation.
+ARG INSTALL_AI_CLIS=false
+RUN if [ "$INSTALL_AI_CLIS" = "true" ]; then \
+      apt-get update \
+      && apt-get install -y --no-install-recommends curl ca-certificates gnupg \
+      && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+      && apt-get install -y --no-install-recommends nodejs \
+      && npm install -g @anthropic-ai/claude-code @openai/codex @google/gemini-cli \
+      && apt-get clean && rm -rf /var/lib/apt/lists/*; \
+    fi
+
+# Non-root runtime user. Fixed uid/gid (10001) so volume ownership is
+# predictable across rebuilds; named volumes mounted at /app/data inherit
+# this ownership on first use. Pre-existing root-owned volumes from older
+# images need a one-time `chown -R 10001:10001` (or `docker compose down -v`).
+# `logs/` is created and chowned too: configure_logging() (and statement
+# parsing's logs/statements/) write here at startup, and /app itself is
+# root-owned, so the tidings user could not otherwise create it.
+RUN groupadd --gid 10001 tidings \
+    && useradd --uid 10001 --gid tidings --create-home tidings \
+    && mkdir -p data logs \
+    && chown tidings:tidings data logs
+USER tidings
+
+EXPOSE 8000
+
+# --no-sync: the venv is baked at build time; never let `uv run` try to
+# mutate a root-owned environment at runtime.
+CMD ["uv", "run", "--no-sync", "uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,0 +1,506 @@
+{
+  "months": [
+    {
+      "year_month": "2025-10",
+      "total_spending": 4866.15,
+      "spending_count": 73,
+      "by_category": {
+        "restaurant/dining": {
+          "amount": 478.35,
+          "count": 32
+        },
+        "rent": {
+          "amount": 2150,
+          "count": 1
+        },
+        "internet": {
+          "amount": 80,
+          "count": 1
+        },
+        "utilities": {
+          "amount": 74.58,
+          "count": 1
+        },
+        "groceries": {
+          "amount": 687.39,
+          "count": 9
+        },
+        "general transportation": {
+          "amount": 180.94,
+          "count": 6
+        },
+        "subscriptions": {
+          "amount": 78.21,
+          "count": 6
+        },
+        "sports and recreation": {
+          "amount": 96,
+          "count": 3
+        },
+        "insurance": {
+          "amount": 28,
+          "count": 1
+        },
+        "communication/cell": {
+          "amount": 75,
+          "count": 1
+        },
+        "house maintenance": {
+          "amount": 74.42,
+          "count": 1
+        },
+        "liquor/beer/wine": {
+          "amount": 95.85,
+          "count": 2
+        },
+        "household items": {
+          "amount": 37.44,
+          "count": 1
+        },
+        "entertainment": {
+          "amount": 58.85,
+          "count": 2
+        },
+        "hygiene/personal care": {
+          "amount": 65.97,
+          "count": 1
+        },
+        "hobbies": {
+          "amount": 57.51,
+          "count": 1
+        },
+        "clothing": {
+          "amount": 37.55,
+          "count": 1
+        },
+        "technology": {
+          "amount": 93.14,
+          "count": 1
+        },
+        "service charges/fees": {
+          "amount": 16.95,
+          "count": 1
+        },
+        "savings": {
+          "amount": 400,
+          "count": 1
+        }
+      }
+    },
+    {
+      "year_month": "2025-11",
+      "total_spending": 4939.52,
+      "spending_count": 63,
+      "by_category": {
+        "rent": {
+          "amount": 2150,
+          "count": 1
+        },
+        "internet": {
+          "amount": 80,
+          "count": 1
+        },
+        "groceries": {
+          "amount": 691.24,
+          "count": 10
+        },
+        "utilities": {
+          "amount": 87.21,
+          "count": 1
+        },
+        "general transportation": {
+          "amount": 187.4,
+          "count": 5
+        },
+        "subscriptions": {
+          "amount": 55.72,
+          "count": 5
+        },
+        "restaurant/dining": {
+          "amount": 356.45,
+          "count": 21
+        },
+        "insurance": {
+          "amount": 28,
+          "count": 1
+        },
+        "communication/cell": {
+          "amount": 75,
+          "count": 1
+        },
+        "sports and recreation": {
+          "amount": 104,
+          "count": 3
+        },
+        "entertainment": {
+          "amount": 68.38,
+          "count": 3
+        },
+        "hygiene/personal care": {
+          "amount": 100.8,
+          "count": 2
+        },
+        "household items": {
+          "amount": 40.55,
+          "count": 1
+        },
+        "house maintenance": {
+          "amount": 175.64,
+          "count": 2
+        },
+        "miscellaneous": {
+          "amount": 120,
+          "count": 1
+        },
+        "hobbies": {
+          "amount": 51.09,
+          "count": 1
+        },
+        "service charges/fees": {
+          "amount": 16.95,
+          "count": 1
+        },
+        "savings": {
+          "amount": 450,
+          "count": 1
+        },
+        "liquor/beer/wine": {
+          "amount": 101.09,
+          "count": 2
+        }
+      }
+    },
+    {
+      "year_month": "2025-12",
+      "total_spending": 5987.33,
+      "spending_count": 76,
+      "by_category": {
+        "restaurant/dining": {
+          "amount": 643.45,
+          "count": 31
+        },
+        "rent": {
+          "amount": 2150,
+          "count": 1
+        },
+        "internet": {
+          "amount": 80,
+          "count": 1
+        },
+        "utilities": {
+          "amount": 103.77,
+          "count": 1
+        },
+        "hygiene/personal care": {
+          "amount": 31.8,
+          "count": 1
+        },
+        "general transportation": {
+          "amount": 253,
+          "count": 8
+        },
+        "subscriptions": {
+          "amount": 55.72,
+          "count": 5
+        },
+        "sports and recreation": {
+          "amount": 90,
+          "count": 3
+        },
+        "groceries": {
+          "amount": 817.45,
+          "count": 9
+        },
+        "travel": {
+          "amount": 684.3,
+          "count": 1
+        },
+        "insurance": {
+          "amount": 28,
+          "count": 1
+        },
+        "communication/cell": {
+          "amount": 75,
+          "count": 1
+        },
+        "liquor/beer/wine": {
+          "amount": 185.41,
+          "count": 3
+        },
+        "entertainment": {
+          "amount": 51.93,
+          "count": 2
+        },
+        "hobbies": {
+          "amount": 136.9,
+          "count": 2
+        },
+        "clothing": {
+          "amount": 118.73,
+          "count": 1
+        },
+        "technology": {
+          "amount": 307.66,
+          "count": 2
+        },
+        "household items": {
+          "amount": 57.26,
+          "count": 1
+        },
+        "service charges/fees": {
+          "amount": 16.95,
+          "count": 1
+        },
+        "savings": {
+          "amount": 100,
+          "count": 1
+        }
+      }
+    },
+    {
+      "year_month": "2026-01",
+      "total_spending": 4586.57,
+      "spending_count": 60,
+      "by_category": {
+        "restaurant/dining": {
+          "amount": 258.44,
+          "count": 23
+        },
+        "rent": {
+          "amount": 2150,
+          "count": 1
+        },
+        "internet": {
+          "amount": 80,
+          "count": 1
+        },
+        "utilities": {
+          "amount": 112.46,
+          "count": 1
+        },
+        "subscriptions": {
+          "amount": 55.72,
+          "count": 5
+        },
+        "groceries": {
+          "amount": 728.1,
+          "count": 10
+        },
+        "insurance": {
+          "amount": 28,
+          "count": 1
+        },
+        "general transportation": {
+          "amount": 145.05,
+          "count": 4
+        },
+        "communication/cell": {
+          "amount": 75,
+          "count": 1
+        },
+        "hygiene/personal care": {
+          "amount": 85.18,
+          "count": 2
+        },
+        "sports and recreation": {
+          "amount": 132,
+          "count": 4
+        },
+        "hobbies": {
+          "amount": 56.22,
+          "count": 1
+        },
+        "miscellaneous": {
+          "amount": 180,
+          "count": 1
+        },
+        "service charges/fees": {
+          "amount": 16.95,
+          "count": 1
+        },
+        "savings": {
+          "amount": 400,
+          "count": 1
+        },
+        "household items": {
+          "amount": 24.83,
+          "count": 1
+        },
+        "liquor/beer/wine": {
+          "amount": 33.37,
+          "count": 1
+        },
+        "entertainment": {
+          "amount": 25.25,
+          "count": 1
+        }
+      }
+    },
+    {
+      "year_month": "2026-02",
+      "total_spending": 5722.74,
+      "spending_count": 68,
+      "by_category": {
+        "rent": {
+          "amount": 2150,
+          "count": 1
+        },
+        "household items": {
+          "amount": 14.92,
+          "count": 1
+        },
+        "internet": {
+          "amount": 80,
+          "count": 1
+        },
+        "restaurant/dining": {
+          "amount": 587.32,
+          "count": 30
+        },
+        "utilities": {
+          "amount": 101.14,
+          "count": 1
+        },
+        "hobbies": {
+          "amount": 33.54,
+          "count": 1
+        },
+        "subscriptions": {
+          "amount": 55.72,
+          "count": 5
+        },
+        "groceries": {
+          "amount": 513.26,
+          "count": 9
+        },
+        "sports and recreation": {
+          "amount": 134,
+          "count": 4
+        },
+        "insurance": {
+          "amount": 28,
+          "count": 1
+        },
+        "general transportation": {
+          "amount": 121.57,
+          "count": 4
+        },
+        "communication/cell": {
+          "amount": 75,
+          "count": 1
+        },
+        "travel": {
+          "amount": 1505.06,
+          "count": 2
+        },
+        "entertainment": {
+          "amount": 46.94,
+          "count": 2
+        },
+        "liquor/beer/wine": {
+          "amount": 91.19,
+          "count": 2
+        },
+        "hygiene/personal care": {
+          "amount": 68.13,
+          "count": 1
+        },
+        "service charges/fees": {
+          "amount": 16.95,
+          "count": 1
+        },
+        "savings": {
+          "amount": 100,
+          "count": 1
+        }
+      }
+    },
+    {
+      "year_month": "2026-03",
+      "total_spending": 4923.98,
+      "spending_count": 54,
+      "by_category": {
+        "rent": {
+          "amount": 2150,
+          "count": 1
+        },
+        "internet": {
+          "amount": 80,
+          "count": 1
+        },
+        "utilities": {
+          "amount": 92.13,
+          "count": 1
+        },
+        "restaurant/dining": {
+          "amount": 395.67,
+          "count": 16
+        },
+        "entertainment": {
+          "amount": 45.7,
+          "count": 2
+        },
+        "general transportation": {
+          "amount": 132.4,
+          "count": 4
+        },
+        "subscriptions": {
+          "amount": 55.72,
+          "count": 5
+        },
+        "sports and recreation": {
+          "amount": 108,
+          "count": 3
+        },
+        "insurance": {
+          "amount": 28,
+          "count": 1
+        },
+        "communication/cell": {
+          "amount": 75,
+          "count": 1
+        },
+        "groceries": {
+          "amount": 571.88,
+          "count": 7
+        },
+        "liquor/beer/wine": {
+          "amount": 121.07,
+          "count": 2
+        },
+        "house maintenance": {
+          "amount": 70.7,
+          "count": 1
+        },
+        "hobbies": {
+          "amount": 33.39,
+          "count": 1
+        },
+        "miscellaneous": {
+          "amount": 80,
+          "count": 1
+        },
+        "technology": {
+          "amount": 495.43,
+          "count": 2
+        },
+        "hygiene/personal care": {
+          "amount": 83.31,
+          "count": 1
+        },
+        "travel": {
+          "amount": 147.85,
+          "count": 1
+        },
+        "gasoline": {
+          "amount": 100.85,
+          "count": 2
+        },
+        "household items": {
+          "amount": 56.88,
+          "count": 1
+        }
+      }
+    }
+  ]
+}

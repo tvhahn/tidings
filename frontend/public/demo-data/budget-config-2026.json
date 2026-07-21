@@ -1,0 +1,178 @@
+{
+  "year": 2026,
+  "spending_ceiling": 72000,
+  "categories": {
+    "rent": {
+      "target": 25800,
+      "input_mode": "yearly",
+      "monthly_amount": 2150,
+      "category_type": "fixed"
+    },
+    "internet": {
+      "target": 960,
+      "input_mode": "yearly",
+      "monthly_amount": 80,
+      "category_type": "fixed"
+    },
+    "communication/cell": {
+      "target": 900,
+      "input_mode": "yearly",
+      "monthly_amount": 75,
+      "category_type": "fixed"
+    },
+    "insurance": {
+      "target": 336,
+      "input_mode": "yearly",
+      "monthly_amount": 28,
+      "category_type": "fixed"
+    },
+    "subscriptions": {
+      "target": 672,
+      "input_mode": "yearly",
+      "monthly_amount": 56,
+      "category_type": "fixed"
+    },
+    "utilities": {
+      "target": 1104,
+      "input_mode": "yearly",
+      "monthly_amount": 92,
+      "category_type": "fixed"
+    },
+    "service charges/fees": {
+      "target": 204,
+      "input_mode": "yearly",
+      "monthly_amount": 17,
+      "category_type": "fixed"
+    },
+    "groceries": {
+      "target": 11520,
+      "input_mode": "yearly",
+      "monthly_amount": 960,
+      "category_type": "variable"
+    },
+    "restaurant/dining": {
+      "target": 6600,
+      "input_mode": "yearly",
+      "monthly_amount": 550,
+      "category_type": "variable"
+    },
+    "liquor/beer/wine": {
+      "target": 2520,
+      "input_mode": "yearly",
+      "monthly_amount": 210,
+      "category_type": "variable"
+    },
+    "hygiene/personal care": {
+      "target": 1620,
+      "input_mode": "yearly",
+      "monthly_amount": 135,
+      "category_type": "variable"
+    },
+    "household items": {
+      "target": 1200,
+      "input_mode": "yearly",
+      "monthly_amount": 100,
+      "category_type": "variable"
+    },
+    "entertainment": {
+      "target": 900,
+      "input_mode": "yearly",
+      "monthly_amount": 75,
+      "category_type": "variable"
+    },
+    "hobbies": {
+      "target": 660,
+      "input_mode": "yearly",
+      "monthly_amount": 55,
+      "category_type": "variable"
+    },
+    "sports and recreation": {
+      "target": 2220,
+      "input_mode": "yearly",
+      "monthly_amount": 185,
+      "category_type": "variable"
+    },
+    "general transportation": {
+      "target": 2460,
+      "input_mode": "yearly",
+      "monthly_amount": 205,
+      "category_type": "variable"
+    },
+    "miscellaneous": {
+      "target": 1740,
+      "input_mode": "yearly",
+      "monthly_amount": 145,
+      "category_type": "variable"
+    },
+    "clothing": {
+      "target": 60,
+      "input_mode": "yearly",
+      "monthly_amount": 5,
+      "category_type": "lumpy"
+    },
+    "technology": {
+      "target": 1560,
+      "input_mode": "yearly",
+      "monthly_amount": 130,
+      "category_type": "lumpy"
+    },
+    "house maintenance": {
+      "target": 360,
+      "input_mode": "yearly",
+      "monthly_amount": 30,
+      "category_type": "lumpy"
+    },
+    "travel": {
+      "target": 3960,
+      "input_mode": "yearly",
+      "monthly_amount": 330,
+      "category_type": "lumpy"
+    },
+    "gasoline": {
+      "target": 480,
+      "input_mode": "yearly",
+      "monthly_amount": 40,
+      "category_type": "lumpy"
+    },
+    "furniture": {
+      "target": 600,
+      "input_mode": "yearly",
+      "monthly_amount": 50,
+      "category_type": "lumpy"
+    }
+  },
+  "groups": [
+    {
+      "name": "Food & Dining",
+      "categories": ["groceries", "restaurant/dining", "liquor/beer/wine"]
+    },
+    {
+      "name": "Housing",
+      "categories": ["rent", "utilities", "house maintenance", "household items", "furniture"]
+    },
+    {
+      "name": "Transport",
+      "categories": ["gasoline", "automotive maintenance", "general transportation"]
+    },
+    {
+      "name": "Health & Personal",
+      "categories": ["health care", "hygiene/personal care", "sports and recreation"]
+    },
+    {
+      "name": "Entertainment",
+      "categories": ["entertainment", "hobbies", "subscriptions", "travel"]
+    },
+    {
+      "name": "Shopping",
+      "categories": ["clothing", "technology", "computer", "gifts"]
+    },
+    {
+      "name": "Bills & Services",
+      "categories": ["insurance", "communication/cell", "internet", "service charges/fees"]
+    }
+  ],
+  "targets_version": 1,
+  "groups_version": 1,
+  "allocated_total": 68436,
+  "unallocated": 3564
+}

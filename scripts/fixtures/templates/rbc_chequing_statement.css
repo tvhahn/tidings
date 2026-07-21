@@ -1,0 +1,95 @@
+@page {
+  size: 612pt 792pt;
+  margin: 40pt 30pt;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  font-size: 9pt;
+  color: #000;
+}
+
+.header-block {
+  margin-bottom: 14pt;
+}
+
+.bank-block {
+  font-size: 8pt;
+  margin-bottom: 4pt;
+}
+
+.title-block {
+  font-size: 12pt;
+  font-weight: bold;
+}
+
+.period-line {
+  margin-top: 4pt;
+}
+
+.account-block {
+  margin: 14pt 0;
+  line-height: 1.4;
+}
+
+.summary-block {
+  margin: 18pt 0 22pt 0;
+  border-top: 1pt solid #ccc;
+  padding-top: 8pt;
+}
+
+.summary-line {
+  margin: 2pt 0;
+  position: relative;
+}
+
+.summary-line .amt {
+  display: inline-block;
+  margin-left: 16pt;
+  text-align: right;
+  min-width: 80pt;
+}
+
+.details-label {
+  font-weight: bold;
+  font-size: 10pt;
+  margin: 8pt 0 4pt 0;
+}
+
+table.txn-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 4pt;
+  table-layout: fixed;
+}
+
+table.txn-table th,
+table.txn-table td {
+  padding: 3pt 4pt;
+  vertical-align: top;
+  font-weight: normal;
+  border: none;
+  text-align: left;
+}
+
+table.txn-table thead th {
+  font-weight: bold;
+  border-bottom: 1pt solid #888;
+}
+
+table.txn-table .date-col { width: 8%; }
+table.txn-table .desc-col { width: 48%; }
+table.txn-table .wd-col   { width: 14%; text-align: right; }
+table.txn-table .dep-col  { width: 14%; text-align: right; }
+table.txn-table .bal-col  { width: 14%; text-align: right; }
+
+table.txn-table thead th.wd-col,
+table.txn-table thead th.dep-col,
+table.txn-table thead th.bal-col {
+  text-align: right;
+}
+
+.footer-block {
+  margin-top: 20pt;
+  font-size: 8pt;
+}

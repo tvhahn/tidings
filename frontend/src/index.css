@@ -1,0 +1,597 @@
+/* Self-hosted fonts (L13) — no more render-blocking fonts.googleapis.com. */
+@import "@fontsource-variable/source-serif-4/opsz.css";
+@import "@fontsource-variable/source-serif-4/opsz-italic.css";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+@import "./styles/themes.css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.965 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.965 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.965 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: var(--status-danger);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.88 0 0);
+  --input: oklch(0.88 0 0);
+  --ring: oklch(0.708 0 0);
+  --radius: 0.625rem;
+
+  /* Status hues stay palette-stable for learned semantics (green=good,
+     red=bad, etc.) and WCAG predictability. The *-muted backgrounds derive
+     from --card via color-mix so an alert on Warm Paper sits on a tinted
+     cream surface, not a pale yellow that disappears against a cream card.
+     The *-accent variants bias the status hue 12% toward --primary, giving
+     status text a slight palette-kinship when set against a *-muted bg
+     (e.g. Needs Attention banner text reads olive-warm on Nord instead of
+     pure orange) without breaking the learned semantic.
+
+     IMPORTANT: *-accent text is ONLY for use on a same-hue *-muted
+     background (e.g. text-status-warning-accent on bg-status-warning-muted,
+     see AttentionQueue.tsx and DemoBanner.tsx). On a plain card or page
+     background the palette mixing makes the color look dim/olive/teal
+     depending on the active --primary — use plain text-status-success /
+     text-status-danger / text-status-warning instead.
+
+     These mixes MUST interpolate in oklab, not oklch: the default
+     palette's neutrals (--card, --primary, --fg) are achromatic with an
+     explicit hue of 0, and oklch hue-angle interpolation drags every
+     tint toward red — a success chip background renders pink, warning
+     renders red-brown. Oklab scales chroma toward neutral and keeps
+     the status hue intact.
+     Pairs with the docblock at the top of styles/themes.css. */
+  --status-success: oklch(0.48 0.16 148);
+  --status-success-muted: color-mix(in oklab, var(--status-success) 12%, var(--card));
+  --status-success-accent: color-mix(in oklab, var(--status-success) 88%, var(--primary));
+  --status-warning: oklch(0.48 0.17 65);
+  --status-warning-muted: color-mix(in oklab, var(--status-warning) 14%, var(--card));
+  --status-warning-accent: color-mix(in oklab, var(--status-warning) 88%, var(--primary));
+  /* Full-row/full-cell washes for the budget tables (L12). Fainter than the
+     -muted chip fills, which are too loud spread across an entire row. */
+  --status-warning-wash: color-mix(in oklab, var(--status-warning) 6%, var(--card));
+  --status-danger: oklch(0.5 0.22 27);
+  --status-danger-muted: color-mix(in oklab, var(--status-danger) 10%, var(--card));
+  --status-danger-accent: color-mix(in oklab, var(--status-danger) 88%, var(--primary));
+  --status-danger-wash: color-mix(in oklab, var(--status-danger) 5%, var(--card));
+  --status-danger-calm: oklch(0.55 0.12 25);
+  /* Text-on-surface variant of the calm danger red. The fill token above is
+     tuned for pace-bar walls (darker in dark mode so a red wall stays calm),
+     which drops it below AA when reused as text — this token brightens for
+     dark mode instead so 11–12px severity meta stays ≥4.5:1 on cards. */
+  --status-danger-calm-text: var(--status-danger-calm);
+  --status-info: oklch(0.5 0.21 260);
+  --status-info-muted: color-mix(in oklab, var(--status-info) 10%, var(--card));
+  --status-info-accent: color-mix(in oklab, var(--status-info) 88%, var(--primary));
+
+  /* Brand accent — the palette-adaptive counterpart to the stable status
+     tokens above. Overridden per palette in themes.css (amber/rust/blue/
+     purple/yellow-green/orange across the 6 shipped palettes). Applied
+     to ornamental palette-identity surfaces: sidebar active border, page
+     title underline, TODAY pill, Sparkles icon, sparkline current-month
+     bar, and the Transactions attention count. Prefer over status-* for
+     counts and accents; keep status-* for semantic state (green=good,
+     red=bad). */
+  --brand: oklch(0.58 0.15 40);
+  --brand-foreground: oklch(0.98 0.01 80);
+  /* Brand-colored text on light surfaces (Today pill). Plain --brand measures
+     ~3.9:1 at 11px on a brand/10 tint; mixing toward --fg restores AA while
+     staying palette-adaptive. Dark mode uses --brand directly (already ≥4.5). */
+  --brand-text: color-mix(in oklab, var(--brand) 72%, var(--fg));
+
+  /* ---- Tidings brand scale (warm rust) ---- */
+  --brand-50: oklch(0.97 0.015 45);
+  --brand-100: oklch(0.93 0.035 45);
+  --brand-200: oklch(0.86 0.07 42);
+  --brand-300: oklch(0.76 0.11 40);
+  --brand-400: oklch(0.67 0.14 40);
+  --brand-500: oklch(0.58 0.15 40);
+  --brand-600: oklch(0.5 0.14 38);
+  --brand-700: oklch(0.42 0.11 36);
+  --brand-800: oklch(0.32 0.08 34);
+  --brand-900: oklch(0.24 0.06 32);
+
+  /* ---- Tidings warm paper neutral scale ---- */
+  --paper-50: oklch(0.985 0.008 80);
+  --paper-100: oklch(0.965 0.012 78);
+  --paper-150: oklch(0.945 0.018 78);
+  --paper-200: oklch(0.92 0.022 72);
+  --paper-300: oklch(0.87 0.024 68);
+  --paper-400: oklch(0.78 0.025 62);
+  --paper-500: oklch(0.62 0.022 58);
+  --paper-600: oklch(0.48 0.025 55);
+  --paper-700: oklch(0.34 0.028 52);
+  --paper-800: oklch(0.24 0.028 55);
+  --paper-900: oklch(0.18 0.025 55);
+
+  /* ---- Tidings semantic surfaces + text (alias into the existing
+         --background/--card/--muted/--accent lineage so both naming
+         systems stay in sync; prefer the --surface- and --fg- names
+         in new Tidings components). ---- */
+  --surface: var(--background);
+  --surface-card: var(--card);
+  --surface-muted: var(--muted);
+  --surface-accent: var(--accent);
+  --fg: var(--foreground);
+  --fg-2: var(--secondary-foreground);
+  /* --fg-secondary sits between --fg and --fg-muted: body copy that should
+     read clearly (page subtitles, chart legends, hero secondary lines).
+     Reserve --fg-muted for chart axes, table column labels, and chrome-
+     level metadata where lower contrast is desired. */
+  --fg-secondary: oklch(0.4 0 0);
+  --fg-muted: var(--muted-foreground);
+  --fg-subtle: color-mix(in oklch, var(--muted-foreground) 60%, var(--background));
+  --border-strong: color-mix(in oklch, var(--border) 60%, var(--foreground));
+
+  /* Modal/overlay scrim — a true dark wash in BOTH themes (a scrim darkens the
+     page regardless of light/dark), token-anchored instead of a raw literal so it
+     stops tripping the slop audit. Zero-chroma black keeps it identical to the
+     prior overlay. Not overridden in .dark on purpose. Apply via bg-scrim/80. */
+  --scrim: oklch(0 0 0);
+
+  /* ---- Tidings category pill fills (soft, muted — tuned for white page) ---- */
+  --pill-bg: oklch(0.955 0.008 75);
+  --pill-fg: var(--paper-600);
+  --pill-bg-hover: oklch(0.93 0.012 72);
+
+  /* ---- Tidings radii scale ---- */
+  --radius-xs: 4px;
+  --radius-tidings-sm: 6px;
+  --radius-tidings: 10px;
+  --radius-tidings-md: 12px;
+  --radius-tidings-lg: 14px;
+  --radius-tidings-xl: 20px;
+  --radius-full: 999px;
+
+  /* ---- Tidings 4px spacing scale ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-24: 96px;
+
+  /* ---- Tidings elevation (floating-elements only — cards stay hairline) ---- */
+  --shadow-none: 0 0 #0000;
+  --shadow-sm: 0 1px 2px -1px oklch(0.2 0.02 55 / 0.06), 0 1px 1px oklch(0.2 0.02 55 / 0.04);
+  --shadow-popover: 0 1px 2px oklch(0.2 0.02 55 / 0.06), 0 8px 24px -4px oklch(0.2 0.02 55 / 0.1);
+  --shadow-dialog: 0 2px 4px oklch(0.2 0.02 55 / 0.06), 0 24px 48px -12px oklch(0.2 0.02 55 / 0.18);
+
+  /* ---- Tidings motion ---- */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 120ms;
+  --dur: 180ms;
+  --dur-slow: 260ms;
+
+  /* ---- Tidings type families ---- */
+  --font-serif:
+    "Source Serif 4 Variable", "Source Serif 4", "Source Serif Pro", "Iowan Old Style", Georgia,
+    "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* ---- Tidings type role tokens ---- */
+  --t-display-size: 44px;
+  --t-display-line: 1.08;
+  --t-display-tracking: -0.02em;
+  --t-display-weight: 600;
+
+  --t-h1-size: 26px;
+  --t-h1-line: 1.18;
+  --t-h1-tracking: -0.015em;
+  --t-h1-weight: 600;
+
+  --t-h2-size: 20px;
+  --t-h2-line: 1.25;
+  --t-h2-tracking: -0.01em;
+  --t-h2-weight: 600;
+
+  --t-h3-size: 16px;
+  --t-h3-line: 1.35;
+  --t-h3-weight: 500;
+
+  --t-body-size: 14px;
+  --t-body-line: 1.55;
+  --t-body-weight: 400;
+
+  --t-small-size: 12.5px;
+  --t-small-line: 1.45;
+
+  --t-meta-size: 11px;
+  --t-meta-line: 1.35;
+
+  --t-amount-size: 15px;
+  --t-amount-weight: 600;
+
+  --t-amount-lg-size: 28px;
+  --t-amount-lg-weight: 600;
+  --t-amount-lg-tracking: -0.01em;
+
+  --t-prose-size: 16px;
+  --t-prose-line: 1.4;
+  --t-prose-weight: 400;
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.185 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.185 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.255 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.255 0 0);
+  --muted-foreground: oklch(0.7 0 0);
+  --accent: oklch(0.255 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: var(--status-danger);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.3 0 0);
+  --input: oklch(0.3 0 0);
+  --ring: oklch(0.556 0 0);
+
+  /* Same color-mix pattern as :root — see comment there. Dark-mode hues
+     are brighter so they read clearly on dark cards; muted bgs derive
+     from each palette's dark --card. Mix percentages are higher than
+     light mode so the chip background still reads on a dark surface.
+     Values are hand-tuned like the :root set — lightness sits at ~0.70+
+     for AA on dark cards, but chroma stays ≤0.145 so fills and text read
+     calm on the achromatic canvas instead of fluorescing (a stock
+     Tailwind 400/500 swap at C≈0.19 is the anti-pattern here; severity
+     is calm, per docs/brand/visual.md). */
+  --status-success: oklch(0.72 0.115 150);
+  --status-success-muted: color-mix(in oklab, var(--status-success) 24%, var(--card));
+  --status-success-accent: color-mix(in oklab, var(--status-success) 88%, var(--primary));
+  --status-warning: oklch(0.79 0.115 78);
+  --status-warning-muted: color-mix(in oklab, var(--status-warning) 26%, var(--card));
+  --status-warning-accent: color-mix(in oklab, var(--status-warning) 88%, var(--primary));
+  --status-warning-wash: color-mix(in oklab, var(--status-warning) 14%, var(--card));
+  --status-danger: oklch(0.7 0.145 24);
+  --status-danger-muted: color-mix(in oklab, var(--status-danger) 24%, var(--card));
+  --status-danger-accent: color-mix(in oklab, var(--status-danger) 88%, var(--primary));
+  --status-danger-wash: color-mix(in oklab, var(--status-danger) 12%, var(--card));
+  --status-danger-calm: oklch(0.48 0.11 22);
+  /* Brighter than the fill token — see the :root comment. */
+  --status-danger-calm-text: oklch(0.68 0.14 22);
+  --status-info: oklch(0.72 0.115 255);
+  --status-info-muted: color-mix(in oklab, var(--status-info) 24%, var(--card));
+  --status-info-accent: color-mix(in oklab, var(--status-info) 88%, var(--primary));
+
+  --brand: oklch(0.72 0.15 45);
+  --brand-foreground: oklch(0.18 0.018 60);
+  --brand-text: var(--brand);
+
+  /* Brighter than light --fg-secondary; sits between --foreground (0.985)
+     and --muted-foreground (0.7) on dark surfaces. */
+  --fg-secondary: oklch(0.82 0 0);
+
+  /* Tidings dark-mode pill fills (match design_system/colors_and_type.css) */
+  --pill-bg: oklch(0.28 0.022 58);
+  --pill-fg: oklch(0.78 0.02 70);
+  --pill-bg-hover: oklch(0.34 0.025 58);
+
+  /* Dark-mode --fg-subtle / --border-strong derive from dark tokens via the
+     aliases in :root, so no per-mode override needed. */
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans:
+    "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+    "Segoe UI Symbol", "Noto Color Emoji";
+  --color-status-success: var(--status-success);
+  --color-status-success-muted: var(--status-success-muted);
+  --color-status-success-accent: var(--status-success-accent);
+  --color-status-warning: var(--status-warning);
+  --color-status-warning-muted: var(--status-warning-muted);
+  --color-status-warning-accent: var(--status-warning-accent);
+  --color-status-warning-wash: var(--status-warning-wash);
+  --color-status-danger: var(--status-danger);
+  --color-status-danger-muted: var(--status-danger-muted);
+  --color-status-danger-accent: var(--status-danger-accent);
+  --color-status-danger-wash: var(--status-danger-wash);
+  --color-status-danger-calm: var(--status-danger-calm);
+  --color-status-danger-calm-text: var(--status-danger-calm-text);
+  --color-status-info: var(--status-info);
+  --color-status-info-muted: var(--status-info-muted);
+  --color-status-info-accent: var(--status-info-accent);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-text: var(--brand-text);
+
+  /* ---- Tidings tokens exposed to Tailwind utilities ---- */
+  --color-surface: var(--surface);
+  --color-surface-card: var(--surface-card);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-accent: var(--surface-accent);
+  --color-fg: var(--fg);
+  --color-fg-2: var(--fg-2);
+  --color-fg-secondary: var(--fg-secondary);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-border-strong: var(--border-strong);
+  --color-pill-bg: var(--pill-bg);
+  --color-pill-fg: var(--pill-fg);
+  --color-pill-bg-hover: var(--pill-bg-hover);
+  --color-brand-50: var(--brand-50);
+  --color-brand-100: var(--brand-100);
+  --color-brand-200: var(--brand-200);
+  --color-brand-300: var(--brand-300);
+  --color-brand-400: var(--brand-400);
+  --color-brand-500: var(--brand-500);
+  --color-brand-600: var(--brand-600);
+  --color-brand-700: var(--brand-700);
+  --color-brand-800: var(--brand-800);
+  --color-brand-900: var(--brand-900);
+  --color-paper-50: var(--paper-50);
+  --color-paper-100: var(--paper-100);
+  --color-paper-150: var(--paper-150);
+  --color-paper-200: var(--paper-200);
+  --color-paper-300: var(--paper-300);
+  --color-paper-400: var(--paper-400);
+  --color-paper-500: var(--paper-500);
+  --color-paper-600: var(--paper-600);
+  --color-paper-700: var(--paper-700);
+  --color-paper-800: var(--paper-800);
+  --color-paper-900: var(--paper-900);
+  --font-serif: var(--font-serif);
+  --font-mono: var(--font-mono);
+  --color-scrim: var(--scrim);
+
+  /* Named small-label sizes so components stop improvising `text-[11px]` /
+     `text-[13px]` literals — these mirror the --t-meta / --t-small role tokens
+     (size + line-height) and generate `text-meta` / `text-small` utilities. */
+  --text-meta: 11px;
+  --text-meta--line-height: 1.35;
+  --text-small: 12.5px;
+  --text-small--line-height: 1.45;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums;
+    margin: 0;
+  }
+}
+
+@keyframes month-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.month-transition {
+  animation: month-fade-in 150ms ease-out;
+}
+
+/*
+ * content-visibility utilities. Let the browser skip style/layout/paint for
+ * off-screen cards so a month change recalculates a viewport's worth of
+ * elements instead of the whole list. `contain-intrinsic-size: auto <est>`
+ * lets the browser remember each card's real size after first render, so the
+ * placeholder estimate only affects never-yet-rendered off-screen cards
+ * (avoids scrollbar jitter across months of differing length).
+ */
+.cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 290px; /* ~median rendered DayCard height */
+}
+
+.cv-auto-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 100px; /* ~compact transaction card height */
+}
+
+/* Collapsible summary expand/collapse */
+@keyframes summary-expand {
+  from {
+    height: 0;
+    opacity: 0;
+  }
+  to {
+    height: var(--radix-collapsible-content-height);
+    opacity: 1;
+  }
+}
+
+@keyframes summary-collapse {
+  from {
+    height: var(--radix-collapsible-content-height);
+    opacity: 1;
+  }
+  to {
+    height: 0;
+    opacity: 0;
+  }
+}
+
+.summary-collapsible[data-state="open"] {
+  animation: summary-expand 200ms ease-out;
+}
+
+.summary-collapsible[data-state="closed"] {
+  animation: summary-collapse 150ms ease-out;
+}
+
+/* Horizontal scroll-shadow hint for overflow tables on narrow viewports.
+   Komarov technique: two card-colored covers fixed to the viewport edges
+   hide two shadow gradients that scroll with the content, so the shadow
+   only appears when there is more content past the edge. */
+@layer utilities {
+  .scroll-shadow-x {
+    background:
+      linear-gradient(to right, var(--color-card), var(--color-card)) left/20px 100% no-repeat,
+      linear-gradient(to left, var(--color-card), var(--color-card)) right/20px 100% no-repeat,
+      linear-gradient(
+          to right,
+          color-mix(in oklch, var(--color-foreground) 18%, transparent),
+          transparent
+        )
+        left/22px 100% no-repeat local,
+      linear-gradient(
+          to left,
+          color-mix(in oklch, var(--color-foreground) 18%, transparent),
+          transparent
+        )
+        right/22px 100% no-repeat local;
+    background-color: var(--color-card);
+  }
+}
+
+/* ============================================================================
+   Tidings — typographic utility classes
+   Mirrors design_handoff_tidings/design_system/colors_and_type.css role tokens.
+   Use these on any Tidings component to guarantee the right family/size/weight.
+   ============================================================================ */
+
+.font-serif {
+  font-family: var(--font-serif);
+}
+.font-sans {
+  font-family: var(--font-sans);
+}
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+.t-display {
+  font-family: var(--font-serif);
+  font-size: var(--t-display-size);
+  line-height: var(--t-display-line);
+  letter-spacing: var(--t-display-tracking);
+  font-weight: var(--t-display-weight);
+}
+.t-h1 {
+  font-family: var(--font-serif);
+  font-size: var(--t-h1-size);
+  line-height: var(--t-h1-line);
+  letter-spacing: var(--t-h1-tracking);
+  font-weight: var(--t-h1-weight);
+}
+.t-h2 {
+  font-family: var(--font-serif);
+  font-size: var(--t-h2-size);
+  line-height: var(--t-h2-line);
+  letter-spacing: var(--t-h2-tracking);
+  font-weight: var(--t-h2-weight);
+}
+.t-h3 {
+  font-size: var(--t-h3-size);
+  line-height: var(--t-h3-line);
+  font-weight: var(--t-h3-weight);
+}
+.t-body {
+  font-size: var(--t-body-size);
+  line-height: var(--t-body-line);
+  font-weight: var(--t-body-weight);
+}
+.t-small {
+  font-size: var(--t-small-size);
+  line-height: var(--t-small-line);
+  color: var(--fg-muted);
+}
+.t-meta {
+  font-size: var(--t-meta-size);
+  line-height: var(--t-meta-line);
+  color: var(--fg-muted);
+  letter-spacing: 0.01em;
+}
+.t-amount {
+  font-size: var(--t-amount-size);
+  font-weight: var(--t-amount-weight);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+.t-amount-lg {
+  font-size: var(--t-amount-lg-size);
+  font-weight: var(--t-amount-lg-weight);
+  letter-spacing: var(--t-amount-lg-tracking);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Journal prose line — serif italic, the "entry sentence" role (headline card). */
+.t-prose {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--t-prose-size);
+  line-height: var(--t-prose-line);
+  font-weight: var(--t-prose-weight);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Page title — confident serif + narrow rust underline (Tidings signature).
+   Pair with .page-title-rule as a sibling block underneath the heading. */
+.page-title {
+  font-family: var(--font-serif);
+  font-size: var(--t-h1-size);
+  line-height: var(--t-h1-line);
+  letter-spacing: var(--t-h1-tracking);
+  font-weight: var(--t-h1-weight);
+  color: var(--fg);
+}
+.page-title-rule {
+  display: block;
+  width: 32px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--brand);
+  margin-top: 8px;
+}

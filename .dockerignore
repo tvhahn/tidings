@@ -1,0 +1,33 @@
+.git
+.gitignore
+.devcontainer
+.claude
+.venv
+__pycache__
+
+# `data/*` (not `data/`) so the negations below can re-include specific
+# files. `!` cannot rescue a child of a fully-excluded directory.
+data/*
+!data/demo/
+data/demo/*
+!data/demo/seed.json
+
+# `dev/` is excluded by default (notebooks, archives, scratch scripts), but
+# Dockerfile.prod needs the demo seed generator alongside the runtime image.
+dev/*
+!dev/cli/
+dev/cli/*
+!dev/cli/generate_demo_data.py
+
+docs/
+logs/
+tests/
+notebooks/
+
+*.md
+*.ipynb
+LICENSE
+
+docker/email_parsing/src/
+docker/email_parsing/key.txt
+docker/email_parsing/pyproject.toml

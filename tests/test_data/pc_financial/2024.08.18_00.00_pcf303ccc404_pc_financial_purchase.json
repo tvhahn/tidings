@@ -1,0 +1,8 @@
+{
+    "institution": "PC Financial",
+    "name": "[CARDHOLDER_NAME]",
+    "amount": 52.13,
+    "company": "FUELSTOP # 4821",
+    "transaction_type": "purchase",
+    "email_filepath": "tests/test_data/pc_financial/2024.08.18_00.00_pcf303ccc404_pc_financial_purchase.txt"
+}

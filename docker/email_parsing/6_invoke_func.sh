@@ -1,0 +1,1 @@
+aws lambda invoke --function-name GenerateChartFromCsvFunction550e8400e29b41d4a716446655440 response.json

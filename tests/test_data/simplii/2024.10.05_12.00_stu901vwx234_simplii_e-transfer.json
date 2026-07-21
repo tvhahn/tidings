@@ -1,0 +1,8 @@
+{
+    "institution": "Simplii",
+    "name": "Jennifer",
+    "amount": 250.00,
+    "company": "DAVID WONG | October rent share | D4F8jklMNoPq",
+    "transaction_type": "e-transfer",
+    "email_filepath": "tests/test_data/simplii/2024.10.05_12.00_stu901vwx234_simplii_e-transfer.txt"
+}

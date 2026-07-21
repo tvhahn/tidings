@@ -1,0 +1,30 @@
+{
+  "metadata": {
+    "institution": "Simplii",
+    "account_type": "chequing",
+    "period_start": "2025-02-27",
+    "period_end": "2025-03-30",
+    "transaction_count": 15
+  },
+  "transactions": [
+    {"date": "2025-02-28", "type": "deposit",    "amount":  820.00, "balance": 5020.00, "description": "INTERAC E-TRANSFER RECEIVE RILEY PORTER"},
+    {"date": "2025-02-28", "type": "withdrawal", "amount":   47.30, "balance": 4972.70, "description": "UTILITY PAYMENT"},
+    {"date": "2025-03-04", "type": "deposit",    "amount":  125.00, "balance": 5097.70, "description": "MISC CREDIT"},
+    {"date": "2025-03-03", "type": "withdrawal", "amount":  215.44, "balance": 4882.26, "description": "MAPLEWOOD STATIONERY"},
+    {"date": "2025-03-04", "type": "withdrawal", "amount":  612.08, "balance": 4270.18, "description": "RENTAL PAYMENT"},
+    {"date": "2025-03-04", "type": "withdrawal", "amount":   38.75, "balance": 4231.43, "description": "TRANSIT FARE"},
+    {"date": "2025-03-07", "type": "deposit",    "amount": 1750.00, "balance": 5981.43, "description": "NORTHWIND CONSULTING"},
+    {"date": "2025-03-10", "type": "withdrawal", "amount":  200.00, "balance": 5781.43, "description": "INTERAC E-TRANSFER SEND Northside Sports Club"},
+    {"date": "2025-03-10", "type": "withdrawal", "amount":  200.00, "balance": 5581.43, "description": "INTERAC E-TRANSFER SEND Northside Sports Club"},
+    {"date": "2025-03-19", "type": "withdrawal", "amount":  343.91, "balance": 5237.52, "description": "STREAMING SVC PAYMENT"},
+    {"date": "2025-03-21", "type": "deposit",    "amount": 1420.00, "balance": 6657.52, "description": "NORTHWIND CONSULTING"},
+    {"date": "2025-03-20", "type": "withdrawal", "amount":   62.10, "balance": 6595.42, "description": "GROCERY MARKET"},
+    {"date": "2025-03-26", "type": "deposit",    "amount":   55.00, "balance": 6650.42, "description": "INTERAC E-TRANSFER RECEIVE SAM WHITTAKER"},
+    {"date": "2025-03-28", "type": "deposit",    "amount":  310.00, "balance": 6960.42, "description": "REFUND"},
+    {"date": "2025-03-31", "type": "deposit",    "amount":    0.12, "balance": 6960.54, "description": "INTEREST"}
+  ],
+  "totals": {
+    "funds_out": 1719.58,
+    "funds_in":  4480.12
+  }
+}

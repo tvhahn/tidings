@@ -1,0 +1,65 @@
+{
+  "count": 5,
+  "failures": [
+    {
+      "id": "pf_demo_rbc_01",
+      "received_at": "2026-03-18T08:14:00-07:00",
+      "from_email": "rbc.alerts@example.com",
+      "subject": "INTERAC e-Transfer received",
+      "detected_institution": "RBC",
+      "failure_stage": "no_parser_match",
+      "status": "quarantined",
+      "recovered_date_file_name": null,
+      "alert_classifier_result": true,
+      "body": "Hello,\n\nYou received an INTERAC e-Transfer.\n\nThe money has been automatically deposited into the account ending in 4021. To see the amount and the sender, sign in to RBC Online Banking.\n\nThis is an automated message. Please do not reply to this email.\n\nThank you for banking with RBC Royal Bank."
+    },
+    {
+      "id": "pf_demo_cibc_01",
+      "received_at": "2026-03-15T19:02:00-07:00",
+      "from_email": "cibc.alerts@example.com",
+      "subject": "Your CIBC eDeposit is ready",
+      "detected_institution": "CIBC",
+      "failure_stage": "extraction_empty",
+      "status": "quarantined",
+      "recovered_date_file_name": null,
+      "alert_classifier_result": true,
+      "body": "A cheque image was deposited to your CIBC account.\n\nSign in to CIBC Online Banking to view the amount and the deposit details.\n\nThis is an automated notification about activity on your account."
+    },
+    {
+      "id": "pf_demo_tangerine_01",
+      "received_at": "2026-03-11T07:45:00-07:00",
+      "from_email": "tangerine.notify@example.com",
+      "subject": "A new Interac e-Transfer notification",
+      "detected_institution": "Tangerine",
+      "failure_stage": "no_parser_match",
+      "status": "quarantined",
+      "recovered_date_file_name": null,
+      "alert_classifier_result": false,
+      "body": "You have a new Interac e-Transfer notification.\n\nSomeone sent you money. Log in to your Tangerine account to accept or decline this transfer before it expires.\n\nReference: TXN-7741-22"
+    },
+    {
+      "id": "pf_demo_simplii_01",
+      "received_at": "2026-03-08T12:30:00-07:00",
+      "from_email": "simplii.alerts@example.com",
+      "subject": "Transaction alert",
+      "detected_institution": "Simplii",
+      "failure_stage": "db_validation_failed",
+      "status": "quarantined",
+      "recovered_date_file_name": null,
+      "alert_classifier_result": true,
+      "body": "Simplii Financial transaction alert\n\nA transaction was made on your Simplii Financial No Fee Chequing Account. The amount was not included in this notification.\n\nThe final details will appear on your account statement."
+    },
+    {
+      "id": "pf_demo_rbc_02",
+      "received_at": "2026-03-05T10:00:00-07:00",
+      "from_email": "rbc.notices@example.com",
+      "subject": "Your eStatement is ready to view",
+      "detected_institution": "RBC",
+      "failure_stage": "no_parser_match",
+      "status": "dismissed",
+      "recovered_date_file_name": null,
+      "alert_classifier_result": false,
+      "body": "Your latest account statement is now available in RBC Online Banking.\n\nSign in to view or download it. This is a service message about your account, not a transaction."
+    }
+  ]
+}

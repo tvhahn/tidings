@@ -1,0 +1,171 @@
+{
+  "categories": [
+    {
+      "name": "Alcohol",
+      "group": null
+    },
+    {
+      "name": "Auto Maintenance",
+      "group": null
+    },
+    {
+      "name": "Baby & Kids",
+      "group": null
+    },
+    {
+      "name": "Bank Fees",
+      "group": null
+    },
+    {
+      "name": "Car Payment",
+      "group": null
+    },
+    {
+      "name": "Charitable Giving",
+      "group": null
+    },
+    {
+      "name": "Childcare",
+      "group": null
+    },
+    {
+      "name": "Clothing",
+      "group": "Shopping"
+    },
+    {
+      "name": "Coffee & Cafes",
+      "group": null
+    },
+    {
+      "name": "Education",
+      "group": null
+    },
+    {
+      "name": "Entertainment",
+      "group": "Entertainment"
+    },
+    {
+      "name": "Fitness",
+      "group": null
+    },
+    {
+      "name": "Gasoline",
+      "group": "Transport"
+    },
+    {
+      "name": "Gifts",
+      "group": "Shopping"
+    },
+    {
+      "name": "Groceries",
+      "group": "Food & Dining"
+    },
+    {
+      "name": "Health Care",
+      "group": "Health & Personal"
+    },
+    {
+      "name": "Hobbies",
+      "group": "Entertainment"
+    },
+    {
+      "name": "Home Goods",
+      "group": null
+    },
+    {
+      "name": "Home Maintenance",
+      "group": null
+    },
+    {
+      "name": "Insurance",
+      "group": "Bills & Services"
+    },
+    {
+      "name": "Internet",
+      "group": "Bills & Services"
+    },
+    {
+      "name": "Miscellaneous",
+      "group": null
+    },
+    {
+      "name": "Mortgage",
+      "group": null
+    },
+    {
+      "name": "Moving",
+      "group": null
+    },
+    {
+      "name": "Personal Care",
+      "group": null
+    },
+    {
+      "name": "Pets",
+      "group": null
+    },
+    {
+      "name": "Phone",
+      "group": null
+    },
+    {
+      "name": "Professional Services",
+      "group": null
+    },
+    {
+      "name": "Public Transit",
+      "group": null
+    },
+    {
+      "name": "Rent",
+      "group": "Housing"
+    },
+    {
+      "name": "Restaurant/Dining",
+      "group": "Food & Dining"
+    },
+    {
+      "name": "Rideshare & Taxi",
+      "group": null
+    },
+    {
+      "name": "Strata/HOA",
+      "group": null
+    },
+    {
+      "name": "Subscriptions",
+      "group": "Entertainment"
+    },
+    {
+      "name": "Taxes",
+      "group": null
+    },
+    {
+      "name": "Technology",
+      "group": "Shopping"
+    },
+    {
+      "name": "Therapy",
+      "group": null
+    },
+    {
+      "name": "Travel",
+      "group": "Entertainment"
+    },
+    {
+      "name": "Utilities",
+      "group": "Housing"
+    }
+  ],
+  "count": 39,
+  "version": 1,
+  "groups": [
+    "Bills & Services",
+    "Entertainment",
+    "Food & Dining",
+    "Health & Personal",
+    "Housing",
+    "Shopping",
+    "Transport"
+  ]
+}

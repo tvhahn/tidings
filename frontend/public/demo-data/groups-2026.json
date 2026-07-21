@@ -1,0 +1,34 @@
+{
+  "year": 2026,
+  "groups": [
+    {
+      "name": "Food & Dining",
+      "categories": ["groceries", "restaurant/dining", "liquor/beer/wine"]
+    },
+    {
+      "name": "Housing",
+      "categories": ["rent", "utilities", "house maintenance", "household items", "furniture"]
+    },
+    {
+      "name": "Transport",
+      "categories": ["gasoline", "automotive maintenance", "general transportation"]
+    },
+    {
+      "name": "Health & Personal",
+      "categories": ["health care", "hygiene/personal care", "sports and recreation"]
+    },
+    {
+      "name": "Entertainment",
+      "categories": ["entertainment", "hobbies", "subscriptions", "travel"]
+    },
+    {
+      "name": "Shopping",
+      "categories": ["clothing", "technology", "computer", "gifts"]
+    },
+    {
+      "name": "Bills & Services",
+      "categories": ["insurance", "communication/cell", "internet", "service charges/fees"]
+    }
+  ],
+  "version": 1
+}

@@ -1,0 +1,25 @@
+{
+  "month": "2025-05",
+  "count": 1,
+  "transactions": [
+    {
+      "tx_id": "bWlyYS50aWRpbmdzQGV4YW1wbGUuY29tfDIwMjUuMDUuMTRfMTIuMTRfZGVtb19jZDFlMzc1NS5lbWw",
+      "forwarded_to": "mira.tidings@example.com",
+      "date_file_name": "2025.05.14_12.14_demo_cd1e3755.eml",
+      "date": "05/14/2025 12:14 PST",
+      "amount": 80,
+      "company": "CIBC ATM Withdrawal",
+      "category": "miscellaneous",
+      "institution": "CIBC",
+      "transaction_type": "withdrawal",
+      "name": "Mira Lin Chen",
+      "category_audit": null,
+      "extraction_audit": null,
+      "ignored": false,
+      "comment": null,
+      "deleted_at": null,
+      "context": null,
+      "statement_source": null
+    }
+  ]
+}

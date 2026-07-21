@@ -1,0 +1,17 @@
+# Tidings
+
+> A private finance journal from the transaction emails you already receive. Self-hosted, open source, runs on your machine.
+
+Tidings turns bank transaction alert emails into a calm daily spending record. This is the marketing site; the documentation lives at docs.gettidings.com.
+
+## Docs
+
+- [Documentation index](https://docs.gettidings.com/llms.txt): curated page index for the docs site
+- [Full documentation](https://docs.gettidings.com/llms-full.txt): every docs page in one file
+- [API reference](https://docs.gettidings.com/openapi.json): OpenAPI schema
+
+## Try it
+
+- [Live demo](https://gettidings.com/demo): the real app with sample data
+- [Demo API](https://gettidings.com/demo/api/v1): read-only JSON API over the same sample data
+- [Source code](https://github.com/tvhahn/tidings): GitHub repository

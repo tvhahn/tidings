@@ -1,0 +1,36 @@
+---
+/**
+ * CategoryTypeGlyph — a tiny inline bar-sparkline for the fixed / variable /
+ * lumpy category types, placed beside the term it illustrates (Budgets and
+ * Merchants pages). Decorative only: it never carries content of its own, so
+ * llms.txt / "Copy page" losing it costs nothing.
+ *
+ * CSS in src/styles/starlight-overrides.css (.df-inline-glyph).
+ */
+interface Props {
+  kind: "fixed" | "variable" | "lumpy"
+}
+
+const { kind } = Astro.props
+
+const HEIGHTS: Record<string, number[]> = {
+  fixed: [9, 9, 9, 9, 9, 9],
+  variable: [6, 10, 5, 11, 7, 9],
+  lumpy: [3, 3, 13, 3, 3, 4],
+}
+
+const bars = HEIGHTS[kind]
+const W = 4
+const GAP = 3
+const H = 14
+---
+
+<svg
+  class="df-inline-glyph"
+  width={bars.length * (W + GAP) - GAP}
+  height={H}
+  viewBox={`0 0 ${bars.length * (W + GAP) - GAP} ${H}`}
+  aria-hidden="true"
+>
+  {bars.map((h, i) => <rect x={i * (W + GAP)} y={H - h} width={W} height={h} rx="1" fill="currentColor" />)}
+</svg>

@@ -1,0 +1,8 @@
+{
+    "institution": "CIBC",
+    "name": "Carlos",
+    "amount": 118.75,
+    "company": "LAKEVIEW UTILITIES",
+    "transaction_type": "preauth",
+    "email_filepath": "tests/test_data/cibc/2024.10.01_09.00_abc123def456_cibc_preauth.txt"
+}

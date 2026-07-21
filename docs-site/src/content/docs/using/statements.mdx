@@ -1,0 +1,37 @@
+---
+title: Statements
+description: Uploading a bank-issued PDF statement to reconcile and import transactions that never arrived by email.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import ReconciliationStrip from '../../../components/figures/ReconciliationStrip.astro';
+
+A statement is a bank-issued PDF you upload for reconciliation. It is the second way transactions enter Tidings, for purchases that never came through as email alerts — cash-like charges, older history, or a bank whose alerts you never wired up.
+
+<Aside type="note">
+Statement upload is self-hosted only. It runs on your own machine against your own data; the hosted demo shows a sample statement so you can see the review screen, but the feature itself is local.
+</Aside>
+
+## Upload and reconcile
+
+When you upload a PDF, Tidings parses it and reconciles every row against the transactions you already have, sorting them into buckets. Nothing is written yet — the buckets are a proposal you review. The PDF itself is stored under `data/raw/statements/<institution>/`.
+
+<ReconciliationStrip summary="Figure: each statement row lands in one of five buckets — matched (already in your ledger), ambiguous (a close match you decide), suspected duplicate (a cross-type twin to check), new (offered for import), or previously imported (from an earlier upload)." />
+
+If no built-in parser covers the bank, Tidings falls back to your AI provider — but only when you have enabled statement-parsing consent in Settings → Intelligence. When that happens the review screen says the statement was read by AI and asks you to verify dates and descriptions before importing. Every amount is checked against the PDF text, but read the rows anyway.
+
+## Review, then import
+
+The review screen is per-row. For each one you choose how it lands:
+
+- **Import** creates a transaction, aware of duplicates so it will not write one twice.
+- **Enrich** adds the statement's detail to a matched existing transaction.
+- **Update** overwrites a row you previously imported from a statement.
+
+A category you set during review is recorded as a manual choice, so later automation will not overwrite it. That makes the review screen a good place to file a merchant correctly once and have it stick.
+
+## Reparsing and deleting
+
+Reparse re-runs the parser on the stored PDF while keeping the edits you already made, so a parser improvement does not cost you your manual review. Deleting a statement removes it and its parsed rows, but it does not remove transactions you already imported — those are real transactions now and stand on their own.
+
+Imported rows carry a tag for the statement they came from and appear on [Transactions](/using/transactions/) for that period, alongside everything that arrived by email. See [how Tidings works](/using/how-it-works/) for where this second ingestion path fits, and [configuration](/configuration/) for the settings that govern AI consent.

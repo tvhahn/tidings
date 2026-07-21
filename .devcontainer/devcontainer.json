@@ -1,0 +1,76 @@
+{
+  "name": "tidings",
+  "dockerComposeFile": [
+    "./docker-compose.yml",
+    "./docker-compose.override.yml"
+  ],
+  "service": "devcontainer",
+  "shutdownAction": "none",
+  "initializeCommand": "[ -f .devcontainer/docker-compose.override.yml ] || cp .devcontainer/docker-compose.override.yml.example .devcontainer/docker-compose.override.yml",
+  "features": {
+    "ghcr.io/devcontainers/features/aws-cli:1": {},
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code",
+        "eamodio.gitlens",
+        "ms-python.python",
+        "ms-python.debugpy",
+        "ms-toolsai.jupyter",
+        "ms-toolsai.vscode-jupyter-cell-tags",
+        "ms-toolsai.vscode-jupyter-slideshow",
+        "charliermarsh.ruff",
+        "njpwerner.autodocstring",
+        "mechatroner.rainbow-csv"
+      ],
+      "settings": {
+        "task.allowAutomaticTasks": "on",
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.codeActionsOnSave": {
+          "source.fixAll.ruff": "explicit",
+          "source.organizeImports.ruff": "explicit"
+        },
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff",
+          "editor.formatOnSave": false
+        },
+        "[jupyter]": {
+          "editor.defaultFormatter": "charliermarsh.ruff"
+        },
+        "python.defaultInterpreterPath": "/workspace/.venv/bin/python",
+        "python.terminal.activateEnvironment": true,
+        "python.analysis.autoImportCompletions": true,
+        "jupyter.interactiveWindow.creationMode": "perFile",
+        "jupyter.notebookFileRoot": "${workspaceFolder}",
+        "jupyter.askForKernelRestart": false,
+        "files.associations": {
+          "*.py": "python"
+        },
+        "autoDocstring.docstringFormat": "numpy",
+        "workbench.colorCustomizations": {
+          "titleBar.activeBackground": "#991b1b",
+          "titleBar.activeForeground": "#ffffff",
+          "titleBar.inactiveBackground": "#991b1b",
+          "titleBar.inactiveForeground": "#ffffff99"
+        }
+      }
+    }
+  },
+  "remoteUser": "node",
+  "workspaceFolder": "/workspace",
+  "forwardPorts": [5173, 5175, 5176, 4173, 4321, 8000, 8501],
+  "portsAttributes": {
+    "5173": { "label": "dev-frontend (real dashboard)" },
+    "5175": { "label": "dev-marketing (marketing only)" },
+    "5176": { "label": "dev-demo (static fixtures)" },
+    "4173": { "label": "dev-preview (marketing + demo, ships-bundle)" },
+    "4321": { "label": "dev-docs (Astro Starlight)" },
+    "8000": { "label": "Backend (FastAPI)" },
+    "8501": { "label": "dev-eval-harness (Streamlit prompt eval)" }
+  },
+  "postCreateCommand": "bash -c '([ -f ~/.docker/config.json ] && jq '\\''del(.credsStore)'\\'' ~/.docker/config.json > /tmp/docker-config.json && mv /tmp/docker-config.json ~/.docker/config.json) || true && { [ -f /home/node/.claude/settings.json ] || cp .devcontainer/settings.json /home/node/.claude/settings.json 2>/dev/null || true; } && curl -fsSL https://raw.githubusercontent.com/ericbuess/claude-code-docs/main/install.sh | bash && git config core.hooksPath .githooks/ && uv sync && (cd frontend && pnpm install && pnpm build) && (npx -y chrome-devtools-mcp@latest --version 2>/dev/null || true) || true'",
+  "postStartCommand": "bash -c '([ -f ~/.docker/config.json ] && jq '\\''del(.credsStore)'\\'' ~/.docker/config.json > /tmp/docker-config.json && mv /tmp/docker-config.json ~/.docker/config.json 2>/dev/null || true) && bash /workspace/dev/start-dev-servers.sh || true'"
+}

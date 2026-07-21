@@ -1,0 +1,51 @@
+---
+title: Tidings for agents
+description: The machine-readable surfaces — llms.txt, raw-markdown docs, OpenAPI schemas, a public demo API, and bearer-token access to a real instance.
+---
+
+Tidings treats agents as first-class users. The docs, the API, and the install path each have a machine-readable form; this page is the catalogue.
+
+## Read the docs as markdown
+
+- [llms.txt](https://docs.gettidings.com/llms.txt) — a curated index of every docs page, one line each.
+- [llms-full.txt](https://docs.gettidings.com/llms-full.txt) — the entire documentation concatenated into one file.
+- Append `.md` to any page URL for its raw markdown — [/using/budgets.md](https://docs.gettidings.com/using/budgets.md), [/troubleshooting.md](https://docs.gettidings.com/troubleshooting.md), and so on.
+- Every page has a "Copy page" button in its header, for handing one page to an agent by hand.
+
+## Try the API without installing
+
+The demo journal is served read-only at a public endpoint — eleven months of a fictional household's spending, no token required:
+
+```bash
+curl 'https://gettidings.com/demo/api/v1/summary?month=2026-03'
+curl 'https://gettidings.com/demo/api/openapi.json'
+```
+
+The demo is a baked snapshot: GET only, exact query strings, months `2025-05` through `2026-03` — and a 404 lists the valid routes in its error body. The [agent guide](/agent-guide/) is a briefing written for agents: concepts, the demo API's rules, and a suggested tour shape. To hand your agent the tour:
+
+```text
+Introduce me to Tidings. Read https://docs.gettidings.com/agent-guide.md, then use the live demo API to show me what a month of spending looks like.
+```
+
+## Install by prompt
+
+[`INSTALL.md`](https://github.com/tvhahn/tidings/blob/main/INSTALL.md) is written as a prompt addressed to the agent, not a script — it covers OS detection, Docker versus AWS, failure handling, and verification. It is served at a stable URL, so the whole install fits in one line:
+
+```text
+Help me install Tidings. Read https://docs.gettidings.com/install.md first, then walk me through it.
+```
+
+## When something breaks
+
+The [troubleshooting guide](/troubleshooting/) is organized by symptom, most common first, and serves as raw markdown like every other page:
+
+```text
+My Tidings install is misbehaving. Read https://docs.gettidings.com/troubleshooting.md, then help me diagnose it.
+```
+
+## Work with a real instance
+
+Every route on a self-hosted instance is a versioned `/api/v1/` endpoint behind bearer-token auth.
+
+- Mint a token with `make agent-token LABEL='laptop-claude'`, or the Docker variant in the [agent access guide](/agent-access/) — which also covers scopes (`read`, `read+write`), revocation, worked examples for curl, Python, and n8n, and the LAN-exposure checklist.
+- The full OpenAPI schema is at [/openapi.json](https://docs.gettidings.com/openapi.json), and a running instance serves Swagger UI at `/docs`.

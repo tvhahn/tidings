@@ -1,0 +1,99 @@
+---
+title: Docker setup
+description: "The everyday self-host path: SQLite on a shared Docker volume, IMAP poller as a sidecar, zero cloud dependencies."
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+**For self-hosters with Docker installed who want zero cloud dependencies.** By the end you'll have the dashboard running with IMAP email polling, everything stored locally in SQLite.
+
+Docker Compose is the recommended self-host path. One container runs FastAPI plus the prebuilt React dashboard; a sidecar runs the IMAP poller. SQLite lives on a shared named volume. Start here in demo mode, then [configure real Gmail IMAP](/self-hosting/email/) and [set up notifications](/notifications/).
+
+## What you get
+
+- FastAPI backend at `http://localhost:8000`
+- React dashboard served from the same container at `/`
+- IMAP poller sidecar that polls Gmail every 60 seconds once credentials are set — and idles quietly until then, so a bare `docker compose up` never crash-loops
+- SQLite at `data/finance.db` (real mode) or `data/demo.db` (demo mode, the default on first run), on a shared named volume
+
+## Run it
+
+If you already followed [Quickstart](/quickstart/), the stack is up — skip to "Where data lives" below. Otherwise:
+
+<Steps>
+
+1. Clone the repository.
+
+	```bash
+	git clone https://github.com/tvhahn/tidings.git
+	cd tidings
+	```
+
+2. Start the stack.
+
+	```bash
+	docker compose up -d
+	```
+
+	No published image for your platform yet? The same command builds from source instead — first run takes a few minutes.
+
+3. Open the dashboard at [http://localhost:8000](http://localhost:8000).
+
+</Steps>
+
+Out of the box this runs in **demo mode** — a seeded SQLite database (`data/demo.db`) with sample transactions, no real accounts touched. To wire up your own data: copy `.env.example` to `.env` and add your Gmail IMAP credentials ([email setup](/self-hosting/email/) walks through it), set `demo_mode: false` in `data/config.json`, and restart. Your transactions land in `data/finance.db`; the seeded demo data stays in its own database and never mixes with yours.
+
+## Where data lives
+
+| Path | Contents |
+| ---- | -------- |
+| `data/config.json` | Timezone, demo mode, storage backend, AI on/off, dashboard password hash |
+| `data/finance.db` | Real transactions, categories, overrides, budgets |
+| `data/demo.db` | Seeded sample data shown in demo mode |
+
+Credentials — the Gmail App Password, OpenAI key, and notification provider tokens — live in `.env` as environment variables, not in `data/`. Every `data/config.json` key is documented in the [configuration reference](/configuration/).
+
+The `data/` directory is gitignored and lives in a Docker named volume (`tidings_finance_data`, prefixed by your Compose project name). To inspect or back it up from outside the container:
+
+```bash
+docker run --rm \
+  -v tidings_finance_data:/data \
+  -v "$(pwd)/backup":/out \
+  alpine cp -r /data /out
+```
+
+Substitute your actual volume name from `docker volume ls` if your project directory isn't `tidings`. To start over, `docker compose down -v` removes the volume along with the containers.
+
+## Updating
+
+```bash
+git pull
+docker compose pull
+docker compose up -d
+```
+
+Tidings is pre-1.0; APIs and schemas may shift between minor versions. Read [`CHANGELOG.md`](https://github.com/tvhahn/tidings/blob/main/CHANGELOG.md) before upgrading.
+
+## Health check
+
+The sync dot beside the month picker carries the same state `curl http://localhost:8000/api/v1/health` returns:
+
+- **`ok`** — the poller checked in within the last 5 minutes (or IMAP isn't configured), and no parser looks stuck.
+- **`degraded`** — the last poll was 5–30 minutes ago, a bank email failed to parse in the last 7 days, or AI categorization is failing. A failed parse is the early warning for template drift. Check `docker compose logs imap-poller`.
+- **`stale`** — no poll in over 30 minutes, or the most recent transaction is more than 14 days old. The dot turns red and pulses. The usual cause is a bank changing its email format so the parser silently errors; look in the logs for `Failed to parse email`.
+
+## Troubleshooting
+
+- **Port 8000 already in use** — copy `docker-compose.override.yml.example` to `docker-compose.override.yml`, uncomment the "Re-home the API port" block with a free host port (for example `"8001:8000"`), and open `http://localhost:8001`.
+- **`exec format error` on Raspberry Pi / Apple Silicon** — images are multi-arch (amd64 + arm64), so this is usually a stale cache. `docker compose pull`, or build locally.
+- **IMAP poller can't connect** — Gmail needs an App Password and 2-Step Verification, not your account password. [Email setup](/self-hosting/email/) walks through it.
+- **Permission errors on `data/`** — the named volume is owned by the container user. After switching between a bind mount and the named volume, reset with `docker compose down -v` (this deletes the volume's data).
+- **Transactions stopped appearing** — the usual cause is a bank changing its email template. Look in `docker compose logs imap-poller` for `Failed to parse email`, then open a [parser-broken issue](https://github.com/tvhahn/tidings/issues/new?template=parser_broken.md) with a redacted email body.
+
+## Looking for AWS instead?
+
+The same parsers also run as an AWS Lambda triggered from S3. Storage moves to DynamoDB, notifications move to SNS. See [AWS deployment](/self-hosting/aws/).
+
+<Aside type="tip" title="Architecture overview">
+	For the full data flow — IMAP poll, parser pipeline, dual-storage selection, notifier dispatch — see [Architecture](/architecture/).
+</Aside>

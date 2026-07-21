@@ -1,0 +1,44 @@
+name: Prod smoke
+
+# Probes the DEPLOYED surfaces on Cloudflare Pages.
+#
+# This is the only gate that exercises the Cloudflare request pipeline. Every
+# local gate (`make verify`, demo-smoke.yml) serves frontend/dist with
+# `pnpm exec serve`, which honors frontend/public/serve.json; Cloudflare ignores
+# that file and honors frontend/public/_redirects. A broken _redirects rule is
+# therefore green everywhere locally and broken only in production — which is
+# how every demo deep link came to serve the marketing landing page unnoticed.
+#
+# Deliberately NOT triggered on push: deploys run through Pages git-integration
+# and take minutes, so a push-triggered run would probe the previous build.
+# Schedule + manual dispatch instead; run it by hand after a deploy you care
+# about (`gh workflow run prod-smoke.yml`) or locally with `make prod-smoke`.
+
+on:
+  schedule:
+    # 07:00 UTC daily — a broken surface gets caught within a day even if
+    # nobody remembers to smoke a deploy by hand.
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Base URL to probe (defaults to https://gettidings.com)"
+        required: false
+        type: string
+
+jobs:
+  prod-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      # No install step: check_prod_surfaces.mjs has no dependencies.
+      - name: Probe deployed surfaces
+        env:
+          PROD_BASE_URL: ${{ inputs.base_url || 'https://gettidings.com' }}
+          # The runner may hit a cold edge; give propagation a little room.
+          PROD_SMOKE_ATTEMPTS: "4"
+          PROD_SMOKE_RETRY_MS: "10000"
+        run: node scripts/checks/check_prod_surfaces.mjs

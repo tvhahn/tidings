@@ -1,0 +1,32 @@
+{
+  "$comment": [
+    "Single source of truth for the hosted demo's public routes.",
+    "",
+    "Consumed by two gates that check the same routes at different layers:",
+    "  - frontend/e2e/demo-smoke.spec.ts  — renders each route in the local",
+    "    `serve dist` preview and asserts content + zero console errors.",
+    "  - scripts/checks/check_prod_surfaces.mjs — probes the DEPLOYED site and",
+    "    asserts each route is served by the demo shell, not the marketing one.",
+    "",
+    "Both must read this file. They historically disagreed: the local preview",
+    "honors frontend/public/serve.json while Cloudflare honors",
+    "frontend/public/_redirects, so a broken _redirects rule kept every deep",
+    "link green locally while production served the landing page.",
+    "",
+    "`marker` is a case-insensitive regex SOURCE string (not a literal), matched",
+    "inside <main> by the Playwright spec. Adding a route here adds it to both",
+    "gates; keep it in step with the <Route> table in frontend/src/App.tsx."
+  ],
+  "routes": [
+    { "path": "/demo/", "marker": "Journal" },
+    { "path": "/demo/transactions", "marker": "Transactions" },
+    { "path": "/demo/summary", "marker": "Summary|Top categories|Total spending" },
+    { "path": "/demo/budgets", "marker": "Budget" },
+    { "path": "/demo/budgets/edit", "marker": "Budget" },
+    { "path": "/demo/insights", "marker": "Insights|Intelligence|Briefing|Generated" },
+    { "path": "/demo/merchants", "marker": "Merchants|Recurring|Committed burn" },
+    { "path": "/demo/income-statement", "marker": "Income" },
+    { "path": "/demo/statements", "marker": "Statement" },
+    { "path": "/demo/settings", "marker": "Settings|Appearance" }
+  ]
+}

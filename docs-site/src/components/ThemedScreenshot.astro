@@ -1,0 +1,61 @@
+---
+/**
+ * ThemedScreenshot — renders a light + dark screenshot pair captured from the
+ * demo (scripts/media/generate_docs_screenshots.ts) and swaps between them on
+ * Starlight's theme. The light image shows by default; the dark image takes
+ * over under :root[data-theme='dark'] (Starlight sets data-theme on <html>).
+ *
+ * Both `<id>-light.webp` and `<id>-dark.webp` must exist under
+ * src/assets/screenshots/ — a missing variant throws at build time, which is
+ * our missing-image gate.
+ */
+import { Image } from "astro:assets"
+import type { ImageMetadata } from "astro"
+
+interface Props {
+  /** Screenshot basename, e.g. "journal" resolves journal-{light,dark}.webp. */
+  id: string
+  alt: string
+  /** "mobile" constrains phone-width captures instead of stretching them to
+   *  content width (styles in starlight-overrides.css). */
+  variant?: "mobile"
+}
+
+const { id, alt, variant } = Astro.props
+
+const screenshots = import.meta.glob<{ default: ImageMetadata }>(
+  "../assets/screenshots/*.webp",
+  { eager: true }
+)
+
+const lightKey = `../assets/screenshots/${id}-light.webp`
+const darkKey = `../assets/screenshots/${id}-dark.webp`
+const light = screenshots[lightKey]?.default
+const dark = screenshots[darkKey]?.default
+
+if (!light) {
+  throw new Error(
+    `ThemedScreenshot: missing light variant for id="${id}" (expected src/assets/screenshots/${id}-light.webp). Run \`make docs-screenshots\` to (re)generate it.`
+  )
+}
+if (!dark) {
+  throw new Error(
+    `ThemedScreenshot: missing dark variant for id="${id}" (expected src/assets/screenshots/${id}-dark.webp). Run \`make docs-screenshots\` to (re)generate it.`
+  )
+}
+---
+
+{/* Styles live in src/styles/starlight-overrides.css (.themed-screenshot rules):
+    component <style> blocks are dropped from the CSS graph when this renders
+    inside content-collection MDX, so the swap rules ship in the site bundle. */}
+{/* Each plate links to its full-resolution asset — captures are downscaled to
+    the content column, and the fine print (nav labels, amounts) is part of
+    what a screenshot is for. */}
+<div class:list={["themed-screenshot", variant && `themed-screenshot--${variant}`]}>
+  <a class="ts-light" href={light.src} target="_blank" rel="noopener" title="Open full size">
+    <Image src={light} alt={alt} />
+  </a>
+  <a class="ts-dark" href={dark.src} target="_blank" rel="noopener" title="Open full size">
+    <Image src={dark} alt={alt} />
+  </a>
+</div>

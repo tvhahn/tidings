@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Test Fixture</title>
+  <meta name="author" content="expense-reporting test suite">
+  <meta name="description" content="Synthetic RBC-shaped chequing statement fixture. Not a real statement.">
+  <link rel="stylesheet" href="rbc_chequing_statement.css">
+</head>
+<body>
+
+  <div class="header-block">
+    <div class="bank-block">Royal Bank of Canada</div>
+    <div class="title-block">Your RBC personal banking account statement</div>
+    <div class="period-line">From {{ period_start_text }} to {{ period_end_text }}</div>
+  </div>
+
+  <div class="account-block">
+    <div>{{ holder_name }}</div>
+    <div>{{ co_holder_name }}</div>
+    <div>{{ address_line1 }}</div>
+    <div>{{ address_city_province }} {{ postal_code }}</div>
+    <div>Your account number: {{ account_number }}</div>
+  </div>
+
+  <div class="summary-block">
+    <div class="summary-line">Your opening balance on {{ period_start_text }}<span class="amt">${{ opening_balance }}</span></div>
+    <div class="summary-line">Total deposits into your account<span class="amt">+{{ total_deposits }}</span></div>
+    <div class="summary-line">Total withdrawals from your account<span class="amt">-{{ total_withdrawals }}</span></div>
+    <div class="summary-line">Your closing balance on {{ period_end_text }}<span class="amt">=${{ closing_balance }}</span></div>
+  </div>
+
+  <div class="details-label">Details of your account activity</div>
+
+  <table class="txn-table">
+    <thead>
+      <tr>
+        <th class="date-col">Date</th>
+        <th class="desc-col">Description</th>
+        <th class="wd-col">Withdrawals($)</th>
+        <th class="dep-col">Deposits($)</th>
+        <th class="bal-col">Balance($)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="date-col"></td>
+        <td class="desc-col">OpeningBalance</td>
+        <td class="wd-col"></td>
+        <td class="dep-col"></td>
+        <td class="bal-col">{{ opening_balance }}</td>
+      </tr>
+      {% for txn in transactions %}
+      <tr>
+        <td class="date-col">{{ txn.date_short }}</td>
+        <td class="desc-col">{{ txn.description }}</td>
+        <td class="wd-col">{{ txn.withdrawal }}</td>
+        <td class="dep-col">{{ txn.deposit }}</td>
+        <td class="bal-col">{{ txn.balance }}</td>
+      </tr>
+      {% endfor %}
+      <tr>
+        <td class="date-col"></td>
+        <td class="desc-col">ClosingBalance</td>
+        <td class="wd-col"></td>
+        <td class="dep-col"></td>
+        <td class="bal-col">${{ closing_balance }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="footer-block">
+    Important information about your account
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "aliases": [
+    {
+      "raw_name": "bell canada (fibe) msp",
+      "canonical_name": "Bell Fibe Internet"
+    },
+    {
+      "raw_name": "freshco #8841 liberty vlg",
+      "canonical_name": "FreshCo Liberty Village"
+    },
+    {
+      "raw_name": "sq *balzacs coffee king w",
+      "canonical_name": "Balzac's King West"
+    }
+  ],
+  "count": 3,
+  "version": 1
+}

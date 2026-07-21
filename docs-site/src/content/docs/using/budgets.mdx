@@ -1,0 +1,43 @@
+---
+title: Budgets
+description: Annual per-category targets assessed by proration, a top-level spending ceiling, and the editor where you set them.
+---
+
+import ThemedScreenshot from '../../../components/ThemedScreenshot.astro';
+import CategoryTypeGlyph from '../../../components/figures/CategoryTypeGlyph.astro';
+
+Budgets in Tidings are annual. You set a target for each category for the year, and the dashboard reads year-to-date spending against it. There is no month-to-month rollover and no per-month balance to fund — a target is a yearly number, and pace is how far into that number you are.
+
+<ThemedScreenshot id="budgets" alt="The budgets dashboard listing categories with their annual targets and year-to-date pace." />
+
+## How pace is assessed
+
+Pace compares what you have spent so far this year against the elapsed fraction of the year. Two months in, roughly a sixth of the year has passed, so a category on an even pace has spent about a sixth of its target. Spend ahead of that fraction and the category reads as off pace; behind it, ahead of pace.
+
+That even-pace assumption does not fit every category, so each one carries a type:
+
+- <CategoryTypeGlyph kind="fixed" /> **Fixed** — steady month to month, like a subscription.
+- <CategoryTypeGlyph kind="variable" /> **Variable** — present every month but varying, like groceries.
+- <CategoryTypeGlyph kind="lumpy" /> **Lumpy** — a once-or-twice-a-year expense, like an annual fee or insurance.
+
+A lumpy category is judged against its full-year target rather than a monthly pace, because a single large charge in one month is expected, not an overrun. Fixed and variable categories are assessed against the elapsed-year fraction.
+
+## The spending ceiling
+
+The ceiling is a separate, top-level annual cap on total spending. It is not the sum of the category targets — you can set category targets that add up to less, and the ceiling stands on its own as the outer limit. Once spend crosses it, the over-state reads plainly, as in "$112 over ceiling".
+
+The ceiling also feeds the [journal](/using/journal/): the journal's monthly ceiling is the annual ceiling divided by twelve.
+
+## Views
+
+The dashboard shows either a year-to-date or a monthly view, with an optional column comparing against the prior year. Categories you have spent in but never budgeted collect in their own unbudgeted section, so nothing goes missing just because it lacks a target.
+
+## Setting targets
+
+The first time you open budgets for a year, you choose where to begin: from scratch, or from your last twelve months of historical averages. The editor's pre-fill uses those same averages — it fills in targets, suggests a type for each category, and proposes a ceiling, all of which you can adjust.
+
+<ThemedScreenshot id="budget-edit" alt="The budget editor with per-category target fields and a spending ceiling input." />
+
+In the editor, a target can be entered monthly or annually, and the other figure is derived from it — enter $200 a month and the annual reads $2,400. If you save against a version that changed underneath you, in another tab for instance, the save is refused and you are asked to reload rather than quietly overwrite the other edit.
+
+For where the category types also surface, see the [income statement](/using/income-statement/) and [merchants](/using/merchants/).

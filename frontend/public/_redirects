@@ -1,0 +1,18 @@
+# SPA fallback for the hosted demo, which mounts at basename "/demo".
+#
+# The destination MUST be the directory form "/demo/", not "/demo/index.html".
+# Cloudflare Pages canonicalizes .html asset paths — a request for
+# /demo/index.html 308-redirects to /demo/ — so an index.html destination never
+# resolves in the asset manifest, the rule falls through, and the project's
+# root not-found handler answers with the marketing shell instead. That was a
+# silent production-only break: every demo deep link (/demo/budgets, /demo/
+# insights, ...) served the landing page with a 200.
+#
+# Verified against the real Pages runtime with `wrangler pages dev frontend/dist`
+# — /demo/index.html fails, /demo/ works, and neither shadows the demo API
+# Function, which wins via the /demo/api/* include in _routes.json.
+#
+# `frontend/public/serve.json` carries the equivalent rule for the local
+# `pnpm exec serve` preview used by the e2e gate. Cloudflare ignores serve.json
+# and serve ignores this file, so the two must be kept in step.
+/demo/*    /demo/    200

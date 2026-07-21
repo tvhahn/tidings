@@ -1,0 +1,8 @@
+{
+    "institution": "RBC",
+    "name": "Robert",
+    "amount": 3250.0,
+    "company": "EMILY JOHNSON | Misc transfer to Robyn | C1QrStUv8wX4",
+    "transaction_type": "e-transfer",
+    "email_filepath": "tests/test_data/rbc/2024.09.16_20.10_rbc808hhh909_rbc_e-transfer.txt"
+}

@@ -1,0 +1,41 @@
+<figure class="docs-figure" aria-label="The email-to-S3 pipeline: bank alerts flow through Gmail and a forwarder into SES inbound, land in an S3 bucket, and are processed by Lambda into DynamoDB for the dashboard. This page sets up the forwarder-through-S3 span.">
+  <div class="df-flow">
+    <div class="df-node">
+      <span class="df-node__t">Your bank</span>
+    </div>
+    <svg class="df-arrow" viewBox="0 0 18 12" aria-hidden="true"><path d="M0 6 H14 M10.5 2 L15 6 L10.5 10" fill="none" stroke="currentColor" stroke-width="1.5" /></svg>
+    <div class="df-node">
+      <span class="df-node__t">Gmail</span>
+      <span class="df-node__s">or direct alert delivery</span>
+    </div>
+    <svg class="df-arrow" viewBox="0 0 18 12" aria-hidden="true"><path d="M0 6 H14 M10.5 2 L15 6 L10.5 10" fill="none" stroke="currentColor" stroke-width="1.5" /></svg>
+    <div class="df-node df-node--accent">
+      <span class="df-node__t">Forwarder</span>
+    </div>
+    <svg class="df-arrow" viewBox="0 0 18 12" aria-hidden="true"><path d="M0 6 H14 M10.5 2 L15 6 L10.5 10" fill="none" stroke="currentColor" stroke-width="1.5" /></svg>
+    <div class="df-node df-node--accent">
+      <span class="df-node__t">SES inbound</span>
+      <span class="df-node__s">your domain's MX + DKIM</span>
+    </div>
+  </div>
+  <svg class="df-arrow df-arrow--down" viewBox="0 0 18 12" aria-hidden="true"><path d="M0 6 H14 M10.5 2 L15 6 L10.5 10" fill="none" stroke="currentColor" stroke-width="1.5" /></svg>
+  <div class="df-flow">
+    <div class="df-node df-node--accent">
+      <span class="df-node__t">S3 bucket</span>
+      <span class="df-node__s df-mono df-mono--fit">.eml objects</span>
+    </div>
+    <svg class="df-arrow" viewBox="0 0 18 12" aria-hidden="true"><path d="M0 6 H14 M10.5 2 L15 6 L10.5 10" fill="none" stroke="currentColor" stroke-width="1.5" /></svg>
+    <div class="df-node">
+      <span class="df-node__t">Lambda</span>
+    </div>
+    <svg class="df-arrow" viewBox="0 0 18 12" aria-hidden="true"><path d="M0 6 H14 M10.5 2 L15 6 L10.5 10" fill="none" stroke="currentColor" stroke-width="1.5" /></svg>
+    <div class="df-node">
+      <span class="df-node__t">DynamoDB</span>
+    </div>
+    <svg class="df-arrow" viewBox="0 0 18 12" aria-hidden="true"><path d="M0 6 H14 M10.5 2 L15 6 L10.5 10" fill="none" stroke="currentColor" stroke-width="1.5" /></svg>
+    <div class="df-node">
+      <span class="df-node__t">Dashboard</span>
+    </div>
+  </div>
+  <figcaption class="df-caption">The highlighted nodes — forwarder through S3 — are what this page sets up; the Lambda and table come from AWS deployment.</figcaption>
+</figure>

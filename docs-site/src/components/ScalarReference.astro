@@ -1,0 +1,15 @@
+---
+// Thin wrapper so Astro links Scalar's structural stylesheet in the built HTML.
+// The React island below is client:only, so a CSS import made inside
+// ScalarReference.tsx is never server-rendered and its <link> is dropped from
+// the static build (documented Astro client:only limitation) — the API
+// reference then ships unstyled. A plain side-effect CSS import here still gets
+// deduped into the client island's CSS chunk and left unlinked, so we import the
+// stylesheet with `?url` (Vite emits it as a hashed asset and returns its URL)
+// and render the <link> explicitly. This links Scalar's CSS exactly once.
+import scalarStyles from '@scalar/api-reference-react/style.css?url';
+import ScalarReference from './ScalarReference.tsx';
+---
+
+<link rel="stylesheet" href={scalarStyles} />
+<ScalarReference client:only="react" />

@@ -1,0 +1,22 @@
+---
+/*
+ * Starlight's default <head>, plus the self-hosted font faces.
+ *
+ * The <Font> component emits the @font-face rules (real face + the
+ * metrics-matched fallback Astro derives from the family's capsize metrics)
+ * for each family declared under `fonts` in astro.config.mjs. Without it, the
+ * generated --font-* CSS variables resolve to nothing.
+ *
+ * Serif and sans are preloaded: both paint above the fold on every page (the
+ * wordmark and page title are serif, body copy is sans). Mono is not — it only
+ * appears in code blocks further down, and preloading it would compete with
+ * the two fonts that gate first paint.
+ */
+import Default from '@astrojs/starlight/components/Head.astro';
+import { Font } from 'astro:assets';
+---
+
+<Default><slot /></Default>
+<Font cssVariable="--font-source-serif-4" preload />
+<Font cssVariable="--font-inter" preload />
+<Font cssVariable="--font-jetbrains-mono" />

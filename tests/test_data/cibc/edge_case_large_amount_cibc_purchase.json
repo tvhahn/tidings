@@ -1,0 +1,8 @@
+{
+    "institution": "CIBC",
+    "name": "Carlos",
+    "amount": 999999.99,
+    "company": "LUXURY AUTO DEALER",
+    "transaction_type": "purchase",
+    "email_filepath": "tests/test_data/cibc/edge_case_large_amount_cibc_purchase.txt"
+}

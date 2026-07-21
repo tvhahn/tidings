@@ -1,0 +1,24 @@
+# Tidings
+
+> Self-hosted personal finance dashboard. Email-first ingestion (no Plaid, no
+> bank credentials). Your data lives on your disk.
+
+- Repo: https://github.com/tvhahn/tidings
+- Install: https://github.com/tvhahn/tidings/blob/main/INSTALL.md
+- API surface: `/api/v1/*`, OpenAPI at `/openapi.json`, bearer auth optional
+  (RFC-6750)
+- Agent access guide:
+  https://github.com/tvhahn/tidings/blob/main/docs/guides/agent-access.md
+- License: MIT
+
+## For agents
+
+This app exposes a JSON HTTP API at `/api/v1/*` with optional bearer auth.
+Read `INSTALL.md` for the agent-driven install path. Read
+`docs/guides/agent-access.md` for the token issuance + scopes + curl/n8n
+walkthrough. The OpenAPI schema at `/openapi.json` is committed to the
+repo and drift-gated in CI, so it's safe to consume directly.
+
+Try the API before installing — the demo journal is served read-only at
+`https://gettidings.com/demo/api/v1` (fictional demo data, no auth). Its
+OpenAPI schema is at `https://gettidings.com/demo/api/openapi.json`.

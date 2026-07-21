@@ -1,0 +1,78 @@
+---
+/**
+ * PrivacyBoundaryFigure — the privacy story drawn: everything lives inside
+ * the "your machine" box; four labeled crossings, one per AI consent, are
+ * the only things that can leave. The two email consents auto-enable with an
+ * OpenAI key; the two document consents never do. Used on the Settings page
+ * (Intelligence section).
+ *
+ * CSS in src/styles/starlight-overrides.css (.df-boundary / .df-*).
+ */
+interface Props {
+  summary?: string
+}
+
+const {
+  summary = "Figure: your inbox, parser, journal, and dashboard all live on your machine. Four consents — categorization (merchant and amount), email rescue (subject and body of an unparsed email), statement parsing (statement text), and receipt parsing (receipt content) — are the only crossings to an AI provider, and nothing crosses until the matching consent is on. The two email consents come on with an OpenAI key; the two document consents only by hand.",
+} = Astro.props
+
+const crossings = [
+  { what: "Merchant name + amount", consent: "AI categorization", gate: "off without a key" },
+  { what: "Subject + body of an email no parser could read", consent: "email rescue", gate: "off without a key" },
+  { what: "Extracted text of an uploaded statement", consent: "statement parsing", gate: "off until enabled" },
+  { what: "A receipt you ask it to read", consent: "receipt parsing", gate: "off until enabled" },
+]
+---
+
+<figure class="docs-figure" aria-label={summary}>
+  <div class="df-boundary">
+    <div class="df-boundary__machine">
+      <span class="df-boundary__machine-label">your machine</span>
+      <div class="df-node">
+        <span class="df-node__t">Dedicated inbox</span>
+        <span class="df-node__s">bank alert emails</span>
+      </div>
+      <div class="df-node">
+        <span class="df-node__t">Parser + journal</span>
+        <span class="df-node__s">SQLite, on disk</span>
+      </div>
+      <div class="df-node">
+        <span class="df-node__t">Dashboard</span>
+        <span class="df-node__s">served from localhost</span>
+      </div>
+    </div>
+    <div class="df-crossings">
+      {
+        crossings.map((c) => (
+          <div class="df-crossing">
+            <span class="df-crossing__what">
+              {c.what}
+              <span class="df-crossing__consent">
+                {c.consent} · <span class="df-off">{c.gate}</span>
+              </span>
+            </span>
+            <svg class="df-arrow" viewBox="0 0 18 12" aria-hidden="true">
+              <path
+                d="M0 6 H14 M10.5 2 L15 6 L10.5 10"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+              />
+            </svg>
+          </div>
+        ))
+      }
+    </div>
+    <div class="df-node df-node--muted">
+      <span class="df-node__t">AI provider</span>
+      <span class="df-node__s">OpenAI · Claude Code · Codex · Gemini</span>
+    </div>
+  </div>
+  <figcaption class="df-caption">
+    <svg width="11" height="12" viewBox="0 0 11 12" aria-hidden="true">
+      <rect x="1" y="5" width="9" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"></rect>
+      <path d="M3.2 5 V3.4 a2.3 2.3 0 0 1 4.6 0 V5" fill="none" stroke="currentColor" stroke-width="1.2"></path>
+    </svg>
+    With every consent off, nothing crosses.
+  </figcaption>
+</figure>

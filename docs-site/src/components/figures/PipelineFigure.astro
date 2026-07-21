@@ -1,0 +1,63 @@
+---
+/**
+ * PipelineFigure — the ingestion path as a five-node flow, mirroring the
+ * marketing page's email → envelope → journal diagram in the docs' quieter
+ * register. Used on the Welcome page and "How Tidings works".
+ *
+ * All figure CSS lives in src/styles/starlight-overrides.css (.docs-figure /
+ * .df-*): component <style> blocks are dropped from the CSS graph when this
+ * renders inside content-collection MDX.
+ *
+ * `summary` doubles as the aria-label and as the plain-text stand-in that
+ * mdxToMarkdown emits for llms.txt / "Copy page" readers.
+ */
+interface Props {
+  summary?: string
+}
+
+const {
+  summary = "Figure: a bank alert email travels bank → forwarder inbox → parser → categorization → local store, and every page reads from that store.",
+} = Astro.props
+
+const steps = [
+  { n: "1", t: "Your bank", s: "emails a transaction alert", mono: false },
+  { n: "2", t: "Forwarder", s: "you.finance@gmail.com", mono: true },
+  { n: "3", t: "Parser", s: "amount · merchant · date", mono: false },
+  { n: "4", t: "Categorization", s: "your rules first, AI optional", mono: false },
+  { n: "5", t: "Local store", s: "SQLite or DynamoDB", mono: false },
+]
+
+const pages = ["Journal", "Transactions", "Summary", "Budgets", "Insights", "Merchants"]
+---
+
+<figure class="docs-figure" aria-label={summary}>
+  <div class="df-flow">
+    {
+      steps.map((step, i) => (
+        <>
+          {i > 0 && (
+            <svg class="df-arrow" viewBox="0 0 18 12" aria-hidden="true">
+              <path
+                d="M0 6 H14 M10.5 2 L15 6 L10.5 10"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+              />
+            </svg>
+          )}
+          <div class={i === steps.length - 1 ? "df-node df-node--accent" : "df-node"}>
+            <span class="df-node__t">
+              <span class="df-num">{step.n}</span>
+              {step.t}
+            </span>
+            <span class={step.mono ? "df-node__s df-mono" : "df-node__s"}>{step.s}</span>
+          </div>
+        </>
+      ))
+    }
+  </div>
+  <div class="df-fanout">
+    <span>every page is a read of this one store —</span>
+    {pages.map((p) => <span class="df-pill">{p}</span>)}
+  </div>
+</figure>

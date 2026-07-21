@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "anchor_month": "2026-03",
+  "persona_file": "docs/specs/_archive/2026-05-10-demo-parity/persona.md",
+  "vendors_file": "docs/specs/_archive/2026-05-10-demo-parity/vendors.json",
+  "phases": {
+    "0_persona_vendors": { "status": "complete", "completed_at": "2026-05-10T00:00:00Z" },
+    "1_transaction_rewrite": {
+      "status": "complete",
+      "completed_at": "2026-05-10T00:30:00Z",
+      "files_total": 60
+    },
+    "2_categories_sanity": { "status": "complete", "completed_at": "2026-05-10T01:00:00Z" },
+    "3_statements": { "status": "complete", "completed_at": "2026-05-10T01:30:00Z" },
+    "4_insights_briefings": {
+      "status": "complete",
+      "completed_at": "2026-05-10T02:00:00Z",
+      "targets": ["2025-12", "2026-01", "2026-02", "2026-03"]
+    },
+    "5_journal_summaries": {
+      "status": "complete",
+      "completed_at": "2026-05-10T02:30:00Z",
+      "targets": ["2025-12", "2026-01", "2026-02", "2026-03", "2026-04"]
+    },
+    "6_attention_seeding": { "status": "complete", "completed_at": "2026-05-10T03:00:00Z" },
+    "7_manual_add": { "status": "complete", "completed_at": "2026-05-10T03:30:00Z" },
+    "8_csv_export": { "status": "complete", "completed_at": "2026-05-10T04:00:00Z" },
+    "9_e2e_assertions": { "status": "complete", "completed_at": "2026-05-10T04:30:00Z" },
+    "10_voice_sweep": { "status": "complete", "completed_at": "2026-05-10T05:00:00Z" }
+  }
+}

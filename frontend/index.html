@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en" data-surface="marketing">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#181009" media="(prefers-color-scheme: dark)" />
+    <title>Tidings — Your spending, delivered.</title>
+    <meta
+      name="description"
+      content="A private finance journal from the transaction emails you already receive. Self-hosted, open source, runs on your machine."
+    />
+    <script>
+      (function () {
+        // Every surface — real app, marketing landing, demo SPA — defaults new
+        // users to light mode. A stored choice always wins.
+        var t = localStorage.getItem("theme") || "light";
+        if (t === "dark" || (t === "system" && matchMedia("(prefers-color-scheme:dark)").matches))
+          document.documentElement.classList.add("dark");
+        var p = localStorage.getItem("theme.palette");
+        var ok = { "warm-paper": 1, nord: 1, midnight: 1, solarized: 1, gruvbox: 1 };
+        // New users land on warm-paper (mirrors DEFAULT_PALETTE in stores/theme.ts).
+        // A stored choice always wins; an explicit "default" keeps the base palette
+        // (no data-palette attribute). Unknown ids fall back to warm-paper, matching
+        // loadPalette().
+        if (!p || (!ok[p] && p !== "default")) p = "warm-paper";
+        if (ok[p]) document.documentElement.dataset.palette = p;
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main-marketing.tsx"></script>
+  </body>
+</html>

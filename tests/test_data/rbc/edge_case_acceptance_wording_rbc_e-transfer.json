@@ -1,0 +1,8 @@
+{
+    "institution": "RBC",
+    "name": "Maria",
+    "amount": 40.0,
+    "company": "PATRICK KELLY for the amount of $40.00 (CAD) | test acceptance wording | CARDuCfy",
+    "transaction_type": "e-transfer",
+    "email_filepath": "tests/test_data/rbc/edge_case_acceptance_wording_rbc_e-transfer.txt"
+}

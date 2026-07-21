@@ -1,0 +1,29 @@
+---
+import Default from '@astrojs/starlight/components/PageTitle.astro';
+import MarkdownActions from '../components/MarkdownActions';
+import { entryToMarkdown } from '../lib/entryToMarkdown';
+
+const route = Astro.locals.starlightRoute;
+const slug = route.id;
+const mdHref = slug ? `/${slug}.md` : '/index.md';
+const markdown = entryToMarkdown(route.entry);
+---
+
+<div class="page-title-row">
+	<div class="page-title-row__title"><Default /></div>
+	<MarkdownActions client:load mdHref={mdHref} markdown={markdown} />
+</div>
+
+<style>
+	.page-title-row {
+		display: flex;
+		align-items: flex-end;
+		justify-content: space-between;
+		gap: 1rem;
+		flex-wrap: wrap;
+	}
+	.page-title-row__title {
+		flex: 1 1 auto;
+		min-width: 0;
+	}
+</style>

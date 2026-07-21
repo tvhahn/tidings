@@ -1,0 +1,87 @@
+{
+  "institutions": [
+    {
+      "institution": "CIBC",
+      "status": "active",
+      "last_seen_at": "2026-03-15",
+      "days_since_last_seen": 4,
+      "median_gap_days": 4,
+      "threshold_gap_days": 21,
+      "dormant_cutoff_days": 63,
+      "event_days": 57
+    },
+    {
+      "institution": "RBC",
+      "status": "active",
+      "last_seen_at": "2026-03-19",
+      "days_since_last_seen": 0,
+      "median_gap_days": 1,
+      "threshold_gap_days": 7,
+      "dormant_cutoff_days": 45,
+      "event_days": 264
+    },
+    {
+      "institution": "Simplii",
+      "status": "active",
+      "last_seen_at": "2026-03-19",
+      "days_since_last_seen": 0,
+      "median_gap_days": 3,
+      "threshold_gap_days": 11,
+      "dormant_cutoff_days": 45,
+      "event_days": 91
+    },
+    {
+      "institution": "Tangerine",
+      "status": "active",
+      "last_seen_at": "2026-03-13",
+      "days_since_last_seen": 6,
+      "median_gap_days": 7,
+      "threshold_gap_days": 51,
+      "dormant_cutoff_days": 153,
+      "event_days": 34
+    }
+  ],
+  "capture": {
+    "overall": {
+      "caught": 268,
+      "total": 294,
+      "rate": 0.9115646258503401
+    },
+    "by_institution": [
+      {
+        "institution": "CIBC",
+        "caught": 40,
+        "total": 44,
+        "rate": 0.9090909090909091
+      },
+      {
+        "institution": "RBC",
+        "caught": 195,
+        "total": 212,
+        "rate": 0.9198113207547169
+      },
+      {
+        "institution": "Simplii",
+        "caught": 14,
+        "total": 16,
+        "rate": 0.875
+      },
+      {
+        "institution": "Tangerine",
+        "caught": 19,
+        "total": 22,
+        "rate": 0.8636363636363636
+      }
+    ],
+    "by_type": [
+      {
+        "type": "withdrawal",
+        "caught": 268,
+        "total": 294,
+        "rate": 0.9115646258503401
+      }
+    ]
+  },
+  "window_months": 12,
+  "checked_at": "2026-07-17T10:38:58.589787-07:00"
+}

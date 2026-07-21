@@ -1,0 +1,957 @@
+/* Bridge Tidings tokens (loaded from ../../../frontend/src/index.css) onto
+   Starlight's --sl-* CSS variables. Starlight uses [data-theme='dark'] on
+   <html>; a small inline script in astro.config.mjs mirrors that to a `.dark`
+   class so Tidings' own `.dark { ... }` block also activates. */
+
+:root {
+  /* Type families — repoint the Tidings font tokens at the self-hosted faces
+     Astro builds from the `fonts` config in astro.config.mjs (emitted by
+     src/overrides/Head.astro). Each Astro variable already expands to the real
+     family followed by a metrics-matched fallback face, so the pre-swap paint
+     occupies the same space as the loaded font and the wordmark no longer
+     reflows. Same families, weights and sizes as before — only the delivery
+     changed.
+
+     Overridden here, not in src/styles/tidings-tokens/: that directory is
+     regenerated from frontend/src/index.css by scripts/sync-tokens.mjs on every
+     predev/prebuild and any edit there is overwritten. This file is loaded
+     after tidings.css (customCss order) and is unlayered, so it wins over both
+     the tokens' :root block and Tailwind's @theme. The trailing families are
+     kept so the stack still degrades sensibly if a face fails to load. */
+  --font-serif: var(--font-source-serif-4), "Source Serif Pro", "Iowan Old Style",
+    Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Surfaces — same recipe as the app's chrome: --card for rails and --muted
+     for inline-code fills. The head script in astro.config.mjs pins
+     data-palette="warm-paper" (the product default), so these resolve to the
+     warm-paper tokens: rails stay white in light (warm-paper's --card is
+     #ffffff), inline code picks up the warm cream, dark becomes Evening. */
+  --sl-color-bg: var(--background);
+  --sl-color-bg-nav: var(--card);
+  --sl-color-bg-sidebar: var(--card);
+  --sl-color-bg-inline-code: var(--muted);
+  /* Ink, not rust — brand rule: rust never fills a button or a large area.
+     Pairs with --sl-color-text-invert below (marketing .btn-primary recipe). */
+  --sl-color-bg-accent: var(--foreground);
+
+  /* Text — neutral ramp. Semantic tokens where a role matches; gray-2 and
+     gray-7 are in-between steps with no dedicated token, derived via
+     color-mix so they carry the active palette's tint (warm ink on warm
+     paper). Mix ratios are calibrated to reproduce the base-palette values
+     they replaced: gray-2 → 0.3 L, gray-7 → 0.985 L. */
+  --sl-color-text: var(--foreground);
+  --sl-color-text-accent: var(--brand);
+  --sl-color-text-invert: var(--background);
+  --sl-color-white: var(--foreground);
+  --sl-color-gray-1: var(--secondary-foreground);
+  --sl-color-gray-2: color-mix(in oklch, var(--secondary-foreground) 73%, var(--muted-foreground));
+  --sl-color-gray-3: var(--muted-foreground);
+  --sl-color-gray-4: var(--ring);
+  --sl-color-gray-5: var(--border);
+  --sl-color-gray-6: var(--muted);
+  --sl-color-gray-7: color-mix(in oklch, var(--background) 57%, var(--muted));
+  --sl-color-black: var(--background);
+
+  /* Hairlines */
+  --sl-color-hairline: var(--border);
+  --sl-color-hairline-light: color-mix(in oklch, var(--border) 60%, var(--background));
+  --sl-color-hairline-shade: var(--border);
+
+  /* Type */
+  --sl-font: var(--font-sans);
+  --sl-font-system: var(--font-sans);
+  --sl-font-system-mono: var(--font-mono);
+
+  /* Layout */
+  --sl-content-width: 50rem;
+  --sl-sidebar-width: 18rem;
+  --sl-line-height: 1.6;
+  /* Right-hand TOC column width. Starlight has no TOC-width token — it derives
+     the column from --sl-sidebar-width + --sl-content-width (see the override
+     block near the end of this file), which reads too wide on large screens. */
+  --tidings-toc-width: 15rem;
+
+  /* Accent ramp — Starlight uses these for interactive states. Mapped to the
+     Tidings rust scale so links / nav-active / focus rings stay on-brand. */
+  --sl-color-accent-low: var(--brand-100);
+  --sl-color-accent: var(--brand-500);
+  --sl-color-accent-high: var(--brand-700);
+}
+
+[data-theme='dark'] {
+  --sl-color-bg: var(--background);
+  --sl-color-bg-nav: var(--card);
+  --sl-color-bg-sidebar: var(--card);
+  --sl-color-bg-inline-code: var(--muted);
+  --sl-color-bg-accent: var(--foreground);
+
+  --sl-color-text: var(--foreground);
+  --sl-color-text-accent: var(--brand);
+  --sl-color-text-invert: var(--background);
+  --sl-color-white: var(--foreground);
+  /* Neutral ramp (dark). gray-1/2/4/7 are in-between steps with no dedicated
+     token, derived via color-mix so they follow the active palette (Evening's
+     warm ink in dark warm-paper). Ratios reproduce the base-palette values
+     they replaced: gray-1 → 0.92 L, gray-2 → 0.86 L, gray-4 → 0.556 L. */
+  --sl-color-gray-1: color-mix(in oklch, var(--foreground) 77%, var(--muted-foreground));
+  --sl-color-gray-2: color-mix(in oklch, var(--foreground) 56%, var(--muted-foreground));
+  --sl-color-gray-3: var(--muted-foreground);
+  --sl-color-gray-4: color-mix(in oklch, var(--muted-foreground) 64%, var(--border));
+  --sl-color-gray-5: var(--border);
+  --sl-color-gray-6: var(--card);
+  --sl-color-gray-7: color-mix(in oklch, var(--card) 50%, var(--background));
+  --sl-color-black: var(--background);
+
+  --sl-color-hairline: var(--border);
+  --sl-color-hairline-light: color-mix(in oklch, var(--border) 60%, var(--background));
+  --sl-color-hairline-shade: var(--border);
+
+  --sl-color-accent-low: var(--brand-800);
+  --sl-color-accent: var(--brand-400);
+  --sl-color-accent-high: var(--brand-200);
+}
+
+/* Headings on the docs site adopt the Tidings serif (Source Serif 4) so the
+   page-title aesthetic carries across to docs, matching the dashboard
+   `.page-title` treatment. Body stays Inter. Tracking per docs/brand/visual.md:
+   h1 is tighter than h2/h3/h4. */
+.sl-markdown-content :is(h1, h2, h3, h4) {
+  font-family: var(--font-serif);
+  letter-spacing: -0.01em;
+}
+.sl-markdown-content h1 {
+  letter-spacing: -0.015em;
+}
+
+/* Page title — serif, calm weight, and the signature narrow rust underline.
+   The h1 lives inside the PageTitle override's .page-title-row wrapper, so it
+   is NOT inside .sl-markdown-content; target the wrapper. */
+.page-title-row h1 {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+.page-title-row h1::after {
+  content: '';
+  display: block;
+  width: 32px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--brand);
+  margin-top: 10px;
+}
+
+/* ---------------------------------------------------------------------------
+   Site title — brand lockup: rust envelope mark + serif foreground wordmark
+   (marketing .nav-brand recipe). Rust belongs to the mark, not the name. */
+.site-title {
+  gap: 10px;
+}
+.site-title img {
+  width: 26px;
+  height: 26px;
+}
+.site-title span {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
+}
+
+/* ---------------------------------------------------------------------------
+   Sidebar current page — the dashboard's real active-nav treatment: a filled
+   accent chip (bg-accent + accent-foreground text, medium weight, rounded),
+   with no left-edge marker. Mirrors Layout.tsx's `bg-accent text-accent-
+   foreground font-medium rounded-lg`. */
+.sidebar-content a[aria-current='page'],
+.sidebar-content a[aria-current='page']:hover,
+.sidebar-content a[aria-current='page']:focus {
+  background: var(--accent);
+  color: var(--accent-foreground);
+  font-weight: 500;
+  border-radius: var(--radius);
+}
+
+/* Inactive sidebar link hover — the dashboard's quiet half-tint hover
+   (Layout.tsx: `hover:bg-accent/50 hover:text-accent-foreground`). */
+.sidebar-content a:not([aria-current='page']):hover {
+  background: color-mix(in oklch, var(--accent) 50%, transparent);
+  color: var(--accent-foreground);
+  border-radius: var(--radius);
+}
+
+/* ---------------------------------------------------------------------------
+   Link buttons — marketing recipes. Primary is ink on surface (8px radius,
+   not a pill); minimal stays a quiet ghost. */
+.sl-link-button.primary {
+  background: var(--foreground);
+  color: var(--background);
+  border: 1px solid var(--foreground);
+  border-radius: 8px;
+  padding: 0.625rem 1.125rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.sl-link-button.primary:hover {
+  background: color-mix(in oklch, var(--foreground) 88%, var(--background));
+  border-color: color-mix(in oklch, var(--foreground) 88%, var(--background));
+}
+.sl-link-button.secondary {
+  border: 1px solid var(--border-strong);
+  color: var(--fg-2);
+  border-radius: 8px;
+  padding: 0.625rem 1.125rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.sl-link-button.secondary:hover {
+  background: var(--surface-muted);
+  color: var(--foreground);
+}
+.sl-link-button.minimal {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* ---------------------------------------------------------------------------
+   Hero (homepage) — eyebrow · serif title with rust italic · lead · actions.
+   Markup in src/overrides/Hero.astro; styles live here because the title is
+   injected via set:html and scoped styles can't reach it. */
+.tidings-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.25rem;
+  padding: 2.5rem 0 1rem;
+}
+.tidings-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--brand);
+}
+.tidings-eyebrow .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--brand);
+}
+.tidings-hero h1 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: clamp(2.625rem, 5vw, 3.5rem);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+  color: var(--foreground);
+}
+.tidings-hero h1 em {
+  font-style: italic;
+  color: var(--brand);
+}
+.tidings-hero-lead {
+  margin: 0;
+  max-width: 36rem;
+  font-size: 1.125rem;
+  line-height: 1.55;
+  color: var(--sl-color-gray-2);
+}
+.tidings-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+/* ---------------------------------------------------------------------------
+   Markdown lists — the synced Tidings tokens pull in Tailwind's preflight,
+   which resets `ol`/`ul` to `list-style: none; padding: 0` site-wide. Starlight
+   itself relies on browser-default markers, so without this block every
+   markdown list renders as bare, unindented lines. Restore markers inside
+   rendered markdown only; Starlight components that bring their own list
+   chrome (<Steps>'s .sl-steps) are excluded. */
+.sl-markdown-content ol:not(.sl-steps) {
+  list-style: decimal;
+  padding-inline-start: 1.625rem;
+}
+.sl-markdown-content ul:not([class]) {
+  list-style: disc;
+  padding-inline-start: 1.625rem;
+}
+.sl-markdown-content :is(ol:not(.sl-steps), ul:not([class])) :is(ol, ul) {
+  padding-inline-start: 1.25rem;
+}
+.sl-markdown-content :is(ol:not(.sl-steps), ul:not([class])) ul {
+  list-style: circle;
+}
+.sl-markdown-content :is(ol:not(.sl-steps), ul:not([class])) li::marker {
+  color: var(--sl-color-gray-3);
+}
+
+/* ---------------------------------------------------------------------------
+   Asides — Starlight's defaults are indigo/purple/orange/red chips that read
+   as another product's UI on a warm-paper page. Retheme all four variants to
+   the Tidings palette: note stays neutral ink, tip carries the rust accent,
+   caution/danger map to the app's status tokens. Radius + hairline follow the
+   app's card chrome. The `--sl-color-asides-*` custom properties drive the
+   title and link colors in Starlight's own rules. */
+.sl-markdown-content .starlight-aside {
+  border-radius: 8px;
+  border-inline-start-width: 3px;
+  border-block: 1px solid color-mix(in oklch, var(--border) 60%, var(--background));
+  border-inline-end: 1px solid color-mix(in oklch, var(--border) 60%, var(--background));
+}
+.sl-markdown-content .starlight-aside--note {
+  --sl-color-asides-text-accent: var(--foreground);
+  --sl-color-asides-border: var(--sl-color-gray-4);
+  background-color: var(--sl-color-gray-6);
+}
+.sl-markdown-content .starlight-aside--tip {
+  --sl-color-asides-text-accent: var(--sl-color-accent-high);
+  --sl-color-asides-border: var(--brand);
+  background-color: color-mix(in oklch, var(--brand) 7%, var(--background));
+}
+.sl-markdown-content .starlight-aside--caution {
+  --sl-color-asides-text-accent: var(--status-warning-accent);
+  --sl-color-asides-border: var(--status-warning);
+  background-color: var(--status-warning-wash);
+}
+.sl-markdown-content .starlight-aside--danger {
+  --sl-color-asides-text-accent: var(--status-danger-accent);
+  --sl-color-asides-border: var(--status-danger);
+  background-color: var(--status-danger-wash);
+}
+
+/* ---------------------------------------------------------------------------
+   Cards — Tidings card chrome: 10px radius, soft hairline, no shadow, serif
+   titles, and a muted circular icon slot instead of Starlight's colored
+   chips (visual.md: icons sit in 32px bg-muted circles). */
+.card {
+  border: 1px solid color-mix(in oklch, var(--border) 60%, var(--background));
+  border-radius: 10px;
+  box-shadow: none;
+}
+.card .title {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 1.1875rem;
+  letter-spacing: -0.01em;
+  align-items: center;
+}
+.card svg.icon {
+  box-sizing: border-box;
+  width: 32px;
+  height: 32px;
+  padding: 8px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+
+/* ---------------------------------------------------------------------------
+   Markdown tables — inline code (config keys, enum values) is unbreakable by
+   default, so each column's minimum width locks to its longest token; in dense
+   tables (configuration.md's key reference) that starves the prose column and
+   forces horizontal scroll. Let code wrap as a last resort, and floor the
+   leading key/name columns so tokens rarely need to break. Desktop-only
+   (Starlight's 50rem breakpoint): on phones the table scrolls horizontally
+   anyway, and unbreakable code keeps every column readable there. */
+@media (min-width: 50rem) {
+  .sl-markdown-content table code {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .sl-markdown-content table :is(th, td):first-child {
+    min-width: 10rem;
+  }
+  .sl-markdown-content table :is(th, td):nth-child(2) {
+    min-width: 6.5rem;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Code frames — drop the empty fake-terminal title bar (three dots over
+   nothing). Frames with a real title keep their header. */
+.expressive-code .frame.is-terminal:not(.has-title) figcaption.header {
+  display: none;
+}
+.expressive-code .frame.is-terminal:not(.has-title) pre {
+  border-radius: 8px;
+}
+/* EC offsets the copy button below the (now hidden) header — re-anchor it. */
+.expressive-code .frame.is-terminal:not(.has-title) {
+  --button-spacing: 0.4rem;
+}
+
+/* ---------------------------------------------------------------------------
+   Scalar (API reference) — theme is 'none' (ScalarReference.tsx); map its
+   tokens onto the Tidings palette. Both .light-mode and .dark-mode get the
+   same vars: the underlying Tidings tokens already flip with the page theme,
+   which also keeps Scalar consistent if its own stored mode disagrees. */
+:root .light-mode,
+:root .dark-mode,
+.scalar-app {
+  --scalar-font: var(--font-sans);
+  --scalar-font-code: var(--font-mono);
+  --scalar-color-1: var(--foreground);
+  --scalar-color-2: var(--sl-color-gray-2);
+  --scalar-color-3: var(--sl-color-gray-3);
+  --scalar-color-accent: var(--brand);
+  /* Raised surfaces reuse the theme-aware Starlight ramp so they flip with the
+     page theme; the achromatic --sl-* tokens already track light/dark. */
+  --scalar-background-1: var(--background);
+  --scalar-background-2: var(--sl-color-black);
+  --scalar-background-3: var(--sl-color-gray-7);
+  --scalar-background-accent: color-mix(in oklch, var(--brand) 10%, transparent);
+  --scalar-border-color: var(--border);
+}
+
+/* Scalar's workbench chrome (Developer Tools / Configure / Share / Deploy)
+   and the Ask AI sidebar button — app affordances, not reference content.
+   No config flags exist for these in 0.9.x, so hide them here. */
+/* !important: Scalar's own `.scalar-app .flex` utility ties on specificity
+   and its stylesheets load after this one. */
+.scalar-api-reference .api-reference-toolbar {
+  display: none !important;
+}
+.scalar-api-reference button.bg-sidebar-b-search {
+  display: none !important;
+}
+
+/* Copy / View-as-Markdown action group rendered by the PageTitle override. */
+.markdown-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-shrink: 0;
+  margin-bottom: 0.25rem;
+}
+.markdown-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  font-family: var(--sl-font);
+  font-size: 0.8125rem;
+  line-height: 1;
+  color: var(--sl-color-gray-2);
+  background: transparent;
+  border: 1px solid var(--sl-color-hairline);
+  border-radius: 6px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 120ms ease, border-color 120ms ease, background-color 120ms ease;
+}
+.markdown-action:hover,
+.markdown-action:focus-visible {
+  color: var(--sl-color-text);
+  border-color: var(--sl-color-gray-4);
+  background: var(--sl-color-bg-inline-code);
+}
+.markdown-action:focus-visible {
+  outline: 2px solid var(--sl-color-accent);
+  outline-offset: 2px;
+}
+.markdown-action svg {
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+@media (max-width: 30rem) {
+  .markdown-action span {
+    display: none;
+  }
+  .markdown-action {
+    padding: 0.4375rem;
+  }
+}
+
+/* ThemedScreenshot (src/components/ThemedScreenshot.astro): light/dark plate
+   swap keyed on Starlight's data-theme. Lives here rather than in the
+   component because component <style> blocks are dropped from the CSS graph
+   when rendered inside content-collection MDX. */
+.themed-screenshot {
+  display: block;
+  margin: 1rem 0;
+}
+.themed-screenshot img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  border: 1px solid var(--sl-color-gray-5);
+}
+/* The plates link to their full-resolution assets (ThemedScreenshot.astro);
+   keep the anchor invisible as chrome. */
+.themed-screenshot a {
+  display: block;
+  line-height: 0;
+}
+.themed-screenshot .ts-dark {
+  display: none;
+}
+:root[data-theme='dark'] .themed-screenshot .ts-light {
+  display: none;
+}
+:root[data-theme='dark'] .themed-screenshot .ts-dark {
+  display: block;
+}
+/* Phone-width captures must not stretch to content width — a 390px viewport
+   blown up to 50rem reads as a blurry poster. Constrain and center. */
+.themed-screenshot--mobile {
+  max-width: 22.5rem;
+  margin-inline: auto;
+}
+
+/* ---------------------------------------------------------------------------
+   Docs figures — hand-drawn concept diagrams (src/components/figures/ for MDX
+   pages; src/figures/*.html snippets swapped into synced .md pages by
+   sync-content.mjs). One shared vocabulary, mirrored from the marketing
+   page's flow/arch-path recipes: hairline card nodes, rust reserved for
+   small accents (numbers, connectors, one highlighted node), both themes via
+   tokens. All figure CSS lives here — component <style> blocks are dropped
+   from the CSS graph inside content-collection MDX. */
+.docs-figure {
+  margin: 1.5rem 0;
+  padding: 1.25rem 1.25rem 1rem;
+  border: 1px solid color-mix(in oklch, var(--border) 60%, var(--background));
+  border-radius: 10px;
+  background: var(--sl-color-gray-7);
+  overflow-x: auto;
+}
+/* A figure snippet placed directly before an ASCII-diagram code fence
+   replaces it on-site; the fence stays for GitHub and llms.txt readers. */
+.docs-figure + .expressive-code {
+  display: none;
+}
+.df-caption {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 1rem;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+.df-caption svg {
+  flex: none;
+  opacity: 0.75;
+}
+
+/* Nodes */
+.df-node {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  padding: 0.5rem 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+}
+.df-node__t {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--foreground);
+}
+.df-node__s {
+  font-size: 0.71875rem;
+  line-height: 1.45;
+  color: var(--muted-foreground);
+}
+.df-node--accent {
+  border-color: color-mix(in oklch, var(--brand) 35%, var(--border));
+  background: color-mix(in oklch, var(--brand) 4%, var(--background));
+}
+.df-node--muted {
+  border-style: dashed;
+  background: transparent;
+}
+.df-mono {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+}
+.df-node .df-mono {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Small numbered chip, as on the marketing arch path. */
+.df-num {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklch, var(--brand) 45%, transparent);
+  background: color-mix(in oklch, var(--brand) 8%, var(--background));
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--brand);
+}
+
+/* Horizontal flow: nodes separated by connector arrows; stacks on narrow
+   screens with the arrows rotated to point down. */
+.df-flow {
+  display: flex;
+  align-items: stretch;
+  gap: 0.375rem;
+}
+/* Content-aware widths so long single-word titles (e.g. "Categorization")
+   never overflow their box; equal-height boxes via the stretch above. The
+   tightened horizontal padding (from the node default 0.875rem) buys back the
+   width the min-content floor below costs, keeping the five-node row inside the
+   ~662px docs content column without a horizontal scroll. */
+.df-flow > .df-node {
+  flex: 1 1 auto;
+  padding-inline: 0.5rem;
+}
+.df-flow > .df-arrow {
+  width: 16px;
+}
+/* Pipeline (numbered) flow nodes: keep the number chip and the title on ONE
+   line. Floor each box at its title's intrinsic width so multi-word titles
+   ("Your bank", "Local store") don't break at the space and long single-word
+   titles ("Categorization") don't drop the chip onto its own line. Scoped to
+   :has(.df-num) so the chip-less architecture-path flows keep min-width: 0. */
+.df-flow > .df-node:has(.df-num) {
+  min-width: min-content;
+}
+.df-node__t:has(.df-num) {
+  white-space: nowrap;
+}
+/* The forwarder's ellipsizing mono (an email address) would otherwise force its
+   box to the full untruncated width and starve the row; size-containment drops
+   its min-content contribution to zero so the box tracks its title while the
+   ellipsis still renders. The --fit monos (a db filename, an object type) must
+   show in full, so they are excluded. */
+.df-flow .df-mono:not(.df-mono--fit) {
+  contain: inline-size;
+}
+/* Short, fixed identifiers (a db filename, an object type) must show in full:
+   keep their flow node from shrinking below its content, so the .df-mono
+   ellipsis never trims them when the row is tight. Long free-form mono values
+   (e.g. an email address) omit --fit and keep the ellipsis. Placed after the
+   flex rule above so it wins the tie on flex-shrink by source order. */
+.df-node:has(> .df-mono--fit) {
+  flex-shrink: 0;
+}
+/* Starlight injects vertical-rhythm margins onto adjacent block siblings inside
+   markdown content; on these flex rows that top-margin bottom-shifts every node
+   but the first, breaking box/arrow centering. On the grid figures it worse:
+   only the first cell escapes the margin, so it renders taller and top-shifted
+   against its own row. Neutralize it on every figure's direct children. */
+.df-flow > *,
+.df-fanout > *,
+.df-buckets > *,
+.df-boundary > * {
+  margin-top: 0;
+}
+.df-arrow {
+  flex: none;
+  align-self: center;
+  width: 18px;
+  height: 12px;
+  color: color-mix(in oklch, var(--brand) 55%, transparent);
+}
+.df-arrow--down {
+  transform: rotate(90deg);
+  margin: 0.125rem auto;
+  display: block;
+}
+.df-branch-label {
+  font-size: 0.6875rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  text-align: center;
+}
+@media (max-width: 40rem) {
+  .df-flow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .df-flow > .df-arrow {
+    transform: rotate(90deg);
+    margin: 0.125rem auto;
+  }
+}
+
+/* Fan-out footer row (pipeline figure): the store feeding every page. */
+.df-fanout {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.375rem 0.5rem;
+  margin-top: 0.875rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed color-mix(in oklch, var(--border) 80%, transparent);
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+.df-pill {
+  padding: 0.1rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--background);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--sl-color-gray-2);
+  white-space: nowrap;
+}
+
+/* Fork diagram (two queues): center trunk, SVG fork, two parallel branches. */
+.df-fork {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1.25rem;
+}
+.df-fork__trunk {
+  grid-column: 1 / -1;
+  justify-self: center;
+  align-items: center;
+  text-align: center;
+  max-width: 22rem;
+}
+.df-fork__split {
+  grid-column: 1 / -1;
+  width: 100%;
+  height: 34px;
+  color: color-mix(in oklch, var(--brand) 55%, transparent);
+}
+.df-fork__split path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.df-fork__col {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+}
+.df-fork__note {
+  margin-top: 0.5rem;
+  font-size: 0.71875rem;
+  line-height: 1.45;
+  color: var(--muted-foreground);
+  padding-inline: 0.25rem;
+}
+.df-fork .df-branch-label {
+  margin-bottom: 0.375rem;
+}
+@media (max-width: 40rem) {
+  .df-fork {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .df-fork__split {
+    display: none;
+  }
+  .df-fork__col {
+    margin-top: 0.75rem;
+  }
+}
+
+/* Waterfall (categorization tiers): stacked tiers, labeled fall-through. */
+.df-waterfall {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  max-width: 30rem;
+  margin-inline: auto;
+}
+.df-waterfall__between {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.2rem 0 0.2rem 1.25rem;
+}
+.df-waterfall__between .df-arrow--down {
+  margin: 0;
+}
+.df-waterfall__between .df-branch-label {
+  text-transform: none;
+  letter-spacing: 0;
+  font-style: italic;
+}
+.df-tag {
+  margin-left: auto;
+  flex: none;
+  align-self: center;
+  font-size: 0.65625rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--brand);
+}
+.df-tag--muted {
+  color: var(--muted-foreground);
+}
+
+/* Boundary diagram (what leaves the machine): the machine box, the labeled
+   crossings, the provider outside. */
+.df-boundary {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr) auto;
+  gap: 1rem;
+  align-items: center;
+}
+.df-boundary__machine {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.375rem 0.875rem 0.875rem;
+  border: 1.5px solid var(--foreground);
+  border-radius: 10px;
+  background: var(--background);
+}
+.df-boundary__machine-label {
+  position: absolute;
+  top: -0.5625rem;
+  left: 0.75rem;
+  padding: 0 0.375rem;
+  background: var(--background);
+  border-radius: 4px;
+  font-size: 0.65625rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--foreground);
+}
+.df-boundary__machine .df-node {
+  padding: 0.375rem 0.625rem;
+}
+.df-crossings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  min-width: 0;
+}
+.df-crossing {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.375rem;
+}
+.df-crossing__what {
+  font-size: 0.71875rem;
+  line-height: 1.4;
+  color: var(--foreground);
+}
+.df-crossing__consent {
+  display: block;
+  font-size: 0.65625rem;
+  color: var(--muted-foreground);
+}
+.df-crossing .df-arrow {
+  width: 26px;
+}
+.df-off {
+  display: inline-block;
+  padding: 0 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--muted-foreground);
+  background: var(--sl-color-gray-6);
+  white-space: nowrap;
+}
+@media (max-width: 40rem) {
+  .df-boundary {
+    grid-template-columns: 1fr;
+  }
+  /* Stacked now: each crossing's data flows down toward the provider below, so
+     drop the arrow beneath its label and centre it instead of stranding it at
+     the right edge where it connects to nothing. */
+  .df-crossing {
+    grid-template-columns: 1fr;
+    justify-items: start;
+    gap: 0.25rem;
+  }
+  .df-crossing .df-arrow {
+    transform: rotate(90deg);
+    justify-self: center;
+  }
+}
+
+/* Category-type glyph (fixed / variable / lumpy mini-bars) — inline beside
+   the term it illustrates, never a content carrier of its own. */
+.df-inline-glyph {
+  display: inline-block;
+  vertical-align: -0.125em;
+  margin-inline-end: 0.25rem;
+  color: color-mix(in oklch, var(--brand) 75%, var(--muted-foreground));
+}
+
+/* Bucket strip (statement reconciliation outcomes). */
+.df-buckets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 0.625rem;
+}
+
+/* ---------------------------------------------------------------------------
+   Right TOC column — Starlight has no dedicated TOC-width token. In
+   TwoColumnContent.astro (@media min-width:72rem) the column is DERIVED as
+   `--sl-sidebar-width + (100% - --sl-content-width - --sl-sidebar-width)/2`, so
+   it grows with the viewport and reads too wide on large screens. Pin the
+   column to --tidings-toc-width and hand the freed width to the main pane,
+   keeping the container + main-pane widths summing to 100% (no overlap, gap, or
+   horizontal scrollbar). Four coupled overrides, all at Starlight's ≥72rem
+   two-column breakpoint:
+     1. .right-sidebar-container — the reserved column, forced to the flat width.
+     2. [data-has-sidebar][data-has-toc] .main-pane — 100% minus that width, so
+        the content column (still --sl-content-width, shrunk responsively below
+        it) sits in a roomier pane.
+     3. .right-sidebar-panel .sl-container — the TOC's *text* max-width is a
+        SEPARATE magic-number calc in PageSidebar.astro that also scales with the
+        viewport; cap it to the column's inner width so entries wrap inside the
+        narrowed column. Without this the TOC text overflows the fixed
+        .right-sidebar (its `width: 100%` is a viewport-wide overflow box, as in
+        stock Starlight — visible extent comes from this panel, not its own
+        width) and is clipped off-screen at wide viewports. Scoped under
+        .right-sidebar-panel so ContentPanel's own .sl-container (the main
+        content column) is untouched.
+     4. --sl-content-margin-inline — stock is `auto 0`, which pins the content
+        flush to the main pane's inner (TOC-side) edge and dumps all the slack on
+        the left. That reads centered ONLY at the derived pane width, where the
+        slack is exactly half. Once the pane absorbs the freed TOC width the same
+        rule shoves the content hard right, so recenter it with plain `auto`
+        (ContentPanel's .sl-container reads this token for its margin-inline).
+   Unlayered here, so these beat Starlight's @layer starlight.core component
+   rules regardless of their scoped specificity. --sl-sidebar-width /
+   --sl-content-width are deliberately NOT changed (shared with the left nav and
+   the content column). */
+@media (min-width: 72rem) {
+  .right-sidebar-container {
+    width: var(--tidings-toc-width);
+  }
+  [data-has-sidebar][data-has-toc] .main-pane {
+    width: calc(100% - var(--tidings-toc-width));
+    --sl-content-margin-inline: auto;
+  }
+  .right-sidebar-panel .sl-container {
+    max-width: calc(var(--tidings-toc-width) - 2 * var(--sl-sidebar-pad-x));
+  }
+}

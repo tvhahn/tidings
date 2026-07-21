@@ -1,0 +1,41 @@
+---
+title: Needs review
+description: The quarantine for bank emails Tidings could not parse, and how retrying or setting them aside works.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import ThemedScreenshot from '../../../components/ThemedScreenshot.astro';
+
+Needs review is where bank emails go when Tidings receives them but cannot read them. The parsers could not find a merchant or an amount, so the raw email is kept intact and no transaction exists yet. Nothing is lost, but nothing is counted either until a retry succeeds.
+
+<ThemedScreenshot id="needs-review" alt="The Needs review page listing quarantined bank emails with retry and set-aside actions." />
+
+## Not the same as the attention queue
+
+This is the pair most worth keeping straight. The attention queue on [Transactions](/using/transactions/) holds transactions that exist but have no category — real rows waiting to be filed. Needs review holds emails that never became transactions at all. One is a categorization gap; the other is a parsing gap. If a purchase is missing from your totals entirely, look here, not there.
+
+## Retrying a row
+
+Retry re-runs the deterministic parsers against the stored email — the same regex-based parsers, never AI. It exists to confirm a parser fix, so the outcome tells you whether the fix took:
+
+- If the email now parses, Tidings creates the transaction and clears the row.
+- If the result matches something you already have, the row is marked handled as a duplicate.
+- If the parsers still cannot read it, the email stays quarantined for you to try again later.
+
+When a retry does create a transaction, categorization runs through your override rules, so a merchant you have already pinned lands in the right category on arrival.
+
+<Aside type="note">
+Retry deliberately skips AI. AI extraction is the ingestion-time recovery path; the retry here is the manual-confirmation path for a parser you have changed.
+</Aside>
+
+## Retry all
+
+When two or more quarantined emails share one institution or sender domain, Tidings offers a retry all for that group. This is the batch you run right after a new parser lands: point it at the backlog from that bank and recover the whole set in one pass.
+
+## Setting a row aside
+
+Set aside dismisses a row you do not intend to recover. It removes the email from the active list without deleting the captured email itself, so the record stays on disk.
+
+## When a bank keeps failing
+
+If the same bank lands here again and again, the fix is not more retries — it is a parser that can read that bank's emails. The [add a parser](/add-a-parser/) guide walks through writing one, and these quarantined emails are exactly the raw material that workflow uses. Once the parser exists, retry all clears the backlog it was built from.

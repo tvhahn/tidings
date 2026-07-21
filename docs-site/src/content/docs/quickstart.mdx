@@ -1,0 +1,58 @@
+---
+title: Quickstart
+description: Three commands and a browser tab. The default is demo mode with seeded sample data.
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+Try Tidings in about a minute, with no real bank accounts. The demo runs from a seeded SQLite database — no IMAP credentials, no AWS, no external services. Click around, then wire up your own data when you're ready.
+
+<Aside type="tip" title="Or hand it to an agent">
+Paste this into Claude Code, Cursor, Codex, or another capable agent:
+
+```text
+Help me install Tidings. Read https://docs.gettidings.com/install.md first, then walk me through it.
+```
+</Aside>
+
+## Run the demo
+
+<Steps>
+
+1. Clone the repository and start the stack.
+
+	```bash
+	git clone https://github.com/tvhahn/tidings.git
+	cd tidings
+	docker compose up -d
+	```
+
+	No published image for your platform yet? The same command builds from source instead — first run takes a few minutes.
+
+2. Open the dashboard.
+
+	[http://localhost:8000](http://localhost:8000)
+
+</Steps>
+
+## Set your timezone
+
+Tidings defaults to `America/Los_Angeles`. Change it under **Settings → Timezone** (or the `timezone` key in `data/config.json` before first launch), and it applies to the whole instance. Details and the changing-it-later caveat are in [settings](/using/settings/).
+
+## Wire up your own data
+
+When you move to real data, three pages cover the wiring, in order:
+
+1. [Self-hosting with Docker](/self-hosting/docker/) — copy `.env.example` to `.env`, set `demo_mode: false` in `data/config.json`, and run the stack against your own SQLite database.
+2. [Email setup](/self-hosting/email/) — create a dedicated Gmail account, generate an App Password, and point your bank alerts at it.
+3. [Notifications](/notifications/) — pick a push or SMS provider. The recommended default is ntfy: free, no account, works on iOS and Android.
+
+<Aside type="note" title="AI categorization is off until you add a key">
+	Tidings can use OpenAI to label each transaction's category. Adding an `OPENAI_API_KEY` turns on two switches under Settings → Intelligence — categorization and email rescue — and either can be turned back off. Categorization sends only the amount and the merchant name, never the account number, card number, or balance; email rescue sends the subject and body of an email no parser could read, so OpenAI can read the transaction out. Run without a key and nothing leaves your machine.
+</Aside>
+
+## Common gotchas
+
+The three failures people hit first — port 8000 already in use, IMAP authentication, and permissions on `data/` — are covered in [Docker setup's troubleshooting](/self-hosting/docker/#troubleshooting), each with its one-line fix.
+
+For the full JSON API while the stack is running, see the [API reference](/api/).

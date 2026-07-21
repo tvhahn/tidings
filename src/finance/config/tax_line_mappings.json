@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "country": "CA",
+  "lines": [
+    {
+      "key": "charitable",
+      "label": "Charitable donations",
+      "cra_ref": "Line 34900 (Schedule 9)",
+      "categories": ["Charitable Giving"]
+    },
+    {
+      "key": "medical",
+      "label": "Medical expenses",
+      "cra_ref": "Line 33099",
+      "categories": ["Health Care", "Therapy"],
+      "note": "Only amounts not reimbursed by insurance qualify; a claim may use any 12-month period ending in the tax year."
+    },
+    {
+      "key": "childcare",
+      "label": "Child care expenses",
+      "cra_ref": "Line 21400 (Form T778)",
+      "categories": ["Childcare"]
+    },
+    {
+      "key": "moving",
+      "label": "Moving expenses",
+      "cra_ref": "Line 21900",
+      "categories": ["Moving"]
+    },
+    {
+      "key": "tuition",
+      "label": "Tuition and education",
+      "cra_ref": "Line 32300",
+      "categories": ["Education"]
+    },
+    {
+      "key": "dues",
+      "label": "Union and professional dues",
+      "cra_ref": "Line 21200",
+      "categories": ["Professional Services"]
+    },
+    {
+      "key": "instalments",
+      "label": "Tax paid by instalments",
+      "cra_ref": "Line 47600",
+      "categories": ["Taxes"]
+    }
+  ]
+}

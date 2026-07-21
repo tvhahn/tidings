@@ -1,0 +1,8 @@
+{
+    "institution": "RBC",
+    "name": null,
+    "amount": 0.01,
+    "company": null,
+    "transaction_type": "withdrawal",
+    "email_filepath": "tests/test_data/rbc/edge_case_small_amount_rbc_withdrawal.txt"
+}

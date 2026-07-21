@@ -1,0 +1,29 @@
+---
+import { LinkButton } from '@astrojs/starlight/components';
+
+// Brand hero in the marketing page's language (eyebrow · serif title with
+// rust italic · lead · actions) instead of Starlight's splash hero. Content
+// still comes from the page's `hero:` frontmatter; only the homepage uses it.
+const { data } = Astro.locals.starlightRoute.entry;
+const { title = data.title, tagline, actions = [] } = data.hero || {};
+---
+
+<div class="tidings-hero">
+	<p class="tidings-eyebrow"><span class="dot" aria-hidden="true"></span>self-hosted · open source</p>
+	<h1 id="_top" data-page-title set:html={title} />
+	{tagline && <p class="tidings-hero-lead" set:html={tagline} />}
+	{
+		actions.length > 0 && (
+			<div class="tidings-hero-actions">
+				{actions.map(
+					({ attrs: { class: className, ...attrs } = {}, icon, link: href, text, variant }) => (
+						<LinkButton {href} {variant} icon={icon?.name} class:list={[className]} {...attrs}>
+							{text}
+							{icon?.html && <Fragment set:html={icon.html} />}
+						</LinkButton>
+					)
+				)}
+			</div>
+		)
+	}
+</div>

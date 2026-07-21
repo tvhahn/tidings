@@ -1,0 +1,47 @@
+# Self-hoster override for the production stack.
+#
+# Copy this file to `docker-compose.override.yml` (drop the `.example`
+# suffix) and uncomment the snippets you need. Docker Compose merges the
+# override on top of `docker-compose.yml` automatically on every
+# `docker compose up`. The override file is gitignored, so your local
+# choices never end up in a commit.
+
+services:
+  finance:
+    # --- Agent CLIs (Claude Code, OpenAI Codex, Google Gemini) ---
+    # The published image ships without the agent CLIs, so only the
+    # "OpenAI API" provider works out of the box in Settings →
+    # Intelligence. To use the Claude Code, OpenAI Codex, or Google
+    # Gemini providers (which bill against your existing subscription
+    # instead of an API key), build the image locally with the CLIs
+    # baked in:
+    #
+    #   1. Uncomment the `build` block below.
+    #   2. Run `docker compose build finance && docker compose up -d`.
+    #   3. Sign in once via Settings → Intelligence (or `docker compose
+    #      exec finance codex login --device-auth`).
+    #
+    # build:
+    #   args:
+    #     INSTALL_AI_CLIS: "true"
+
+    # --- Persist CLI logins ---
+    # The CLIs store their credentials in the container home directory
+    # (~/.claude, ~/.codex, ~/.gemini). Without this volume a
+    # `docker compose up --force-recreate` signs you out of all of them.
+    # volumes:
+    #   - tidings_home:/home/tidings
+
+    # --- Feed credentials from .env ---
+    # env_file:
+    #   - .env
+
+    # --- Re-home the API port ---
+    # Useful when :8000 is taken (e.g. by the devcontainer's dev server).
+    # Pick any free host port for the left-hand side.
+    # ports: !override
+    #   - "18000:8000"
+
+# Uncomment together with the tidings_home volume mount above.
+# volumes:
+#   tidings_home:

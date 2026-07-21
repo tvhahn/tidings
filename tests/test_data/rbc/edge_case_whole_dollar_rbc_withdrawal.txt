@@ -1,0 +1,21 @@
+
+
+Hello,
+
+ A withdrawal of $100  was debited from your bank account Daily Savings. The full details of this transaction are below:
+
+Account:
+
+ Daily Savings
+
+Withdrawal Amount:
+
+ $100
+
+Transaction Date:
+
+ January 15, 2026
+
+ Thank you!
+
+ RBC Royal Bank | Royal Bank of Canada

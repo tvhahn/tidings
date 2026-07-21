@@ -1,0 +1,8 @@
+{
+    "institution": "MBNA",
+    "name": "Demo User",
+    "amount": 12345.67,
+    "company": "Premium Auto Service",
+    "transaction_type": "purchase",
+    "email_filepath": "tests/test_data/mbna/edge_case_large_amount_mbna_purchase.txt"
+}

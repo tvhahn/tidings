@@ -1,0 +1,16 @@
+Hi [CARDHOLDER_NAME],
+
+A purchase of $5,432.10 was made on your PC ® Mastercard ®  card ending in 8804 on January 15, 2026.
+
+Card number: ************8804
+Merchant: BEST BUY #947
+Purchase amount: $5,432.10
+Transaction date: January 15, 2026
+
+View your transactions and manage your alerts by logging in to your online account.
+
+If you or an additional cardholder on the account did not make this purchase, please call us at 1 877 939 3933.
+
+Thank you,
+
+The PC Financial ® team

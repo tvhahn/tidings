@@ -1,0 +1,15 @@
+allowBuilds:
+  esbuild: true
+  sharp: true
+  vue-demi: true
+
+# vite is transitive-only here (via Astro); Dependabot can't bump transitives
+# in pnpm, so security floors must be pinned as overrides.
+# js-yaml is deliberately NOT floored to 4.1.2 (merge-key DoS advisory):
+# 4.1.2 drops the ESM default export that @astrojs/markdown-remark imports,
+# breaking `astro build`. Build-time-only exposure; revisit when Astro adapts.
+overrides:
+  vite: '>=7.3.5'
+  esbuild: '>=0.28.1'
+  shell-quote: '>=1.8.4'
+  devalue: '>=5.8.1'

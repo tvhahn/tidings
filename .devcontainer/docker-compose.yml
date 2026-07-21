@@ -1,0 +1,58 @@
+services:
+  devcontainer:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+      args:
+        TZ: "America/Vancouver"
+        CLAUDE_CODE_VERSION: "latest"
+        GIT_DELTA_VERSION: "0.18.2"
+        ZSH_IN_DOCKER_VERSION: "1.2.0"
+    hostname: expense-reporting-devcontainer
+    shm_size: '2gb'
+    volumes:
+      - ..:/workspace:cached
+      - claude-code-bashhistory:/commandhistory
+      - claude-code-config:/home/node/.claude
+      - ${SSH_AUTH_SOCK:-/dev/null}:/tmp/ssh-auth-host.sock
+      # Maintainer-only host mounts (AWS creds + Docker daemon access) live in
+      # .devcontainer/docker-compose.override.yml (gitignored; copy from .example).
+      # Restore them only if you build/run the prod stack from inside the
+      # devcontainer or run Lambda E2E / live-DynamoDB tests.
+    ports:
+      - "${JUPYTER_HOST_PORT:-8888}:8888"  # Jupyter notebook server
+      - "5173:5173"  # dev-frontend  — real dashboard (vite, real backend)
+      - "5175:5175"  # dev-marketing — marketing landing only (vite, mode=marketing)
+      - "5176:5176"  # dev-demo      — static-fixture demo SPA (vite, mode=demo)
+      - "4173:4173"  # dev-preview   — production preview (marketing at /, demo at /demo/)
+      - "4321:4321"  # dev-docs      — Astro Starlight docs site
+      - "8000:8000"  # FastAPI backend
+      - "8501:8501"  # dev-eval-harness — Streamlit prompt eval (tailnet-reachable)
+    environment:
+      - NODE_OPTIONS=--max-old-space-size=4096
+      - CLAUDE_CONFIG_DIR=/home/node/.claude
+      - CLAUDE_CODE_NO_FLICKER=1
+      - POWERLEVEL9K_DISABLE_GITSTATUS=true
+      # Point bash/docker exec (not just zsh) at the forwarded host SSH agent so git push works.
+      - SSH_AUTH_SOCK=/tmp/ssh-auth-host.sock
+      - COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+    working_dir: /workspace
+    command: sleep infinity
+    networks:
+      - expense-reporting-network
+    # NET_ADMIN/NET_RAW were intentionally removed: they're a vestige of
+    # Anthropic's reference Claude Code devcontainer template (which ships an
+    # init-firewall.sh that needs them), but no firewall script is wired up
+    # here. Keeping them broke DNS on systemd-resolved hosts — with NET_ADMIN
+    # set, Docker bypasses its embedded resolver (127.0.0.11) and falls back
+    # to the host's stub 127.0.0.53, unreachable from inside the container.
+    group_add:
+      - "999"  # host docker group GID — only meaningful with the override mount
+
+volumes:
+  claude-code-bashhistory:
+  claude-code-config:
+
+networks:
+  expense-reporting-network:
+    driver: bridge

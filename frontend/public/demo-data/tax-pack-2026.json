@@ -1,0 +1,118 @@
+{
+  "year": 2026,
+  "grand_total": 0,
+  "lines": [
+    {
+      "key": "charitable",
+      "label": "Charitable donations",
+      "cra_ref": "Line 34900 (Schedule 9)",
+      "note": null,
+      "categories": ["Charitable Giving"],
+      "total": 0,
+      "transaction_count": 0,
+      "evidence_counts": {
+        "receipt": 0,
+        "email": 0,
+        "statement": 0
+      },
+      "transactions": [],
+      "excluded_transactions": []
+    },
+    {
+      "key": "medical",
+      "label": "Medical expenses",
+      "cra_ref": "Line 33099",
+      "note": "Only amounts not reimbursed by insurance qualify; a claim may use any 12-month period ending in the tax year.",
+      "categories": ["Health Care", "Therapy"],
+      "total": 0,
+      "transaction_count": 0,
+      "evidence_counts": {
+        "receipt": 0,
+        "email": 0,
+        "statement": 0
+      },
+      "transactions": [],
+      "excluded_transactions": []
+    },
+    {
+      "key": "childcare",
+      "label": "Child care expenses",
+      "cra_ref": "Line 21400 (Form T778)",
+      "note": null,
+      "categories": ["Childcare"],
+      "total": 0,
+      "transaction_count": 0,
+      "evidence_counts": {
+        "receipt": 0,
+        "email": 0,
+        "statement": 0
+      },
+      "transactions": [],
+      "excluded_transactions": []
+    },
+    {
+      "key": "moving",
+      "label": "Moving expenses",
+      "cra_ref": "Line 21900",
+      "note": null,
+      "categories": ["Moving"],
+      "total": 0,
+      "transaction_count": 0,
+      "evidence_counts": {
+        "receipt": 0,
+        "email": 0,
+        "statement": 0
+      },
+      "transactions": [],
+      "excluded_transactions": []
+    },
+    {
+      "key": "tuition",
+      "label": "Tuition and education",
+      "cra_ref": "Line 32300",
+      "note": null,
+      "categories": ["Education"],
+      "total": 0,
+      "transaction_count": 0,
+      "evidence_counts": {
+        "receipt": 0,
+        "email": 0,
+        "statement": 0
+      },
+      "transactions": [],
+      "excluded_transactions": []
+    },
+    {
+      "key": "dues",
+      "label": "Union and professional dues",
+      "cra_ref": "Line 21200",
+      "note": null,
+      "categories": ["Professional Services"],
+      "total": 0,
+      "transaction_count": 0,
+      "evidence_counts": {
+        "receipt": 0,
+        "email": 0,
+        "statement": 0
+      },
+      "transactions": [],
+      "excluded_transactions": []
+    },
+    {
+      "key": "instalments",
+      "label": "Tax paid by instalments",
+      "cra_ref": "Line 47600",
+      "note": null,
+      "categories": ["Taxes"],
+      "total": 0,
+      "transaction_count": 0,
+      "evidence_counts": {
+        "receipt": 0,
+        "email": 0,
+        "statement": 0
+      },
+      "transactions": [],
+      "excluded_transactions": []
+    }
+  ]
+}

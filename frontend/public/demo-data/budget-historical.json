@@ -1,0 +1,193 @@
+{
+  "months_analyzed": 6,
+  "period": {
+    "from": "2025-09",
+    "to": "2026-02"
+  },
+  "categories": {
+    "rent": {
+      "monthly_avg": 2150,
+      "total": 12900,
+      "months_active": 6,
+      "suggested_type": "fixed",
+      "suggested_monthly": 2150,
+      "suggested_annual": 25800
+    },
+    "restaurant/dining": {
+      "monthly_avg": 465.56,
+      "total": 2793.36,
+      "months_active": 6,
+      "suggested_type": "variable",
+      "suggested_monthly": 465,
+      "suggested_annual": 5580
+    },
+    "internet": {
+      "monthly_avg": 80,
+      "total": 480,
+      "months_active": 6,
+      "suggested_type": "fixed",
+      "suggested_monthly": 80,
+      "suggested_annual": 960
+    },
+    "utilities": {
+      "monthly_avg": 93.94,
+      "total": 563.65,
+      "months_active": 6,
+      "suggested_type": "variable",
+      "suggested_monthly": 95,
+      "suggested_annual": 1140
+    },
+    "subscriptions": {
+      "monthly_avg": 59.47,
+      "total": 356.81,
+      "months_active": 6,
+      "suggested_type": "variable",
+      "suggested_monthly": 60,
+      "suggested_annual": 720
+    },
+    "insurance": {
+      "monthly_avg": 28,
+      "total": 168,
+      "months_active": 6,
+      "suggested_type": "fixed",
+      "suggested_monthly": 30,
+      "suggested_annual": 360
+    },
+    "general transportation": {
+      "monthly_avg": 177.82,
+      "total": 1066.9,
+      "months_active": 6,
+      "suggested_type": "variable",
+      "suggested_monthly": 180,
+      "suggested_annual": 2160
+    },
+    "communication/cell": {
+      "monthly_avg": 75,
+      "total": 450,
+      "months_active": 6,
+      "suggested_type": "fixed",
+      "suggested_monthly": 75,
+      "suggested_annual": 900
+    },
+    "sports and recreation": {
+      "monthly_avg": 111.33,
+      "total": 668,
+      "months_active": 6,
+      "suggested_type": "variable",
+      "suggested_monthly": 110,
+      "suggested_annual": 1320
+    },
+    "groceries": {
+      "monthly_avg": 682.6,
+      "total": 4095.58,
+      "months_active": 6,
+      "suggested_type": "fixed",
+      "suggested_monthly": 685,
+      "suggested_annual": 8220
+    },
+    "entertainment": {
+      "monthly_avg": 52.71,
+      "total": 316.26,
+      "months_active": 6,
+      "suggested_type": "variable",
+      "suggested_monthly": 55,
+      "suggested_annual": 660
+    },
+    "miscellaneous": {
+      "monthly_avg": 60,
+      "total": 360,
+      "months_active": 3,
+      "suggested_type": "lumpy",
+      "suggested_monthly": 60,
+      "suggested_annual": 700
+    },
+    "liquor/beer/wine": {
+      "monthly_avg": 100.07,
+      "total": 600.4,
+      "months_active": 6,
+      "suggested_type": "variable",
+      "suggested_monthly": 100,
+      "suggested_annual": 1200
+    },
+    "hygiene/personal care": {
+      "monthly_avg": 67.75,
+      "total": 406.5,
+      "months_active": 6,
+      "suggested_type": "variable",
+      "suggested_monthly": 70,
+      "suggested_annual": 840
+    },
+    "hobbies": {
+      "monthly_avg": 64.45,
+      "total": 386.71,
+      "months_active": 6,
+      "suggested_type": "variable",
+      "suggested_monthly": 65,
+      "suggested_annual": 780
+    },
+    "furniture": {
+      "monthly_avg": 37.52,
+      "total": 225.14,
+      "months_active": 1,
+      "suggested_type": "lumpy",
+      "suggested_monthly": 40,
+      "suggested_annual": 500
+    },
+    "household items": {
+      "monthly_avg": 34.63,
+      "total": 207.8,
+      "months_active": 6,
+      "suggested_type": "variable",
+      "suggested_monthly": 35,
+      "suggested_annual": 420
+    },
+    "service charges/fees": {
+      "monthly_avg": 16.95,
+      "total": 101.7,
+      "months_active": 6,
+      "suggested_type": "fixed",
+      "suggested_monthly": 15,
+      "suggested_annual": 180
+    },
+    "savings": {
+      "monthly_avg": 300,
+      "total": 1800,
+      "months_active": 6,
+      "suggested_type": "variable",
+      "suggested_monthly": 300,
+      "suggested_annual": 3600
+    },
+    "house maintenance": {
+      "monthly_avg": 41.68,
+      "total": 250.06,
+      "months_active": 2,
+      "suggested_type": "lumpy",
+      "suggested_monthly": 40,
+      "suggested_annual": 500
+    },
+    "clothing": {
+      "monthly_avg": 26.05,
+      "total": 156.28,
+      "months_active": 2,
+      "suggested_type": "lumpy",
+      "suggested_monthly": 25,
+      "suggested_annual": 300
+    },
+    "technology": {
+      "monthly_avg": 66.8,
+      "total": 400.8,
+      "months_active": 2,
+      "suggested_type": "lumpy",
+      "suggested_monthly": 65,
+      "suggested_annual": 800
+    },
+    "travel": {
+      "monthly_avg": 364.89,
+      "total": 2189.36,
+      "months_active": 2,
+      "suggested_type": "lumpy",
+      "suggested_monthly": 365,
+      "suggested_annual": 4400
+    }
+  }
+}

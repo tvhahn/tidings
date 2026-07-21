@@ -1,0 +1,95 @@
+---
+title: Tidings
+description: A private finance journal from the transaction emails you already receive.
+template: doc
+hero:
+  title: 'Your spending, <em>delivered.</em>'
+  tagline: A private finance journal from the transaction emails you already receive.
+  actions:
+    - text: Quickstart
+      link: /quickstart/
+      icon: right-arrow
+    - text: Try the demo
+      link: https://gettidings.com/demo
+      icon: external
+      variant: secondary
+    - text: View on GitHub
+      link: https://github.com/tvhahn/tidings
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+import PipelineFigure from '../../components/figures/PipelineFigure.astro';
+
+## Pick your path
+
+<CardGrid>
+	<Card title="Just looking?" icon="magnifier">
+		The [live demo](https://gettidings.com/demo) is eleven months of a fictional household's spending — no install, no signup. Prefer a guided version? [A month in Tidings →](/tour/)
+	</Card>
+	<Card title="Ready to run it?" icon="rocket">
+		Three commands and a browser tab. First run boots in demo mode with seeded data, so you can look around before wiring up your own. [Quickstart →](/quickstart/)
+	</Card>
+	<Card title="Coming from Firefly III or Actual Budget?" icon="random">
+		Tidings is deliberately narrower — a journal that maintains itself, not an accounting system. What you give up, what you gain, and when to pick which. [Read the comparison →](/switching/)
+	</Card>
+	<Card title="Building on the API?" icon="setting">
+		Every route is a versioned `/api/v1/` endpoint with bearer-token auth, and the docs themselves are served in machine-readable form. [Tidings for agents →](/for-agents/)
+	</Card>
+</CardGrid>
+
+## Or let an agent introduce you
+
+Running Claude Code, Cursor, Codex, or another capable agent? Paste this:
+
+```text
+Introduce me to Tidings. Read https://docs.gettidings.com/agent-guide.md, then use the live demo API to show me what a month of spending looks like.
+```
+
+The guide briefs the agent on how Tidings works, then points it at the read-only demo API. The agent pulls a real month of sample data and narrates it — the journal, the budget pace, the merchants — before you install anything. When you are ready, there is [a prompt for installing too](/for-agents/#install-by-prompt).
+
+## How it works
+
+Tidings reads the transaction alerts your bank already emails you, parses each one, and shows you where your money goes. It runs on your machine and keeps your data there. The only thing that leaves is what you choose to send an AI provider — for category labels and the optional written summaries — and that stays off until you add a key.
+
+<PipelineFigure summary="Figure: a bank alert email travels bank → forwarder inbox → parser → categorization → local store, and every page — Journal, Transactions, Summary, Budgets, Insights, Merchants — reads from that one store." />
+
+Built for a single household — one or two people sharing a forwarding inbox, a single Gmail account that collects everyone's bank alerts. No Plaid, no broker linking, no shared multi-user tracking.
+
+Parsers ship today for five Canadian institutions: RBC, CIBC, MBNA, Simplii, and PC Financial. If yours isn't here, [open an issue](https://github.com/tvhahn/tidings/issues) with a handful of sample alert emails — or write the parser yourself: the [add-a-parser tutorial](/add-a-parser/) walks from zero to a working example, the architecture is country-neutral, and contributions for any institution are welcome.
+
+## Core guides
+
+<CardGrid>
+	<Card title="Quickstart" icon="rocket">
+		Three commands and a browser tab. The default is demo mode, with seeded sample data — no real accounts touched.
+
+		[Run the demo →](/quickstart/)
+	</Card>
+	<Card title="Using Tidings" icon="open-book">
+		What each page does and the rules underneath it — the journal, budgets, categorization, insights, and the rest.
+
+		[Read the manual →](/using/how-it-works/)
+	</Card>
+	<Card title="Self-hosting" icon="seti:docker">
+		Docker Compose is the recommended path. AWS Lambda is the advanced serverless variant. Same parsers, same notifications, different storage.
+
+		[Self-host options →](/self-hosting/docker/)
+	</Card>
+	<Card title="Architecture" icon="puzzle">
+		IMAP poller → bank parser → categorizer → SQLite or DynamoDB → FastAPI → React. The shape, the boundaries, and the design decisions.
+
+		[How it fits together →](/architecture/)
+	</Card>
+	<Card title="API reference" icon="document">
+		Versioned `/api/v1/` routes with a unified error shape. Generated from the live OpenAPI spec, drift-checked in CI.
+
+		[Browse the API →](/api/)
+	</Card>
+	<Card title="FAQ" icon="information">
+		Does Tidings have your banking password? (No.) What leaves your machine, what it costs, and how to take your data out.
+
+		[Short answers →](/faq/)
+	</Card>
+</CardGrid>

@@ -1,0 +1,26 @@
+{
+  "metadata": {
+    "institution": "RBC",
+    "account_type": "chequing",
+    "period_start": "2025-02-24",
+    "period_end": "2025-03-24",
+    "transaction_count": 11
+  },
+  "transactions": [
+    {"date": "2025-02-27", "type": "deposit",    "amount": 1425.00, "balance":  8925.00, "description": "PayrollDeposit NORTHWINDCORP"},
+    {"date": "2025-02-27", "type": "withdrawal", "amount":   82.15, "balance":  8842.85, "description": "BillPayment WestlandUtilityCo"},
+    {"date": "2025-03-04", "type": "deposit",    "amount":  450.00, "balance":  9292.85, "description": "OnlineBankingtransfer-4180"},
+    {"date": "2025-03-04", "type": "withdrawal", "amount": 3200.00, "balance":  6092.85, "description": "OnlineBankingpayment-6311 SAVINGSTRANSFER"},
+    {"date": "2025-03-10", "type": "withdrawal", "amount":  215.77, "balance":  5877.08, "description": "MiscPayment CREDITCARD"},
+    {"date": "2025-03-12", "type": "withdrawal", "amount":   75.00, "balance":  5802.08, "description": "Onlinetransfersent-5027 JORDAN MILLER"},
+    {"date": "2025-03-13", "type": "deposit",    "amount": 1425.00, "balance":  7227.08, "description": "PayrollDeposit NORTHWINDCORP"},
+    {"date": "2025-03-16", "type": "withdrawal", "amount":   68.42, "balance":  7158.66, "description": "HydroBillPmt WESTLANDHYDRO-PAP"},
+    {"date": "2025-03-18", "type": "withdrawal", "amount":   94.10, "balance":  7064.56, "description": "MiscPayment CREDITCARD"},
+    {"date": "2025-03-19", "type": "withdrawal", "amount":   22.50, "balance":  7042.06, "description": "BillPayment MobileCarrier"},
+    {"date": "2025-03-23", "type": "deposit",    "amount":  145.00, "balance":  7187.06, "description": "Mobilechequedeposit-8394"}
+  ],
+  "totals": {
+    "funds_out": 3757.94,
+    "funds_in":  3445.00
+  }
+}

@@ -1,0 +1,41 @@
+---
+title: The journal
+description: The day-grouped view of a month's spending, and why its totals differ from the full ledger.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import ThemedScreenshot from '../../../components/ThemedScreenshot.astro';
+
+The journal is the default view: a single month read one day at a time, newest day first.
+
+<ThemedScreenshot id="journal" alt="The journal showing a month of spending grouped by day, each day with its total and transactions." />
+
+## What the journal shows, and what it leaves out
+
+The journal shows only spending you can act on: transactions that are a spending type with an amount above zero, and that are neither deleted nor [ignored](/using/categorization/). Refunds, deposits, and transfers are filtered out here and appear on [Transactions](/using/transactions/) instead.
+
+<Aside type="note">
+Because the journal drops refunds, deposits, and transfers, a day's total here reflects spending only. If a number looks smaller than a raw count of that day's activity would suggest, the difference is the non-spending rows the journal sets aside.
+</Aside>
+
+## Reading a month
+
+Each day carries its own total; the month accumulates as you scroll. The monthly ceiling shown at the top is your annual [spending ceiling](/using/budgets/) divided by twelve — it is derived from the annual target, not a separate monthly budget you set.
+
+The month-over-month figure compares this month's spending against the prior month up to the same day. Early in the month you are compared against the same early stretch of last month, not the whole of it, so the two are a fair match rather than a partial month against a full one.
+
+## Day summaries
+
+A day summary is a short piece of prose about that day's spending, written by the AI provider you configure. You can generate one on request, or let Tidings write them on a daily schedule.
+
+- **Summarize month** fills only the days that are still missing a summary, so it never overwrites what you have already generated.
+- A per-day refresh regenerates that one day.
+- Only one generation runs at a time; a second request while one is in flight is skipped rather than queued.
+
+Each summary is saved as a plain text file under `data/journal/<month>/`, so the writing lives on disk alongside your data rather than in a database. Day summaries need a daily-summary provider set under Settings → Intelligence — see [settings](/using/settings/).
+
+## On a phone
+
+Below 768 pixels the journal switches to a single-column layout with a bottom navigation bar, keeping the same day-by-day read within reach of a thumb.
+
+<ThemedScreenshot id="journal-mobile" variant="mobile" alt="The journal on a narrow screen, one column of days with a bottom navigation bar." />
