@@ -28,7 +28,7 @@ const points = [
 
 const pathNodes: Array<{ n?: string; title: string; sub: string; mono?: boolean }> = [
   { title: "Your bank", sub: "Transaction alert emails" },
-  { n: "1", title: "Email forwarder", sub: "you@yourdomain.com", mono: true },
+  { n: "1", title: "Email forwarder", sub: "yourname.finance@gmail.com", mono: true },
   { n: "2", title: "Ingestion", sub: "IMAP poller, default · or Lambda in your own AWS" },
   { n: "3", title: "Parser", sub: "Merchant, amount, date" },
   { n: "4", title: "Tidings journal", sub: "Days, budgets, notices" },

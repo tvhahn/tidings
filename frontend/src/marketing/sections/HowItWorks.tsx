@@ -74,7 +74,7 @@ export function HowItWorks() {
             </span>
             <div className="flow-mail-label">
               Forward to
-              <code>you@yourdomain.com</code>
+              <code>yourname.finance@gmail.com</code>
             </div>
           </div>
           <svg className="flow-link flow-link-out" viewBox="0 0 100 100" preserveAspectRatio="none">
