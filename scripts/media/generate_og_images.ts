@@ -13,14 +13,18 @@
  * docs/brand/assets/logo-wordmark.svg (outlined to paths) and headings load
  * Source Serif 4 / Inter from Google Fonts with serif/sans fallbacks.
  *
- * The MARKETING card is the illustrated hero (approved 2026-07-21 design):
+ * The MARKETING card is the illustrated hero (approved 2026-07-21 design;
+ * typography/logo aligned to the live marketing page later the same day):
  * a full-bleed editorial photograph (a linen notebook + potted olive sapling
- * on a wooden desk) under a left→right warm-ivory scrim, with the terracotta
- * envelope wordmark, the serif "Your spending, delivered." headline, an Inter
- * subtitle, and the monospaced domain. Its only binary source is the
+ * on a wooden desk) under a left→right warm-ivory scrim, with the real
+ * favicon mark + serif wordmark (mirroring .nav-brand), the serif
+ * "Your spending, delivered." headline (mirroring .h1 in marketing.css),
+ * an Inter subtitle, and the monospaced domain. Its only binary source is the
  * checked-in scripts/media/assets/og-desk-olive-notebook.webp (q90, 1536×1024);
- * fonts are embedded from @fontsource so the render carries no network or
- * origin dependency, and document.fonts assertions guard against a fallback.
+ * fonts are embedded from @fontsource — the same opsz-axis Source Serif 4
+ * Variable files frontend/src/index.css imports, so the headline gets the
+ * identical display optical cut the site renders — and document.fonts
+ * assertions guard against a fallback.
  * It is rendered at deviceScaleFactor 2 (supersample) and downscaled +
  * 256-color-quantized with ImageMagick (`convert`, available in the dev
  * environment) to keep the file well under the OG size budget.
@@ -155,11 +159,16 @@ function flatCardHtml(wordmarkSvg: string, card: FlatCard): string {
 // ── Illustrated marketing card (approved 2026-07-21 design) ────────────────
 //
 // Every constant below is the approved recipe. Origin: the sign-off card at
-// og-candidate/card.html + shoot.mjs (regular-spacing variant). Do not tune
-// these without a new design sign-off.
+// og-candidate/card.html + shoot.mjs (regular-spacing variant), with the
+// type/logo constants re-anchored to the live site the same day (maintainer
+// direction): headline mirrors `.marketing .h1`, wordmark mirrors
+// `.marketing .nav-brand`, the mark is frontend/public/favicon.svg verbatim,
+// and the accent is the light-theme `--brand` token. Do not tune these
+// without a new design sign-off.
 
 const MARKETING_OUT = resolve(REPO_ROOT, "frontend/public/og-image.png")
 const MARKETING_PHOTO = resolve(REPO_ROOT, "scripts/media/assets/og-desk-olive-notebook.webp")
+const MARKETING_MARK = resolve(REPO_ROOT, "frontend/public/favicon.svg")
 
 // Photograph placement: source is 1536×1024; a 1536×804 window at top offset
 // 132 scales to 1200×630 (scale 0.78125). Implemented as a 1200×800 cover
@@ -172,7 +181,7 @@ const PHOTO_SHIFT_UP = 103.125
 const IVORY_RGB = "251, 248, 241"
 
 // Terracotta brand accent + ink hierarchy (oklch).
-const BRAND = "oklch(0.55 0.14 40)" // terracotta — italic headline word, envelope icon
+const BRAND = "oklch(0.58 0.15 40)" // --brand, light theme (themes.css) — italic headline word
 const M_INK = "oklch(0.24 0.02 55)"
 const M_SUB = "oklch(0.40 0.02 55)"
 const M_URL = "oklch(0.46 0.03 45)"
@@ -183,17 +192,20 @@ const MARKETING_DSF = 2
 // @fontsource woff2 faces the render must embed (data URIs) + document.fonts
 // assertions so a missing face fails loudly instead of falling back.
 const MARKETING_FONTS = [
+  // The opsz-axis files — the exact faces frontend/src/index.css imports
+  // (opsz.css / opsz-italic.css). The wght-only files render the headline at
+  // the text optical size, visibly heavier than the site at display sizes.
   {
-    family: "Source Serif 4",
+    family: "Source Serif 4 Variable",
     weight: "200 900",
     style: "normal",
-    file: "@fontsource-variable/source-serif-4/files/source-serif-4-latin-wght-normal.woff2",
+    file: "@fontsource-variable/source-serif-4/files/source-serif-4-latin-opsz-normal.woff2",
   },
   {
-    family: "Source Serif 4",
+    family: "Source Serif 4 Variable",
     weight: "200 900",
     style: "italic",
-    file: "@fontsource-variable/source-serif-4/files/source-serif-4-latin-wght-italic.woff2",
+    file: "@fontsource-variable/source-serif-4/files/source-serif-4-latin-opsz-italic.woff2",
   },
   {
     family: "Inter",
@@ -217,9 +229,9 @@ const MARKETING_FONTS = [
 
 // Font faces the render asserts are loaded (no fallback): [CSS font shorthand, sample glyphs].
 const MARKETING_FONT_CHECKS: [string, string][] = [
-  ['500 30px "Source Serif 4"', "Tidings"],
-  ['560 66px "Source Serif 4"', "spending"],
-  ['italic 560 66px "Source Serif 4"', "delivered"],
+  ['600 30px "Source Serif 4 Variable"', "Tidings"],
+  ['500 66px "Source Serif 4 Variable"', "spending"],
+  ['italic 500 66px "Source Serif 4 Variable"', "delivered"],
   ['400 27px "Inter"', "journal"],
   ['500 20px "JetBrains Mono"', "gettidings"],
 ]
@@ -243,6 +255,7 @@ async function marketingCardHtml(): Promise<string> {
     )
   ).join("\n")
   const photoUri = await dataUri(MARKETING_PHOTO, "image/webp")
+  const markSvg = await readFile(MARKETING_MARK, "utf8")
 
   return `<!doctype html>
 <html lang="en">
@@ -255,7 +268,7 @@ async function marketingCardHtml(): Promise<string> {
     --ink:   ${M_INK};
     --sub:   ${M_SUB};
     --url:   ${M_URL};
-    --serif: "Source Serif 4", serif;
+    --serif: "Source Serif 4 Variable", "Source Serif 4", Georgia, serif;
     --sans:  "Inter", system-ui, sans-serif;
     --mono:  "JetBrains Mono", ui-monospace, monospace;
     --ivory: ${IVORY_RGB};
@@ -290,19 +303,22 @@ async function marketingCardHtml(): Promise<string> {
     padding: 62px 80px;
     width: 720px;
   }
+  /* Mirrors .marketing .nav-brand (serif 600, -0.01em, icon:text ≈ 1.3). */
   .wm {
     display: flex; align-items: center; gap: 11px;
-    font-family: var(--serif); font-weight: 500;
-    font-size: 30px; letter-spacing: -0.015em; color: var(--ink);
+    font-family: var(--serif); font-weight: 600;
+    font-size: 30px; letter-spacing: -0.01em; color: var(--ink);
   }
-  .wm svg { width: 27px; height: 27px; color: var(--brand); display: block; }
+  /* favicon.svg viewBox is 417×320 — 39×30 keeps its aspect ratio. */
+  .wm svg { width: 39px; height: 30px; display: block; }
   .mid { margin-top: auto; margin-bottom: auto; }
+  /* Mirrors .marketing .h1 (weight 500, 1.02, -0.025em). */
   h1 {
-    font-family: var(--serif); font-weight: 560;
-    font-size: 66px; line-height: 1.05; letter-spacing: -0.02em;
+    font-family: var(--serif); font-weight: 500;
+    font-size: 66px; line-height: 1.02; letter-spacing: -0.025em;
     color: var(--ink);
   }
-  h1 em { font-style: italic; font-weight: 560; color: var(--brand); }
+  h1 em { font-style: italic; font-weight: 500; color: var(--brand); }
   .sub {
     margin-top: 22px;
     font-family: var(--sans); font-weight: 400;
@@ -321,7 +337,7 @@ async function marketingCardHtml(): Promise<string> {
     <div class="scrim"></div>
     <div class="copy">
       <span class="wm">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+        ${markSvg.trim()}
         Tidings
       </span>
       <div class="mid">
