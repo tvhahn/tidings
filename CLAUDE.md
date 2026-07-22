@@ -78,9 +78,9 @@ Query-config, hook-wrapper, and API-client conventions are owned by [`frontend/C
 
 ## Committing
 
-Use the `/commit` slash command to create commits. It assembles a conventional commit with emoji prefix (✨ feat, 🐛 fix, 📝 docs, ⚡ perf, 🧪 test, ♻️ refactor, 🔧 chore, 🎨 style, 🔒 security) and a staged-files manifest.
+Use the `/commit` slash command to create commits — the format, emoji↔type map, changelog gate, staging discipline, and staged-files manifest all live in the command (`.claude/commands/commit.md`), which is the single source of truth. Don't restate the conventions here.
 
-**Agents:** `/commit` is self-invocable via the `Skill` tool — call it with `skill: "commit"` and an optional argument for scope/message hints. The command handles the analyze → stage → compose → run sequence end-to-end; prefer it over manually running `git commit` when it applies.
+**Agents:** `/commit` is self-invocable via the `Skill` tool — call it with `skill: "commit"` and an optional argument for scope/message hints. It handles the analyze → stage → compose → run sequence end-to-end; prefer it over manually running `git commit` when it applies.
 
 **Branching:** Do not create a branch automatically when committing — commit directly to the current branch, `main` included. This repo runs multiple agents against a single shared working tree, so silently branching strands work and moves everyone's HEAD. Only create a branch when the user explicitly asks for one.
 

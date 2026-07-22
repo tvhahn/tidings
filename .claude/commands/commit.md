@@ -1,116 +1,92 @@
 ---
-allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git add:*)
-description: Generate structured git commit with conventional format and file tracking
-argument-hint: [optional commit message]
+allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git add:*), Bash(git commit:*), Bash(git restore --staged:*)
+description: Create the project-standard git commit — emoji conventional format, changelog gate, staged-files manifest. Use at the end of any task that produced changes worth committing.
+argument-hint: [scope or message hints]
 ---
 
-# Git Commit Command
+# Git Commit
 
-Generate a comprehensive, well-structured git commit message following conventional commit standards and best practices.
+## Context
 
-## Context Analysis
+- Status: !`git status --porcelain`
+- Staged: !`git diff --cached --stat`
+- Unstaged: !`git diff --stat`
+- Branch: !`git branch --show-current`
+- Recent commits (match their tone and altitude): !`git log --oneline -5`
 
-**Current repository status:**
-!`git status --porcelain`
+Hints from the caller (scope, emphasis, or a full message — may be empty): $ARGUMENTS
 
-**Staged changes (if any):**
-!`git diff --cached --stat`
+## Steps
 
-**Unstaged changes (if any):**
-!`git diff --stat`
+If there is nothing to commit, report the clean status and stop.
 
-**Current branch:**
-!`git branch --show-current`
+### 1. Understand the change
 
-**Recent commit history for context:**
-!`git log --oneline -5`
+Identify what this task changed and why. Run targeted `git diff <path>` only where
+the stats above aren't enough — if you made the changes this session, you already know.
 
-## Your Task
+### 2. Changelog gate
 
-Based on the above git context, create a structured commit following these requirements:
+Decide whether the change is user-visible per §Changelog conventions in
+`docs/guides/releases.md` (UI, `/api/v1/*` contract, config keys, install path,
+parser support, self-hoster docs). If yes: add or amend one `## [Unreleased]`
+bullet in `CHANGELOG.md` and stage it with this commit. If no: skip — the commit
+is the record.
 
-### 1. Analyze Changes
-- Review all staged and unstaged changes
-- Identify the primary purpose of the changes
-- Note any new files, deletions, or significant refactoring
-- Assess the scope and impact of modifications
-- Decide whether the change is user-visible per the §Changelog conventions in `docs/guides/releases.md`. If it is, add or amend one `## [Unreleased]` bullet in `CHANGELOG.md` and stage it with this commit; if it isn't, skip the changelog. Follow releases.md for the rules — don't restate them here.
+### 3. Stage explicitly
 
-### 2. Stage Appropriate Files
-- Add relevant untracked files to staging area if needed
-- Ensure only intended changes are staged for commit
+Stage only the paths this task touched, each by name. **Never `git add -A`,
+`git add .`, or `git add -u`** — this working tree is shared with other agents,
+and blanket staging captures their in-flight work. Leave unrelated dirty files
+alone; don't ask before staging your own changes. If the tree state contradicts
+what you expect (your files missing, conflicting edits), stop and report instead
+of committing.
 
-### 3. Generate Commit Message
-Use this exact format:
+### 4. Compose the message
+
 ```
-<emoji> <type>(<scope>): <subject>
+<emoji> <type>(<scope>): <Subject>
 
-<body using bullet points if needed>
-
-<footer if applicable>
+- <body bullets: what changed and why it's the right change>
 
 Changed files:
-New: <list of new files>
-Modified: <list of modified files>
-Deleted: <list of deleted files if any>
+New: <new files, if any>
+Modified: <modified files>
+Deleted: <deleted files, if any>
 ```
 
-### Commit Message Guidelines
+Emoji↔type pairs (pick exactly one):
+✨ feat · 🐛 fix · 📝 docs · ⚡ perf · 🧪 test · ♻️ refactor · 🔧 chore · 🎨 style · 🔒 security
 
-**Emoji Selection:**
-- new feature
-- bug fix
-- configuration/tooling
-- documentation
-- refactoring
-- style/formatting
-- performance
-- security
-- tests
-- deployment
+House deviations from stock conventional commits: subject is Capitalized,
+imperative, ≤72 chars, no trailing period. Body bullets carry the why, not a
+file list. Keep the manifest paths repo-relative and match what you staged.
 
-**Type Classification:**
-- `feat` - new feature
-- `fix` - bug fix
-- `docs` - documentation
-- `style` - formatting, missing semi colons, etc
-- `refactor` - code restructuring
-- `test` - adding tests
-- `chore` - maintenance tasks
-- `perf` - performance improvements
-- `security` - security-related changes
+### 5. Commit
 
-**Scope Examples:**
-- `auth` - authentication
-- `ui` - user interface
-- `api` - API changes
-- `config` - configuration
-- `deps` - dependencies
-- `build` - build system
-- `ci` - continuous integration
+Batch the `git add` calls and the commit into a single response. Use a quoted
+heredoc so the multi-line message survives the shell:
 
-**Subject Line:**
-- Use imperative mood ("add" not "added" or "adds")
-- Keep under 50 characters
-- No period at the end
-- Capitalize first letter
+```bash
+git commit -m "$(cat <<'EOF'
+<message>
+EOF
+)"
+```
 
-**Body (if needed):**
-- Use bullet points for multiple changes
-- Explain the "why" not just the "what"
-- Reference issue numbers if applicable
-- Keep lines under 72 characters
+Never pass `--no-verify`. Never create a branch — commit on the current branch,
+`main` included (see CLAUDE.md §Committing).
 
-### 4. Execute Commit
-- Run the git commit command with the generated message
-- Verify the commit was created successfully
-- Show final git status
+If two clearly unrelated concerns are mixed in the tree, make two commits.
 
-## Special Instructions
+### 6. If the PII guard blocks the commit
 
-${ARGUMENTS ? `**Custom message context:** ${ARGUMENTS}` : ""}
+A pre-commit guard scans staged **added** lines and blocks with a count-only
+message. If that happens: inspect `git diff --cached` for the offending
+addition, fix or unstage that file (`git restore --staged <path>`), and retry
+once. If you can't identify or resolve it, stop and report — never bypass the
+guard.
 
-- If there are no changes to commit, report the clean status and exit
-- If there are only unstaged changes, ask whether to stage them first
-- Always verify the commit succeeds and show confirmation
-- Include the commit hash in your final response
+### 7. Verify
+
+Confirm the commit succeeded and report the short hash and subject line.
