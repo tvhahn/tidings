@@ -1,6 +1,6 @@
 # Tidings
 
-> A private finance journal from the transaction emails you already receive. Self-hosted, open source, runs on your machine.
+> A private finance journal from the transaction emails you already receive. Self-hosted, open source, calm by default.
 
 Tidings turns bank transaction alert emails into a calm daily spending record. This is the marketing site; the documentation lives at docs.gettidings.com.
 

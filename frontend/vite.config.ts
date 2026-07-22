@@ -14,7 +14,7 @@ const DEMO_OG_IMAGE = "https://gettidings.com/demo-data/og-image.png";
 const MARKETING_URL = "https://gettidings.com/";
 const MARKETING_OG_TITLE = "Tidings — Your spending, delivered.";
 const MARKETING_OG_DESCRIPTION =
-  "A private finance journal from the transaction emails you already receive. Self-hosted, open source, runs on your machine.";
+  "A private finance journal from the transaction emails you already receive. Self-hosted, open source, calm by default.";
 const MARKETING_OG_IMAGE = "https://gettidings.com/og-image.png";
 
 // One minimal schema object for the one-page site (locked decision L8).
