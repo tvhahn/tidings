@@ -43,7 +43,7 @@ The tagline and hero subtitle are verbatim on every surface that carries them. A
 - **Proof** — *No Plaid. No bank credentials. No manual entry.* The anti-credential promise. (Marketing footer sign-off.)
 - **Ethos** — *Self-hosted, open source, calm by default.* What the project is. (Marketing footer brand column.)
 
-Sentence-form adaptation is fine — commas instead of periods, lowercase after an em dash. Two sanctioned variations: the README strapline folds "self-hosted" into the proof list ("— self-hosted, no bank credentials, no manual entry") for the GitHub audience, and the marketing hero extends the subtitle with a sentence instead of a closer ("Forward them, and Tidings turns them into a calm daily record."). Running prose (README body, positioning, llms.txt descriptions) is not bound to these lockups.
+Sentence-form adaptation is fine — commas instead of periods, lowercase after an em dash. Three sanctioned variations: the README strapline folds "self-hosted" into the proof list ("— self-hosted, no bank credentials, no manual entry") for the GitHub audience, the marketing hero extends the subtitle with a sentence instead of a closer ("Forward them, and Tidings turns them into a calm daily record."), and the demo unfurl card extends it by naming what the link opens ("Browse the real app with sample data."). Running prose (README body, positioning, llms.txt descriptions) is not bound to these lockups.
 
 ---
 
