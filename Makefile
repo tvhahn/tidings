@@ -291,7 +291,7 @@ screenshots: docs-screenshots marketing-screenshots
 ## Capture the marketing-landing + README screenshots (light+dark pairs) via
 ## scripts/media/generate_marketing_screenshots.ts. Boots its own vite dev servers on
 ## :5186 (demo) and :5185 (landing) so it never collides with your dev servers.
-## Writes to frontend/src/marketing/assets/ and docs/static/readme/.
+## Writes to frontend/src/marketing/assets/ and docs/media/readme/.
 marketing-screenshots:
 	cd frontend && \
 	  (pnpm exec vite --mode demo --port 5186 --strictPort > /tmp/mkt-shots-demo.log 2>&1 & \
@@ -333,7 +333,7 @@ docs-screenshots:
 	  exit $$STATUS
 
 ## Render the ~13.6s silent product-tour video (frame-stepped Playwright capture
-## of the static-fixture demo, encoded by ffmpeg). Writes docs/static/media/demo-tour.mp4 + .gif.
+## of the static-fixture demo, encoded by ffmpeg). Writes docs/media/demo-tour.mp4 + .gif.
 demo-tour:
 	cd frontend && pnpm demo:build
 	cd frontend && \

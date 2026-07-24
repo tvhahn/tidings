@@ -12,7 +12,7 @@
 //   C. every ThemedScreenshot id referenced in content has both -light and
 //      -dark WebP files, every manifest id is referenced by some page, and
 //      no screenshot file is orphaned;
-//   D. every docs/static/readme/ image README.md references exists on disk
+//   D. every docs/media/readme/ image README.md references exists on disk
 //      (those come from `make marketing-screenshots`).
 //
 // Run: node scripts/checks/check_docs_coverage.mjs   (from the repo root; no deps)

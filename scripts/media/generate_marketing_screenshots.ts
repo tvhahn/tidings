@@ -11,7 +11,7 @@
  *     screenshot-<slug>-dark.webp, imported through Vite so the files are
  *     hashed and bundled (not public/). BrowserShot picks the plate to match
  *     the landing's own .dark class.
- *   - docs/static/readme/             — <slug>-{light,dark}.{webp,png} for
+ *   - docs/media/readme/             — <slug>-{light,dark}.{webp,png} for
  *     README.md's <picture> blocks (journal/budgets/insights), plus the "Your
  *     data. Your path." card captured from the marketing landing (data-path).
  *     The .png is the lossless twin GitHub links as the click-through target;
@@ -42,7 +42,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const REPO_ROOT = resolve(__dirname, "..", "..")
 const MARKETING_OUT_DIR = resolve(REPO_ROOT, "frontend/src/marketing/assets")
-const README_OUT_DIR = resolve(REPO_ROOT, "docs/static/readme")
+const README_OUT_DIR = resolve(REPO_ROOT, "docs/media/readme")
 const FIXTURE_DIR = resolve(REPO_ROOT, "frontend/public/demo-data")
 const DEMO_BASE_URL = process.env.MARKETING_SHOTS_URL ?? "http://localhost:5176"
 const LANDING_BASE_URL = process.env.MARKETING_LANDING_URL ?? "http://localhost:5175"

@@ -1,9 +1,9 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/static/readme/hero-banner-dark.webp" type="image/webp">
-    <source media="(prefers-color-scheme: dark)" srcset="docs/static/readme/hero-banner-dark.jpg">
-    <source srcset="docs/static/readme/hero-banner-light.webp" type="image/webp">
-    <img src="docs/static/readme/hero-banner-light.jpg" alt="Tidings">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/media/readme/hero-banner-dark.webp" type="image/webp">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/media/readme/hero-banner-dark.jpg">
+    <source srcset="docs/media/readme/hero-banner-light.webp" type="image/webp">
+    <img src="docs/media/readme/hero-banner-light.jpg" alt="Tidings">
   </picture>
 </p>
 
@@ -29,10 +29,10 @@
 <p align="center">
   <a href="https://gettidings.com/demo">
     <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="docs/static/readme/journal-dark.webp" type="image/webp">
-      <source media="(prefers-color-scheme: dark)" srcset="docs/static/readme/journal-dark.png">
-      <source srcset="docs/static/readme/journal-light.webp" type="image/webp">
-      <img src="docs/static/readme/journal-light.png" alt="The Tidings journal: a month of spending grouped by day, with category labels, daily totals, and a monthly summary" width="760">
+      <source media="(prefers-color-scheme: dark)" srcset="docs/media/readme/journal-dark.webp" type="image/webp">
+      <source media="(prefers-color-scheme: dark)" srcset="docs/media/readme/journal-dark.png">
+      <source srcset="docs/media/readme/journal-light.webp" type="image/webp">
+      <img src="docs/media/readme/journal-light.png" alt="The Tidings journal: a month of spending grouped by day, with category labels, daily totals, and a monthly summary" width="760">
     </picture>
   </a>
   <br>
@@ -126,18 +126,18 @@ Full breakdown: [AI categorization](docs/guides/self-hosted-email-setup.md#ai-ca
   <tr>
     <td width="50%">
       <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/static/readme/budgets-dark.webp" type="image/webp">
-        <source media="(prefers-color-scheme: dark)" srcset="docs/static/readme/budgets-dark.png">
-        <source srcset="docs/static/readme/budgets-light.webp" type="image/webp">
-        <img src="docs/static/readme/budgets-light.png" alt="The budgets page: per-category pace, YTD spend, and variance against annual targets, with over-pace rows highlighted">
+        <source media="(prefers-color-scheme: dark)" srcset="docs/media/readme/budgets-dark.webp" type="image/webp">
+        <source media="(prefers-color-scheme: dark)" srcset="docs/media/readme/budgets-dark.png">
+        <source srcset="docs/media/readme/budgets-light.webp" type="image/webp">
+        <img src="docs/media/readme/budgets-light.png" alt="The budgets page: per-category pace, YTD spend, and variance against annual targets, with over-pace rows highlighted">
       </picture>
     </td>
     <td width="50%">
       <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/static/readme/insights-dark.webp" type="image/webp">
-        <source media="(prefers-color-scheme: dark)" srcset="docs/static/readme/insights-dark.png">
-        <source srcset="docs/static/readme/insights-light.webp" type="image/webp">
-        <img src="docs/static/readme/insights-light.png" alt="The insights page: an AI-written monthly briefing above category and merchant breakdowns">
+        <source media="(prefers-color-scheme: dark)" srcset="docs/media/readme/insights-dark.webp" type="image/webp">
+        <source media="(prefers-color-scheme: dark)" srcset="docs/media/readme/insights-dark.png">
+        <source srcset="docs/media/readme/insights-light.webp" type="image/webp">
+        <img src="docs/media/readme/insights-light.png" alt="The insights page: an AI-written monthly briefing above category and merchant breakdowns">
       </picture>
     </td>
   </tr>
@@ -190,10 +190,10 @@ Firefly III and Actual Budget are the established self-hosted finance tools — 
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/static/readme/data-path-dark.webp" type="image/webp">
-    <source media="(prefers-color-scheme: dark)" srcset="docs/static/readme/data-path-dark.png">
-    <source srcset="docs/static/readme/data-path-light.webp" type="image/webp">
-    <img src="docs/static/readme/data-path-light.png" alt="The data path: your bank's alert emails go to an email forwarder you control, then ingestion (IMAP poller or Lambda), then the parser, then the Tidings journal" width="420">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/media/readme/data-path-dark.webp" type="image/webp">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/media/readme/data-path-dark.png">
+    <source srcset="docs/media/readme/data-path-light.webp" type="image/webp">
+    <img src="docs/media/readme/data-path-light.png" alt="The data path: your bank's alert emails go to an email forwarder you control, then ingestion (IMAP poller or Lambda), then the parser, then the Tidings journal" width="420">
   </picture>
 </p>
 
