@@ -332,6 +332,33 @@ docs-screenshots:
 	  rm -f dist/$$STAMP; \
 	  exit $$STATUS
 
+## Render the ~13.6s silent product-tour video (frame-stepped Playwright capture
+## of the static-fixture demo, encoded by ffmpeg). Writes docs/static/media/demo-tour.mp4 + .gif.
+demo-tour:
+	cd frontend && pnpm demo:build
+	cd frontend && \
+	  STAMP="verify-stamp-$$$$-$$(date +%s%N).txt"; \
+	  printf '%s' "$$STAMP" > dist/$$STAMP; \
+	  PORT=$$(node -e 'const s=require("net").createServer();s.listen(0,()=>{console.log(s.address().port);s.close();})'); \
+	  pnpm exec serve dist -l $$PORT > /tmp/demo-tour-serve-$$PORT.log 2>&1 & \
+	  SERVER_PID=$$!; \
+	  ready=0; \
+	  for i in $$(seq 1 30); do \
+	    if curl -sf "http://localhost:$$PORT/$$STAMP" 2>/dev/null | grep -q "$$STAMP"; then ready=1; break; fi; \
+	    sleep 1; \
+	  done; \
+	  if [ $$ready -ne 1 ]; then \
+	    echo "demo-tour: server on port $$PORT never served our build stamp $$STAMP (see /tmp/demo-tour-serve-$$PORT.log)"; \
+	    kill $$SERVER_PID 2>/dev/null || true; \
+	    rm -f dist/$$STAMP; \
+	    exit 1; \
+	  fi; \
+	  DEMO_TOUR_URL="http://localhost:$$PORT" pnpm exec tsx ../scripts/media/generate_demo_tour.ts; \
+	  STATUS=$$?; \
+	  kill $$SERVER_PID 2>/dev/null || true; \
+	  rm -f dist/$$STAMP; \
+	  exit $$STATUS
+
 ## OpenAPI contract sync: regenerate openapi.json + the frontend types and fail on drift.
 ## Mirrors CI's openapi-check + frontend-codegen-check jobs so a local green
 ## verify cannot ship a stale api.generated.ts that only CI catches.
