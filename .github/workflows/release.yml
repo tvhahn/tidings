@@ -125,7 +125,7 @@ jobs:
             type=raw,value=latest
 
       - name: Build + push ${{ matrix.name }} (amd64 + arm64)
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ${{ matrix.dockerfile }}
