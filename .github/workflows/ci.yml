@@ -398,7 +398,7 @@ jobs:
           python3 scripts/checks/check_canon_links.py --root /tmp/public-tree
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Public tree builds (Dockerfile.prod)
         uses: docker/build-push-action@v5
