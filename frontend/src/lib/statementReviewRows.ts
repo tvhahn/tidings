@@ -18,11 +18,7 @@
 import type { ImportAction, StatementUploadResponse } from "@/types/api";
 
 export type SectionKey =
-  | "new"
-  | "matched"
-  | "ambiguous"
-  | "previously_imported"
-  | "suspected_duplicates";
+  "new" | "matched" | "ambiguous" | "previously_imported" | "suspected_duplicates";
 
 export type NewAction = "import" | "skip";
 export type EnrichAction = "enrich" | "skip";
