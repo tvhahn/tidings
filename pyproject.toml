@@ -26,7 +26,7 @@ dependencies = [
     # Imported directly by src/api/routers/attachments.py (receipt conversion) —
     # declared explicitly rather than relied on transitively via pillow-heif.
     # The floor matches the former dev-group security pin.
-    "pillow>=12.1.1",
+    "pillow>=12.3.0",
     "python-multipart",
     "requests",
     # src/api/dependencies.py loads data/.env at import time — previously only
