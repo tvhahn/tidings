@@ -47,7 +47,7 @@ eval = [
 [dependency-groups]
 dev = [
     "jupyterlab",
-    "pytest>=8.0",
+    "pytest>=9.1.1",
     "pytest-cov",
     # xdist stays opt-in via CLI flags only (`-n <N>` in the Makefile test
     # targets); it is deliberately kept out of addopts so ad-hoc
