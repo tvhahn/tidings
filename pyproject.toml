@@ -76,7 +76,7 @@ dev = [
     "boto3-stubs[dynamodb]",
     "hypothesis>=6.100",
     "libcst>=1.8.6",
-    "moto[dynamodb]>=5.0",
+    "moto[dynamodb]>=5.2.2",
     "deptry>=0.25.1",
 ]
 
