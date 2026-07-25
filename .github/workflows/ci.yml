@@ -181,7 +181,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "22" # astro 6 requires >=22.12
           cache: pnpm
           cache-dependency-path: docs-site/pnpm-lock.yaml
 
@@ -346,7 +346,10 @@ jobs:
           # verified this session that widening to the full tree yields zero
           # surviving matches (after the attribution filter) against the current
           # alphabet, so the wider scan is safe and final.
-          matches=$(git grep -iE "$patterns" -- ':/' | grep -viE 'github\\?\.com|ghcr\.io|Copyright|SPDX-FileCopyrightText' || true)
+          # -I skips binary files: compressed media (mp4/gif/png) sheds short
+          # byte runs that coincidentally match patterns; rendered media is
+          # covered by the release audit's eyes-on manual flag instead.
+          matches=$(git grep -I -iE "$patterns" -- ':/' | grep -viE 'github\\?\.com|ghcr\.io|Copyright|SPDX-FileCopyrightText' || true)
           if [ -n "$matches" ]; then
             echo "ERROR: Personal identifiers found in source or config files"
             printf '%s\n' "$matches"
