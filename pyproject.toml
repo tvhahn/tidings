@@ -74,7 +74,7 @@ dev = [
     "faker",
     "pyright>=1.1.411",
     "boto3-stubs[dynamodb]",
-    "hypothesis>=6.158.0",
+    "hypothesis>=6.161.2",
     "libcst>=1.8.6",
     "moto[dynamodb]>=5.2.2",
     "deptry>=0.25.1",
