@@ -147,6 +147,11 @@ SKIP_NAMES = {
     ".release-source-sha.txt",
 }
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".bmp", ".svg"}
+# Rendered video gets the same treatment as raster images: the reviewable risk
+# is the visual content, so flag for eyes-on review instead of extracting
+# printable byte-runs — compressed bitstreams shed short mixed-case noise runs
+# that false-positive against the strict project-token patterns.
+VIDEO_EXTS = {".mp4", ".webm", ".mov", ".m4v"}
 BINARY_HINT_EXTS = {".xlsx", ".xls", ".zip", ".woff", ".woff2", ".ttf", ".eot", ".db", ".rdb"}
 
 IMAGE_FLAG_BYTES = 100 * 1024
@@ -431,6 +436,13 @@ def scan_file(path: Path, relpath: str, project_re, report: Report):
                     {"file": relpath, "reason": f"image {size // 1024}KB — open to confirm not a screenshot"}
                 )
             return
+
+    if ext in VIDEO_EXTS:
+        report.files_scanned += 1
+        report.manual_review.append(
+            {"file": relpath, "reason": f"video {size // 1024}KB — play to confirm it shows only demo/fixture data"}
+        )
+        return
 
     if size > BIG_FILE_BYTES:
         report.files_scanned += 1
