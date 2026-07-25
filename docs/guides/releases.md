@@ -181,13 +181,13 @@ Tag scheme:
 2. `release.yml` fires. The `gate` job runs first: the backend test suite, then `scripts/pii/audit_oss_release.py` against the `git archive` of the tagged commit (the exact bytes that ship). Blocking PII hits (exit 1) abort the release before anything is published; the audit report is uploaded as a workflow artifact either way. A tag can land on a commit that never went through PR CI, which is why the gate re-runs the checks instead of trusting a prior run.
 3. The `docker` matrix job (`needs: gate`) runs twice in parallel — once for `web`, once for `imap-poller`.
 4. Each matrix job, per step:
-   1. `actions/checkout@v4` — clone the repo.
-   2. `docker/setup-qemu-action@v3` + `docker/setup-buildx-action@v3` — enable cross-arch builds.
-   3. `docker/login-action@v3` — log into GHCR using the auto-provided `GITHUB_TOKEN`.
-   4. `docker/metadata-action@v5` — compute the tag list: `:v0.1.0` (from the tag ref) + `:latest` (raw).
-   5. `docker/build-push-action@v5` — build `linux/amd64` and `linux/arm64`, push both manifests to GHCR. Shares GHA cache with `docker-build.yml` (same scope keys), so a recent main build warms the release build.
+   1. `actions/checkout@v7` — clone the repo.
+   2. `docker/setup-qemu-action@v4` + `docker/setup-buildx-action@v4` — enable cross-arch builds.
+   3. `docker/login-action@v4` — log into GHCR using the auto-provided `GITHUB_TOKEN`.
+   4. `docker/metadata-action@v6` — compute the tag list: `:v0.1.0` (from the tag ref) + `:latest` (raw).
+   5. `docker/build-push-action@v7` — build `linux/amd64` and `linux/arm64`, push both manifests to GHCR. Shares GHA cache with `docker-build.yml` (same scope keys), so a recent main build warms the release build.
 4. The `github-release` job (`needs: docker`) runs once both matrix jobs succeed:
-   1. `actions/checkout@v4` — clone the repo.
+   1. `actions/checkout@v7` — clone the repo.
    2. Extract the `## [0.1.0]` section from `CHANGELOG.md` into `release-notes.md` via the same `awk` recipe used in the Step 5 fallback. Fails loudly if the section is missing.
    3. `gh release create v0.1.0 --notes-file release-notes.md --prerelease` (the `--prerelease` flag is added automatically for any tag matching `^v0\.`).
 5. End state: two images on GHCR with two tags each (`:v0.1.0` + `:latest`), one GitHub Release page with the changelog as its body.
