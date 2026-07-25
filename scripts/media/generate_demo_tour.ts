@@ -471,8 +471,10 @@ async function main(): Promise<void> {
     await clickNav(page, "Budgets")
 
     // Beat 4 — Budgets. Static hold at the top (loaders-gone gate covers the
-    // skeleton → content swap). Hold trimmed 48 → 34. [34]
-    await staticBeat(page, "/budgets", null, 0, 34)
+    // skeleton → content swap). BudgetPage ignores ?month, but the sidebar
+    // spend panel reads it — without it the sidebar flips to the pinned March
+    // clock while every other beat shows February. Hold trimmed 48 → 34. [34]
+    await staticBeat(page, "/budgets?month=2026-02", null, 0, 34)
     // Budgets → Insights. [21 + 8 = 29]
     await clickNav(page, "Insights")
 
