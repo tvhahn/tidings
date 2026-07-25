@@ -148,8 +148,9 @@ jobs:
       - name: De-slop P0 gate (blocking)
         run: node .claude/skills/ui-slop-audit/scripts/slop-grep.mjs frontend/src --fail-on=P0
 
-  # Mirrors `make verify-docs`; dep-free plain Node, run from the repo root. Keeps the
-  # docs/app/screenshot-pipeline drift gate on CI, where a skipped local verify can't bypass it.
+  # Mirrors the coverage half of `make verify-docs`; dep-free plain Node, run from the
+  # repo root. Keeps the docs/app/screenshot-pipeline drift gate on CI, where a skipped
+  # local verify can't bypass it. The build half lives in docs-build below.
   docs-coverage:
     runs-on: ubuntu-latest
     steps:
@@ -161,6 +162,34 @@ jobs:
 
       - name: Docs coverage gate (pages, sidebar + llms-txt, screenshots)
         run: node scripts/checks/check_docs_coverage.mjs
+
+  # Build half of `make verify-docs`. `astro build` SSRs the React islands on every
+  # page, so this is the only Actions job that can catch a docs-site dependency or
+  # content breakage before it reaches main — the Cloudflare Pages check builds too,
+  # but only merge-blocks when someone reads it.
+  docs-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs-site
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+          cache: pnpm
+          cache-dependency-path: docs-site/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build docs site
+        run: pnpm build
 
   frontend-test:
     runs-on: ubuntu-latest
@@ -198,6 +227,12 @@ jobs:
 
       - name: Set up Python
         run: uv python install 3.12
+
+      - name: Lockfile freshness (uv.lock matches pyproject.toml)
+        # Every other job runs plain `uv sync`, which silently re-locks on drift —
+        # so a merged pyproject change with a stale committed lock would pass CI
+        # while image builds re-resolve at build time. Fail it here instead.
+        run: uv lock --check
 
       - name: Install dependencies
         run: uv sync
