@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=75.0", "wheel"]
+requires = ["setuptools>=83.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -40,14 +40,14 @@ dependencies = [
 # Prompt evaluation harness — dev-only, see dev/eval_harness/.
 # Install with: uv sync --extra eval
 eval = [
-    "streamlit>=1.32.0",
+    "streamlit>=1.60.0",
     "streamlit-sortables>=0.3.1",
 ]
 
 [dependency-groups]
 dev = [
     "jupyterlab",
-    "pytest>=8.0",
+    "pytest>=9.1.1",
     "pytest-cov",
     # xdist stays opt-in via CLI flags only (`-n <N>` in the Makefile test
     # targets); it is deliberately kept out of addopts so ad-hoc
@@ -74,7 +74,7 @@ dev = [
     "faker",
     "pyright>=1.1.411",
     "boto3-stubs[dynamodb]",
-    "hypothesis>=6.158.0",
+    "hypothesis>=6.161.2",
     "libcst>=1.8.6",
     "moto[dynamodb]>=5.2.2",
     "deptry>=0.25.1",

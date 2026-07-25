@@ -82,11 +82,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
           cache: pnpm
@@ -109,11 +109,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
           cache: pnpm
@@ -141,7 +141,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
 
@@ -155,7 +155,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
 
@@ -170,11 +170,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
           cache: pnpm
@@ -253,11 +253,11 @@ jobs:
       # permanently broken. Pinned ahead of the app's pnpm 10 on purpose — audit
       # only reads pnpm-lock.yaml (never installs), so the v10 lockfile is read fine.
       # pnpm 11.13+ needs the node:sqlite builtin (Node >=22.5), so pin Node 24 here.
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 11
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "24"
 
@@ -401,7 +401,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Public tree builds (Dockerfile.prod)
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: /tmp/public-tree
           file: /tmp/public-tree/Dockerfile.prod
