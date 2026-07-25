@@ -16,3 +16,12 @@ overrides:
   minimatch@5: ">=5.1.8 <6"
   minimatch@9: ">=9.0.7 <10"
   flatted: ">=3.4.2 <4"
+  postcss: ">=8.5.18 <9"
+auditConfig:
+  ignoreGhsas:
+    # react-router — RSC-mode CSRF bypass. Only reachable through the unstable
+    # RSC APIs; this app is a plain Vite SPA on declarative <BrowserRouter> and
+    # imports no unstable_/RSC entry points, so the vulnerable code path is not
+    # in the bundle. The sole patched release is the react-router 8 major —
+    # tracked as a follow-up upgrade rather than an emergency bump.
+    - GHSA-qwww-vcr4-c8h2
