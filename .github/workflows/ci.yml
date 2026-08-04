@@ -82,7 +82,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@v6.0.9
         with:
           version: 10
 
@@ -109,7 +109,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@v6.0.9
         with:
           version: 10
 
@@ -175,7 +175,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@v6.0.9
         with:
           version: 10
 
@@ -199,7 +199,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@v6.0.9
         with:
           version: 10
 
@@ -288,7 +288,7 @@ jobs:
       # permanently broken. Pinned ahead of the app's pnpm 10 on purpose — audit
       # only reads pnpm-lock.yaml (never installs), so the v10 lockfile is read fine.
       # pnpm 11.13+ needs the node:sqlite builtin (Node >=22.5), so pin Node 24 here.
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@v6.0.9
         with:
           version: 11
 
