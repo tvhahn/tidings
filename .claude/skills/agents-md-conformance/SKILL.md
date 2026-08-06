@@ -1,20 +1,22 @@
 ---
 name: agents-md-conformance
-description: Audit whether the codebase obeys the directives declared in its CLAUDE.md, AGENTS.md, or nested context files — finds violations with file:line evidence and classifies each as auto-fixable or human-judgment. Read-only by default (--apply does doc-only fixes). Complements /basis-principles-audit (which scores whether the rules are good). Invoke for "conformance", "AGENTS.md compliance", "do we follow our own rules", or "Basis cleanup".
+description: Audit whether the codebase obeys the directives declared in its own CLAUDE.md / AGENTS.md / nested context files. Extracts operational rules from context prose, finds code that violates them with file:line evidence, classifies each violation as auto-fixable or human-judgment, and optionally applies a narrow allowlist of doc-only fixes. Complementary to /agent-readiness-audit (which scores whether the context files are good); this skill scores whether the code follows them. Invoke when the user mentions "conformance", "AGENTS.md compliance", "do we follow our own rules", or "Basis cleanup".
 disable-model-invocation: true
 argument-hint: "[--apply] [output-dir]"
 ---
 
 # AGENTS.md Conformance Audit
 
+> **Canonical source:** `~/dotfiles/claude/skills-optional/agents-md-conformance/` — this copy is a published snapshot (synced 2026-08-06). Make edits there and re-sync; edits made here will be overwritten.
+
 Find code that violates the rules declared in CLAUDE.md / AGENTS.md / nested context files. **Read-only on source code by default.** With the optional `--apply` flag, applies a narrow allowlist of doc-only fixes (frontmatter, structural sections, broken refs) — never source code.
 
 ## What this is, what it isn't
 
 - This skill audits **code against its own declared rules**. ("All parsers must implement `parse_email()`" — do they all?)
-- The sibling [`basis-principles-audit`](../basis-principles-audit/SKILL.md) skill audits **whether the rules themselves are good**. (Is the context architecture canonical, localized, lean?)
-- Run `basis-principles-audit` first if the repo has no usable CLAUDE.md — this skill needs directives to check against.
-- See [`../basis-principles-audit/reference/basis-essay.md`](../basis-principles-audit/reference/basis-essay.md) for the Basis "Cleanup" pattern this skill operationalizes.
+- The sibling `agent-readiness-audit` skill (*if installed*) audits **whether the rules themselves are good**. (Is CLAUDE.md instructional, nested, owner-marked?) Where it isn't installed, `basis-principles-audit` covers the same ground — it absorbed that skill.
+- Run readiness first if the repo has no usable CLAUDE.md — this skill needs directives to check against.
+- See [`reference/basis-essay.md`](reference/basis-essay.md) for the Basis "Cleanup" pattern this skill operationalizes.
 
 ## Output directory
 
@@ -52,7 +54,7 @@ Read each discovered file. For every sentence/bullet, classify into one of three
 - **Description** — facts about repo layout or architecture ("`src/` contains source code", "Each bank has a parser"). Skip.
 - **Reference** — pointer to another doc ("see `docs/ARCHITECTURE.md` for design decisions"). Follow once, then skip on subsequent encounters.
 
-Rule-based extraction first (imperative-verb regex). Fall back to LLM classification only on prose that mixes registers in a single sentence. Skip any directive marked with `<!-- conformance: skip -->` on the same line (an inline HTML-comment opt-out marker).
+Rule-based extraction first (imperative-verb regex). Fall back to LLM classification only on prose that mixes registers in a single sentence. Skip any directive marked with `<!-- conformance: skip -->` on the same line (opt-out convention borrowed from `scripts/spec_status.py`).
 
 Output a normalized list: `directive_id | source_file:line | verbatim text | scope (root / nested-path / skill-name)`.
 
@@ -94,11 +96,6 @@ Also assign severity per directive strength:
 - **Medium** — uses "prefer" / "avoid"; or violation is localized.
 - **Low** — uses "consider"; or violation is a one-off in test code.
 
-Two judgment calls to make explicitly, per violation:
-
-- **Fix the code or revise the directive?** A violation of an old directive that predates a refactor usually means the *rule* is stale, not the code. Check the directive's age (`git log -1 --format=%as -S "<directive text>"` on its source file) before assuming the code is wrong; stale-rule cases go to the Tier 2 (directive revision) table, not Tier 1.
-- **Severity tracks verb strength + observed impact, not position in the file.** An aspirational line ("be explicit rather than clever") never rates High just because it sits under a "Critical Rules" heading.
-
 ### Phase 6 — Apply fixes (only if `--apply` flag is set)
 
 For each violation tagged `auto-fix-allowlisted`:
@@ -111,10 +108,11 @@ If `--apply` is not set, this phase emits a `fixes-proposed.md` section with the
 
 ### Phase 7 — Emit deliverables
 
-Read [`report-template.md`](report-template.md). Fill in placeholders. Write two files to the output directory:
+Read [`report-template.md`](report-template.md). Fill in placeholders. Write three files to the output directory:
 
 1. `violations.md` — table of all violations, grouped by directive, with `file:line` evidence and severity.
 2. `README.md` — summary, tier-ordered recommendations, fixes-applied (or fixes-proposed) section, suggested order of execution.
+3. `expert-panel.md` — the 5-panelist analysis, with the question framed as "which violations matter most for agent reliability, and which are nits?"
 
 Print a short summary to the user:
 
@@ -146,12 +144,12 @@ Keep it under 15 lines.
 
 Before Phase 1, sanity-check:
 
-- Is there a root `CLAUDE.md` or `AGENTS.md`? If neither exists, abort early with a message pointing the user at `/basis-principles-audit` first (no directives → nothing to conform to).
+- Is there a root `CLAUDE.md` or `AGENTS.md`? If neither exists, abort early with a message pointing the user at `/agent-readiness-audit` first (no directives → nothing to conform to).
 - If `--apply` is set, confirm the working tree is clean (`git status --porcelain`). If dirty, refuse to auto-fix and ask the user to commit or stash first — auto-fixes need to be reviewable as a clean diff.
 
 ## Supporting files
 
 - [`directive-extraction.md`](directive-extraction.md) — heuristics for pulling directives out of CLAUDE.md prose
 - [`low-risk-fixes.md`](low-risk-fixes.md) — explicit allowlist of auto-fixable patterns
-- [`report-template.md`](report-template.md) — markdown skeleton (two delimited sub-templates)
-- [`../basis-principles-audit/reference/basis-essay.md`](../basis-principles-audit/reference/basis-essay.md) — the Basis essay that originated the "Cleanup" pattern (single shared copy, kept under the sibling skill); read sections "Canon vs. Not Canon" and "The Cleanup" for grounding
+- [`report-template.md`](report-template.md) — markdown skeleton (three delimited sub-templates)
+- [`reference/basis-essay.md`](reference/basis-essay.md) — the Basis essay that originated the "Cleanup" pattern; read sections "Canon vs. Not Canon" and "The Cleanup" for grounding

@@ -18,7 +18,8 @@ cd "$ROOT" || { echo "collect-facts: cannot cd to $ROOT" >&2; exit 1; }
 # Directories never worth scanning.
 PRUNE=( -name .git -o -name node_modules -o -name .venv -o -name venv
         -o -name dist -o -name build -o -name __pycache__ -o -name worktrees
-        -o -name .next -o -name coverage -o -name .pytest_cache -o -name .ruff_cache )
+        -o -name .next -o -name coverage -o -name .pytest_cache -o -name .ruff_cache
+        -o -name .obsidian -o -name .trash )
 
 findx() { # findx <find-predicates...> — find with standard prunes
   find . \( \( "${PRUNE[@]}" \) -prune \) -o \( "$@" \) -print 2>/dev/null | sed 's|^\./||' | sort
@@ -47,7 +48,20 @@ else
   while IFS= read -r f; do
     [ -z "$f" ] && continue
     lines=$(rel_lines "$f")
-    if [ -L "$f" ]; then link=$(readlink "$f"); else link="—"; fi
+    if [ -L "$f" ]; then
+      link=$(readlink "$f")
+    else
+      link="—"
+      # Windows checkouts (core.symlinks=false) materialize committed symlinks as
+      # one-line files holding the target path — flag likely cases for the auditor.
+      if [ "${lines:-0}" -le 1 ]; then
+        first=$(head -n 1 "$f" 2>/dev/null)
+        case "$first" in
+          ''|*[!A-Za-z0-9._/-]*) : ;;
+          *) [ -e "$(dirname "$f")/$first" ] && link="$first (materialized symlink?)" ;;
+        esac
+      fi
+    fi
     if [ "$(head -n 1 "$f" 2>/dev/null)" = "---" ]; then fm="yes"; else fm="no"; fi
     echo "| \`$f\` | $lines | $link | $fm |"
   done <<< "$CONTEXT_FILES"
@@ -72,12 +86,22 @@ echo
 
 echo "### Other agent-tool files (root)"
 echo
+PROBED=".cursorrules .cursor .windsurfrules .continuerc .github/copilot-instructions.md GEMINI.md .clinerules .rules .roo .codex .junie .aider*"
 found_other=0
-for t in .cursorrules .cursor .windsurfrules .continuerc .github/copilot-instructions.md; do
-  [ -e "$t" ] && { echo "- \`$t\` present"; found_other=1; }
+for t in .cursorrules .cursor .windsurfrules .continuerc .github/copilot-instructions.md \
+         GEMINI.md .clinerules .rules .roo .codex .junie; do
+  if [ -e "$t" ]; then
+    # A real file (not a symlink to canon) is its own source of truth — drift risk.
+    if [ -f "$t" ] && [ ! -L "$t" ]; then
+      echo "- \`$t\` present — **real file, not a symlink** ($(rel_lines "$t") lines): separate source, check for drift against canon"
+    else
+      echo "- \`$t\` present"
+    fi
+    found_other=1
+  fi
 done
 ls .aider* >/dev/null 2>&1 && { echo "- \`.aider*\` present"; found_other=1; }
-[ "$found_other" -eq 0 ] && echo "None."
+[ "$found_other" -eq 0 ] && echo "None of the probed set ($PROBED). Other agent-tool conventions may exist — this list is not exhaustive."
 echo
 
 # ---------------------------------------------------------------- 2. root context stats
@@ -215,13 +239,15 @@ else
   done
 fi
 COMMANDS_DIR=".claude/commands"
-[ -d "$COMMANDS_DIR" ] && echo "- \`$COMMANDS_DIR/\`: $(ls "$COMMANDS_DIR" | wc -l | tr -d ' ') command files"
+[ -d "$COMMANDS_DIR" ] && echo "- \`$COMMANDS_DIR/\`: $(find "$COMMANDS_DIR" -type f -name '*.md' 2>/dev/null | wc -l | tr -d ' ') command files (recursive; namespaced subdirectories included)"
 echo
 
 # ---------------------------------------------------------------- 8. prior audit runs
 echo "## 8. Prior audit runs (for Phase 0 delta)"
 echo
-PRIOR=$(findx -type d \( -name '*basis-principles-audit*' -o -name '*agent-readiness-audit*' \) | grep -v '\.claude/skills' || true)
+# Exclude the skill's own source dirs, wherever they live: `.claude/skills/`,
+# a dotfiles-style `claude/skills-optional/`, or a plugin checkout.
+PRIOR=$(findx -type d \( -name '*basis-principles-audit*' -o -name '*agent-readiness-audit*' \) | grep -vE '(^|/)skills(-optional)?/' || true)
 if [ -z "$PRIOR" ]; then
   echo "None found — this is a baseline run."
 else

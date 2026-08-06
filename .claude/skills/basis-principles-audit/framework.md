@@ -28,6 +28,19 @@ These are the places where naive rubric application produces wrong recommendatio
 
 **Scale fit is a required field.** Every recommendation you emit must carry a scale tag: `solo` (pays off for one maintainer), `team` (pays off with multiple contributors), or `basis-scale` (pays off at high agent-onboarding volume). Never put a `basis-scale` item in Tier 0–1.
 
+## Non-code corpus mode
+
+When Phase 1 classifies the target as a **docs-or-notes corpus** (Obsidian vault, wiki, docs-only repo), the five principles still apply but several anchors below are code-shaped. Re-anchor as follows; for a **mixed** target, apply these re-anchors to the notes portion only.
+
+- **Canonicality** — unchanged in spirit. Canon = evergreen/reference notes, MOCs, indexes; not-canon = daily notes, drafts, clippings, meeting notes. Score the clarity of the boundary (folder convention, `status:` frontmatter) and its freshness. The spec-discipline sub-check maps to: do indexes/MOCs carry a status signal, and does it match the notes they point at?
+- **Localization** — folder-level context files and index/MOC placement replace subsystem nesting: each major folder with its own conventions (templates, naming, frontmatter schema) should declare them in that folder, with the root file holding only vault-wide rules. Templates living next to the notes they govern is positive evidence.
+- **Verifiability** — skip the linter-strictness anchors and the AI-slop test list entirely; they don't apply and their absence is not a deduction. The corpus 9/10 bar: mechanical prose checks exist and run — a link checker (the fact sheet's broken-link count is the floor), frontmatter/template consistency enforcement (an Obsidian Linter/Templater config, or a script), and a documented routine for running them. 7 = checks exist but run only manually/ad-hoc. 3 = nothing mechanical; broken links accumulate silently.
+- **Interoperability** — portable context files apply as-is. Additionally note, lightly weighted for a personal vault: wikilinks vs standard markdown links, and plugin-dependent syntax (Dataview queries, Templater code) as lock-in signals.
+- **Default-no** — applies unchanged, in full.
+- **Git-dependent checks** (commit hygiene, specs-land-before-features log evidence) apply only when the target is a git repo. Otherwise mark them `n/a (corpus mode)` — no deduction.
+
+In the report, per-principle findings subsections that don't apply get an explicit `n/a (corpus mode)` line — never invented code-shaped content. The infrastructure inventory lists what actually exists (plugins, scripts, checkers) instead of CI/linters.
+
 ---
 
 ## 1. Canonicality
@@ -201,6 +214,8 @@ These are the places where naive rubric application produces wrong recommendatio
 | Any | Only a tool-specific file (`.cursorrules` alone) | Deduct heavily |
 | Any | No context file at all | Score 0–3 |
 
+**Windows checkouts:** with `core.symlinks=false` (the Git-for-Windows default), committed symlinks materialize as plain one-line text files containing the target path — the fact sheet will report them as real files with no `Symlink →` entry (the collector flags likely cases with "materialized symlink?"). Before flagging such a file as duplication or drift, check `git ls-files -s <path>`: mode `120000` means it's committed as a symlink; treat it as symlink-equivalent, full credit.
+
 **Rubric anchors**
 - **3/10:** Only tool-specific files exist with no portable equivalent. Switching tools means rewriting context.
 - **5/10:** A primary context file exists *plus* tool-specific files that duplicate it — drift risk, but one path is portable.
@@ -268,8 +283,10 @@ The report's README carries a short non-scored appendix listing the concrete inf
 
 ## Relationship to the sibling tools
 
+These ship separately and may not be installed in the repo under audit — confirm each exists before recommending it in the report (see SKILL.md "Sibling tools").
+
 - **`agents-md-conformance`** checks whether *code* obeys the directives declared in context files. Natural follow-on once this skill's Tier 0 / 1 items land — especially if any directives were added or rewritten.
 - **`/claude-md-review`** (command) is the lightweight editor: a single-session prune-and-fix pass over the context files themselves, sharing this framework's default-no and localization criteria. Recommend it as the remediation tool for default-no findings; recommend this audit when someone reaches for the command but the problem is structural.
 - The former **`agent-readiness-audit`** skill is absorbed into this one (linters/CI → verifiability, specs → canonicality, commit hygiene → verifiability). Historical runs live under `docs/specs/_archive/*agent-readiness-audit*` and remain valid baselines for the infrastructure appendix.
 
-A typical loop: run this audit → apply Tier 0/1 (context-file fixes via `/claude-md-review`, code fixes directly) → run `agents-md-conformance` to confirm code obeys the now-clean directives → re-run this audit and diff the scorecard.
+A typical loop, where those siblings are installed: run this audit → apply Tier 0/1 (context-file fixes via `/claude-md-review`, code fixes directly) → run `agents-md-conformance` to confirm code obeys the now-clean directives → re-run this audit and diff the scorecard. Without them the loop still works — the fixes are applied directly and the re-run's delta section verifies them.

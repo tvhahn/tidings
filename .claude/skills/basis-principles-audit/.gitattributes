@@ -1,0 +1,2 @@
+# collect-facts.sh must keep LF endings — CRLF breaks bash on Windows (Git Bash/WSL).
+*.sh text eol=lf

@@ -100,7 +100,7 @@ Cap LLM calls at ~20 per audit. If a CLAUDE.md has so many ambiguous lines that 
 
 ## Opt-out marker
 
-A directive on the same line as `<!-- conformance: skip -->` is intentionally exempted from this audit (an inline HTML-comment opt-in marker pattern). Honor it. Examples:
+A directive on the same line as `<!-- conformance: skip -->` is intentionally exempted from this audit (matches the `scripts/spec_status.py` opt-in marker pattern). Honor it. Examples:
 
 - `- Prefer descriptive variable names. <!-- conformance: skip -->` — the author has decided this is subjective enough that mechanical enforcement would produce noise.
 - `## Style notes <!-- conformance: skip -->` — entire section exempted (applies to all directives under this heading until the next H1/H2).

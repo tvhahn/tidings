@@ -4,6 +4,8 @@ This file contains two sub-templates delimited by `===== FILE: <name> =====` mar
 
 Placeholders use `{{NAME}}` syntax — substitute every one. Leave no `{{...}}` in the final output. Sections marked *(baseline run: omit)* are dropped entirely when no prior run exists.
 
+Corpus-mode runs (target classified as a docs-or-notes corpus in Phase 1): fill inapplicable findings subsections with a one-line `n/a (corpus mode)` — never invent code-shaped content to satisfy a placeholder.
+
 ---
 
 ===== FILE: scorecard.md =====
@@ -51,7 +53,7 @@ Aggregate target: **{{TARGET_AGGREGATE}}/10**.
 **Date:** {{AUDIT_DATE}}
 **Status:** Analysis
 **Prior run:** {{PRIOR_RUN_LINK_OR_NONE}}
-**Source framework:** Basis Atlas team — *Making Our Monorepo Ergonomic for Agents* (skill copy: `.claude/skills/basis-principles-audit/reference/basis-essay.md`)
+**Source framework:** Basis Atlas team — *Making Our Monorepo Ergonomic for Agents* (skill copy: `reference/basis-essay.md`, inside the skill package)
 
 ## Context
 
@@ -217,8 +219,6 @@ This document is recommendations only. Implementation is deliberately deferred t
 
 ## Natural follow-ons
 
-1. **`/claude-md-review`** — the lightweight editor for the context files themselves; the natural executor for any default-no / localization Tier 0 items above.
-2. **`/agents-md-conformance`** — if the recommendations here added or rewrote directives in CLAUDE.md / AGENTS.md, run it next: it checks whether the *code* obeys the now-clean directives, and can auto-fix a narrow allowlist of doc-only violations.
-3. **Re-run this audit** after Tier 0/1 land; the next run's delta section will verify the landings mechanically.
+{{FOLLOW_ONS}}
 
 ===== END =====

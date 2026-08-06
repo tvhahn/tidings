@@ -1,11 +1,13 @@
 ---
 name: basis-principles-audit
-description: Audit a codebase against the five Basis principles for agent-native architecture — canonicality, localization, verifiability, interoperability, default-no. Produces a 5-row scorecard with file:line evidence plus tiered recommendations. Read-only. Invoke for a principles read on whether a repo is structured for agents, or when the user mentions the Basis essay, "agent-native codebase", "agent-ready", or agent readiness.
+description: Audit a codebase or notes corpus (e.g., an Obsidian vault) against the five Basis principles for agent-native architecture — canonicality, localization, verifiability, interoperability, default-no. Produces a 5-row scorecard with file:line evidence plus tiered recommendations. Read-only. Invoke for a principles read on whether a repo is structured for agents, or when the user mentions the Basis essay, "agent-native codebase", "agent-ready", or agent readiness.
 disable-model-invocation: true
 argument-hint: "[output-dir]"
 ---
 
 # Basis Principles Audit
+
+> **Canonical source:** `~/dotfiles/claude/skills-optional/basis-principles-audit/` — this copy is a published snapshot (synced 2026-08-06). Make edits there and re-sync; edits made here will be overwritten.
 
 Score a codebase 0–10 against each of the **five principles** from the Basis Atlas team's essay *Making Our Monorepo Ergonomic for Agents* (see [`reference/basis-essay.md`](reference/basis-essay.md)). Emit a scorecard and a tiered recommendations report. **This is a read-only audit.** The only writes are to the chosen output directory inside the target repo.
 
@@ -17,13 +19,17 @@ Score a codebase 0–10 against each of the **five principles** from the Basis A
 4. **Interoperability** — No layer of the architecture binds the team to a single agent vendor.
 5. **Default-no** — Every auto-loaded token earns its place. When the default is "include," loaded files balloon; when the default is "exclude," every line earns its place.
 
+**Harness portability:** the procedure assumes a Claude-Code-style harness (subagents, Glob/Read tools) but degrades to any capable agent CLI — the fallbacks in Phase 0 (no bash) and Phase 2 (no `Explore`/no subagents) cover PowerShell + Copilot-CLI-style environments. GitHub Copilot CLI supports this SKILL.md format natively (Agent Skills open standard) and auto-discovers skills from `.github/skills/`, `.claude/skills/`, `~/.copilot/skills/`, and `~/.claude/skills/` — copy this directory into one of those (copy, not symlink, on Windows). Non-Claude harnesses ignore the Claude-specific frontmatter and don't substitute `$ARGUMENTS` — in that case, read "$ARGUMENTS" below as "an output dir the user explicitly stated, if any."
+
 Full rubric, decision tables, known tradeoffs, and common failure modes in [`framework.md`](framework.md). **Always read `framework.md` before scoring** — especially its "Known tradeoffs" section, which prevents the classic mis-recommendations — and skim sections "Principles for an Agent-Native Codebase," "Canon vs. Not Canon," and "Rewriting AGENTS.md" of [`reference/basis-essay.md`](reference/basis-essay.md) for grounding.
 
 ## Sibling tools
 
-- **`agents-md-conformance`** — operationalizes Basis's "Cleanup" step: checks whether the *code* obeys the directives the context files declare. Run it after this audit when directives were added or rewritten.
-- **`/claude-md-review`** (command) — the lightweight editor: prunes and fixes a CLAUDE.md/AGENTS.md file directly in one short session, using this skill's rubric. Point default-no findings at it.
-- The former **`agent-readiness-audit`** skill is merged into this one; its historical runs under `docs/specs/_archive/` still count as prior baselines.
+These ship separately from this skill and may or may not be installed. **Check before naming any of them in the report** (`ls .claude/skills .claude/commands ~/.claude/skills ~/.claude/commands`); never recommend one you haven't confirmed exists.
+
+- **`agents-md-conformance`** (skill, *if installed*) — operationalizes Basis's "Cleanup" step: checks whether the *code* obeys the directives the context files declare. Run it after this audit when directives were added or rewritten.
+- **`/claude-md-review`** (command, *if installed*) — the lightweight editor: prunes and fixes a CLAUDE.md/AGENTS.md file directly in one short session, using this skill's rubric. Point default-no findings at it.
+- The former **`agent-readiness-audit`** skill is merged into this one; if the repo has historical runs (typically under `docs/specs/_archive/`), they still count as prior baselines.
 
 ## Output directory
 
@@ -33,19 +39,31 @@ If `$ARGUMENTS` is provided, use it as-is (create it if missing). Otherwise choo
 2. Else if `docs/` exists → `docs/reviews/basis-principles-audit-YYYY-MM-DD/`
 3. Else → `.basis-principles-audit-YYYY-MM-DD/` at repo root
 
+Exception: in a notes vault (e.g., Obsidian), a dotfolder is hidden from the app's file explorer — use a visible `basis-principles-audit-YYYY-MM-DD/` folder instead, unless the user asks for a hidden one.
+
 Use today's date in ISO format. Create the directory if it doesn't exist. Never write outside of it.
 
 ## Procedure
 
 ### Phase 0 — Collect facts + load the prior run
 
-Run the deterministic collector first:
+Run the deterministic collector first. Invoke it by its path **relative to this skill's own directory** — the skill may be installed under the project (`.claude/skills/…`), the user home (`~/.claude/skills/…`), or a plugin, so never hardcode the project-local path:
 
 ```
-bash .claude/skills/basis-principles-audit/collect-facts.sh <repo-root>
+bash <this-skill-dir>/collect-facts.sh <repo-root>
 ```
 
 (Read-only; prints a markdown fact sheet. Running this script is always in-bounds — the read-only constraint applies to the *target repo's* code, not to the skill's own tooling.)
+
+`<this-skill-dir>` is the directory containing the SKILL.md you are reading. If in doubt, locate `collect-facts.sh` with a `find` over `.claude/skills`, `~/.claude/skills`, and any plugin roots.
+
+Save the script's output verbatim to `<output-dir>/fact-sheet.md`. This gives the next run a mechanical inventory to diff against, and lets you re-read facts later in the session instead of recalling them from memory.
+
+**Windows / no-bash environments** (PowerShell, Copilot CLI on Windows): the collector is bash. Try, in order:
+
+1. `bash <this-skill-dir>/collect-facts.sh <repo-root>` — works from PowerShell when Git for Windows is installed (Git Bash puts `bash` on PATH).
+2. WSL: `wsl bash <this-skill-dir>/collect-facts.sh <repo-root>` — translate `C:\...` paths to `/mnt/c/...`.
+3. No bash at all: collect the same facts yourself with the harness's file tools — reproduce every numbered fact-sheet section under the same headings, count carefully, and put `> Hand-collected (no bash available)` at the top of `fact-sheet.md`. It still serves as the inventory of record, but the label tells the next run the numbers came from agent counting, not the script.
 
 The fact sheet is the **evidence floor**: context-file inventory, symlink coverage, broken canon links, verbatim duplication, CI/hook/verify-target inventory, spec directories, and the list of prior audit runs. Every number in your report that the fact sheet covers must come from the fact sheet — never re-derive or estimate those.
 
@@ -56,13 +74,21 @@ Then, from its "Prior audit runs" section, open the **most recent** prior run's 
 
 You will need both for the delta report in Phase 6. If no prior run exists, this is a baseline run — say so in the report and skip delta sections.
 
-### Phase 1 — Detect repo shape
+### Phase 1 — Detect repo shape and target type
 
-A few quick Glob/Read calls: dominant languages (lockfiles, `pyproject.toml`, `Cargo.toml`, `go.mod`…), frameworks, monorepo vs single-project, count of major subsystem directories (the denominator for the localization-density check). Record a one-paragraph "Repo shape" note — it becomes context in each Phase 2 brief.
+A few quick Glob/Read calls: dominant languages (lockfiles, `pyproject.toml`, `Cargo.toml`, `go.mod`…), frameworks, monorepo vs single-project, count of major subsystem directories (the denominator for the localization-density check).
+
+Classify the target as one of: **code repo**, **docs-or-notes corpus** (Obsidian vault, wiki, docs-only repo — mostly markdown, no build/test toolchain), or **mixed**. For a corpus or mixed target, apply the "Non-code corpus mode" section of `framework.md` everywhere downstream — never score a vault against CI/linter anchors. Also record whether the target is a git repo; every `git`-dependent check is conditional on that.
+
+Record a one-paragraph "Repo shape" note including this classification — it becomes context in each Phase 2 brief.
 
 ### Phase 2 — Three parallel Explore subagents
 
 Launch three `Explore` subagents **in a single message**. Pass each one: the repo-shape note, the relevant fact-sheet sections, and its brief below. Set thoroughness to "very thorough."
+
+If no `Explore` agent type exists in the current harness, use general-purpose subagents; if subagents aren't available at all, work through the three briefs yourself, sequentially — briefs and output contract unchanged.
+
+**Corpus mode:** when Phase 1 classified the target as a docs-or-notes corpus, adjust the briefs per the framework's "Non-code corpus mode" section — Agent B audits the prose-verification machinery (link checks, template/frontmatter consistency) instead of CI/linters/tests, and every `git`-dependent check applies only if the target is a git repo.
 
 **Every brief ends with this output contract** (include it verbatim):
 
@@ -121,6 +147,8 @@ Read [`report-template.md`](report-template.md). It contains two delimited secti
 1. `<output-dir>/scorecard.md` — the 5-row table **with a Δ column vs the prior run**, rubric reminder, overall mean, and "what progress looks like"
 2. `<output-dir>/README.md` — full findings, the **delta section** (prior Tier 0/1 recommendations: landed / not landed, with evidence), tiered recommendations (post-refutation, graduation-tagged), the non-scored infrastructure inventory appendix, and follow-ons
 
+For `{{FOLLOW_ONS}}`: list **only** follow-on skills and commands you have verified are installed (`ls .claude/skills .claude/commands ~/.claude/skills ~/.claude/commands`). Drop any that aren't — a report that recommends a command the reader doesn't have is worse than one that recommends nothing. "Re-run this audit after Tier 0/1 land; the next run's delta section verifies the landings mechanically" always applies and needs no check.
+
 **Do not modify any file outside the output directory.** If the output landed under a `docs/specs/` with an `INDEX.md`, you may ask the user at the end whether to add an INDEX row — never edit it without asking.
 
 ### Phase 7 — Report back
@@ -152,6 +180,20 @@ Keep it under 15 lines. The full analysis lives in the files.
 - **Scorecard structure is diffable.** Always the same 5 rows; never invent principles per repo. The Δ column and delta section are mandatory when a prior run exists.
 - **Tier 0–3 ordering is impact-per-unit-effort.** Tier 0 = minutes of work, order-of-magnitude impact. Tier 3 = days+ with high ceiling. Scale-fit tags required; `basis-scale` items never in Tier 0–1.
 - **Graduation rule applies** (Phase 5): repeat findings become automation proposals, not repeated advice.
+
+## Definition of done
+
+Before printing the Phase 7 summary, confirm every box. If one fails, go back and fix it — don't ship around it.
+
+- [ ] Fact sheet collected via `collect-facts.sh` and saved to `<output-dir>/fact-sheet.md`
+- [ ] Target classified (code / corpus / mixed) and the matching rubric anchors used
+- [ ] Every citation used as evidence re-verified with your own Read/Grep (Phase 3)
+- [ ] Exactly five principles scored — no extra rows, none missing
+- [ ] Refutation pass run on every Tier 0/1 item; cuts recorded in "Cut in verification"
+- [ ] Delta section + Δ column present, or the run explicitly marked as baseline
+- [ ] No `{{...}}` placeholder left in either output file
+- [ ] Follow-ons verified installed via `ls`; unverified ones dropped
+- [ ] No writes outside the output directory
 
 ## Supporting files
 

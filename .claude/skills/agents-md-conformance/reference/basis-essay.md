@@ -7,7 +7,7 @@
 **Posted:** May 19, 2026 · 69.7K views · 208 likes · 27 reposts · 640 bookmarks
 **Scraped:** 2026-05-20
 
-> **Note (skill copy):** This is a text-only copy of the original Basis essay, vendored into the skill package so the rubric travels with it — it is the primary source of the `basis-principles-audit` rubric (the five principles in the section below are scored directly, one per scorecard row). The sibling `agents-md-conformance` skill vendors its own copy, where the essay is a sharpening lens rather than the rubric itself. Two informational figures (Authority Map, Context Pyramid) are transcribed inline; two decorative figures (cover, principles diagram) are omitted because the surrounding prose covers them.
+> **Note (skill copy):** This is a text-only copy of the original Basis essay, vendored into the skill package as reference material for `agents-md-conformance` — here the essay is a sharpening lens rather than the rubric itself; the sibling `basis-principles-audit` skill vendors its own copy and scores against it directly. Two informational figures (Authority Map, Context Pyramid) are transcribed inline; two decorative figures (cover, principles diagram) are omitted because the surrounding prose covers them.
 
 ---
 
