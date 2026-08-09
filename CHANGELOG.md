@@ -32,6 +32,11 @@ This project follows [Semantic Versioning](https://semver.org/).
   (`/transactions`, `/summary`, …) now serves the app instead of a 404. API
   paths keep their JSON 404.
 
+### Security
+
+- Docker builds no longer copy the host's `__pycache__` directories into the
+  image (the compiled files embedded absolute paths from the build machine).
+
 ## [0.1.0] — 2026-07-21
 
 Initial open-source release.

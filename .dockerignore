@@ -3,7 +3,11 @@
 .devcontainer
 .claude
 .venv
-__pycache__
+# `**/` prefix required — a bare `__pycache__` only matches at the context
+# root, so nested host .pyc files (which embed absolute /home/<user> source
+# paths) were leaking into the image.
+**/__pycache__
+**/*.pyc
 
 # `data/*` (not `data/`) so the negations below can re-include specific
 # files. `!` cannot rescue a child of a fully-excluded directory.
