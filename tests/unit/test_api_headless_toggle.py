@@ -8,9 +8,15 @@ when Phase 1 introduces the middleware.
 
 from __future__ import annotations
 
-import pytest
+from typing import TYPE_CHECKING
 
-from src.api.main import create_app
+import pytest
+from fastapi import FastAPI
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+from src.api.main import SpaStaticFiles, create_app
 from tests.asserts import assert_ok, assert_status
 
 
@@ -44,6 +50,48 @@ class TestServeFrontendToggle:
         # is the contract this test pins.
         client = api_client_factory(app)
         assert client.get("/api/v1/categories").status_code in {200, 401}
+
+
+class TestSpaFallback:
+    """`SpaStaticFiles` — deep-link fallback for the bundled SPA.
+
+    Exercises the class against a temp dist dir (the real `frontend/dist` may
+    not be built in CI), mounted exactly as `create_app` mounts it.
+    """
+
+    @pytest.fixture
+    def spa_client(self, tmp_path: Path, api_client_factory):
+        (tmp_path / "index.html").write_text("<!doctype html><title>spa-index</title>")
+        (tmp_path / "asset.js").write_text("console.log('asset')")
+        app = FastAPI()
+        app.mount("/", SpaStaticFiles(directory=str(tmp_path), html=True), name="frontend")
+        return api_client_factory(app)
+
+    def test_real_file_is_served_as_is(self, spa_client) -> None:
+        resp = spa_client.get("/asset.js")
+        assert_ok(resp)
+        assert resp.text == "console.log('asset')"
+
+    def test_root_serves_index(self, spa_client) -> None:
+        resp = spa_client.get("/")
+        assert_ok(resp)
+        assert "spa-index" in resp.text
+
+    def test_unknown_path_falls_back_to_index(self, spa_client) -> None:
+        """Hard refresh on a client-side route must serve the SPA shell."""
+        resp = spa_client.get("/transactions")
+        assert_ok(resp)
+        assert "spa-index" in resp.text
+
+    def test_nested_unknown_path_falls_back_to_index(self, spa_client) -> None:
+        resp = spa_client.get("/transactions/trash")
+        assert_ok(resp)
+        assert "spa-index" in resp.text
+
+    def test_api_shaped_path_keeps_404(self, spa_client) -> None:
+        """A typo'd API endpoint must stay a 404, not become an HTML page."""
+        resp = spa_client.get("/api/v1/nonexistent")
+        assert_status(resp, 404)
 
 
 class TestCorsAllowedOrigins:

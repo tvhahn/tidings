@@ -15,6 +15,10 @@ dependencies = [
     "instructor",
     "python-dateutil",
     "fastapi",
+    # Imported directly by src/api/main.py (the SPA fallback catches the
+    # HTTPException that StaticFiles raises) — declared explicitly rather
+    # than relied on transitively via fastapi.
+    "starlette",
     # Imported directly in 20+ modules — declared explicitly rather than
     # relied on transitively via fastapi/openai.
     "pydantic",

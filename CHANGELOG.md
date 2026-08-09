@@ -26,6 +26,12 @@ This project follows [Semantic Versioning](https://semver.org/).
   social-share card is now an illustrated scene — an olive sapling and a
   notebook in morning light — instead of a text-only card.
 
+### Fixed
+
+- Self-hosted image: a hard refresh or direct link to a dashboard route
+  (`/transactions`, `/summary`, …) now serves the app instead of a 404. API
+  paths keep their JSON 404.
+
 ## [0.1.0] — 2026-07-21
 
 Initial open-source release.

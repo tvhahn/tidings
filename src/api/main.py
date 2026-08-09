@@ -17,6 +17,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.types import Scope
 
 from src.api.auth import bearer_auth_middleware
 from src.api.dependencies import shutdown_executor
@@ -62,6 +64,24 @@ class DecimalJSONResponse(JSONResponse):
 
     def render(self, content: Any) -> bytes:
         return json.dumps(content, cls=DecimalEncoder, ensure_ascii=False).encode("utf-8")
+
+
+class SpaStaticFiles(StaticFiles):
+    """StaticFiles with an SPA fallback for BrowserRouter deep links.
+
+    A hard refresh on a client-side route (/transactions, /summary, …) reaches
+    this mount with a path that has no file behind it — serve index.html and
+    let the router take over. `api/`-shaped paths keep their 404: an HTML page
+    is the wrong answer for a JSON consumer that typo'd an endpoint.
+    """
+
+    async def get_response(self, path: str, scope: Scope) -> Response:
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as exc:
+            if exc.status_code == 404 and not path.startswith("api/"):
+                return await super().get_response("index.html", scope)
+            raise
 
 
 def _serve_frontend() -> bool:
@@ -433,7 +453,7 @@ def create_app() -> FastAPI:
         # Static SPA mount must come AFTER API routers so /api/v1/* takes precedence.
         frontend_dist = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
         if frontend_dist.is_dir():
-            app.mount("/", StaticFiles(directory=str(frontend_dist), html=True), name="frontend")
+            app.mount("/", SpaStaticFiles(directory=str(frontend_dist), html=True), name="frontend")
 
     return app
 
