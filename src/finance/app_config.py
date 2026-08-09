@@ -75,6 +75,10 @@ class AppConfig(TypedDict, total=False):
     session_version: int  # bumped to invalidate every existing cookie
     session_signing_secret: str  # 256-bit hex; auto-generated on first read
     auth_bypass_for_dev: bool  # dev-only: skip cookie auth even when password is set
+    # Operator opt-in to stay passwordless: hides the dashboard's "No password
+    # set" banner while in TOFU mode. Auth behavior is unchanged — TOFU already
+    # allows everything; this only silences the reminder.
+    passwordless_acknowledged: bool
 
 
 class AppConfigWithFeatures(AppConfig, total=False):

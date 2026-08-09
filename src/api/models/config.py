@@ -53,6 +53,7 @@ class AppConfigResponse(BaseModel):
     s3_backup_prefix: str | None = None
     timezone: str
     auth_bypass_for_dev: bool = False
+    passwordless_acknowledged: bool = False
 
 
 class AppConfigUpdateRequest(BaseModel):
@@ -86,6 +87,7 @@ class AppConfigUpdateRequest(BaseModel):
     s3_backup_prefix: str | None = None
     timezone: str | None = None
     auth_bypass_for_dev: bool | None = None
+    passwordless_acknowledged: bool | None = None
 
 
 class TestOpenAIResponse(BaseModel):

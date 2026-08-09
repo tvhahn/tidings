@@ -17,6 +17,13 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Stay passwordless: a switch in Settings → Password (and a matching action on
+  the banner itself) hides the "No password set" reminder for instances that
+  run without a password on purpose. Auth behavior is unchanged; setting a
+  password later retires the switch.
+
 ### Changed
 
 - Marketing landing: the closing olive-tree photograph now reaches up to the

@@ -2241,6 +2241,11 @@ export interface components {
             insights_user_memo?: string | null;
             /** Openai Enabled */
             openai_enabled: boolean;
+            /**
+             * Passwordless Acknowledged
+             * @default false
+             */
+            passwordless_acknowledged: boolean;
             /** S3 Backup Bucket */
             s3_backup_bucket?: string | null;
             /**
@@ -2306,6 +2311,8 @@ export interface components {
             insights_reasoning_effort?: ("none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max") | null;
             /** Insights User Memo */
             insights_user_memo?: string | null;
+            /** Passwordless Acknowledged */
+            passwordless_acknowledged?: boolean | null;
             /** S3 Backup Bucket */
             s3_backup_bucket?: string | null;
             /** S3 Backup Enabled */

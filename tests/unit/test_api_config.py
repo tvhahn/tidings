@@ -86,6 +86,31 @@ class TestAiCategorizationFlag:
         assert resp.json()["ai_categorization_enabled"] is False
 
 
+class TestPasswordlessAcknowledgedFlag:
+    """Round-trip tests for the passwordless_acknowledged banner opt-out."""
+
+    def test_defaults_false(self, isolated_config: Path, api_client) -> None:
+        resp = api_client.get("/api/v1/config")
+        assert_ok(resp)
+        assert resp.json()["passwordless_acknowledged"] is False
+
+    def test_put_flips_flag_on_and_persists(self, isolated_config: Path, api_client) -> None:
+        resp = api_client.put("/api/v1/config", json={"passwordless_acknowledged": True})
+        assert_ok(resp)
+        assert resp.json()["passwordless_acknowledged"] is True
+
+        resp2 = api_client.get("/api/v1/config")
+        assert resp2.json()["passwordless_acknowledged"] is True
+        # Persisted to disk, not just cached
+        assert json.loads(isolated_config.read_text())["passwordless_acknowledged"] is True
+
+    def test_put_flips_flag_off(self, isolated_config: Path, api_client) -> None:
+        api_client.put("/api/v1/config", json={"passwordless_acknowledged": True})
+        resp = api_client.put("/api/v1/config", json={"passwordless_acknowledged": False})
+        assert_ok(resp)
+        assert resp.json()["passwordless_acknowledged"] is False
+
+
 class TestAiExtractionFlag:
     """Round-trip + derivation tests for the ai_extraction_enabled consent (L1).
 

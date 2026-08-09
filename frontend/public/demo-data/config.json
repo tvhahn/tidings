@@ -30,5 +30,6 @@
   "ai_receipt_parsing_enabled": false,
   "tax_tracking_enabled": true,
   "timezone": "America/Los_Angeles",
-  "auth_bypass_for_dev": false
+  "auth_bypass_for_dev": false,
+  "passwordless_acknowledged": false
 }

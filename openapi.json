@@ -498,6 +498,11 @@
             "title": "Openai Enabled",
             "type": "boolean"
           },
+          "passwordless_acknowledged": {
+            "default": false,
+            "title": "Passwordless Acknowledged",
+            "type": "boolean"
+          },
           "s3_backup_bucket": {
             "anyOf": [
               {
@@ -858,6 +863,17 @@
               }
             ],
             "title": "Insights User Memo"
+          },
+          "passwordless_acknowledged": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passwordless Acknowledged"
           },
           "s3_backup_bucket": {
             "anyOf": [

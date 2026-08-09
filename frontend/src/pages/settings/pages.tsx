@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { ActivityFeed } from "@/components/activity/ActivityFeed";
 import {
   AccessDevModeSection,
+  AccessPasswordlessSection,
   AccessPasswordSection,
   AccessSessionsSection,
 } from "@/components/settings/AccessSection";
@@ -100,6 +101,7 @@ export function PasswordPage() {
   return (
     <div className="space-y-8">
       <AccessPasswordSection />
+      <AccessPasswordlessSection />
       <AccessDevModeSection />
     </div>
   );

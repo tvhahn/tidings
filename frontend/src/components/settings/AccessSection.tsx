@@ -219,6 +219,50 @@ export function AccessSessionsSection() {
   );
 }
 
+export function AccessPasswordlessSection() {
+  const { authRequired } = useAuthRequired();
+  const { data: config } = useConfig();
+  const updateConfig = useUpdateConfig();
+
+  // Only meaningful while no password is set (TOFU mode); once a password
+  // exists the banner is gone and this choice is moot.
+  if (authRequired !== false) return null;
+
+  const acknowledged = config?.passwordless_acknowledged ?? false;
+
+  return (
+    <section className="space-y-3">
+      <SettingsSectionHeader
+        title="Stay passwordless"
+        infoHint={{
+          label: "About passwordless mode",
+          content: (
+            <p>
+              Without a password the dashboard shows a reminder banner. This switch hides it —
+              nothing else changes, and access stays open to anyone reaching this URL. Setting a
+              password later brings back the login screen and retires this switch.
+            </p>
+          ),
+        }}
+      />
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3">
+        <div className="space-y-0.5">
+          <p className="text-sm font-medium">Hide the no-password banner</p>
+          <p className="text-xs text-muted-foreground">
+            Anyone reaching this URL can read and change your data until a password is set.
+          </p>
+        </div>
+        <Switch
+          checked={acknowledged}
+          onCheckedChange={(next) => updateConfig.mutate({ passwordless_acknowledged: next })}
+          disabled={updateConfig.isPending}
+          aria-label="Hide the no-password banner"
+        />
+      </div>
+    </section>
+  );
+}
+
 export function AccessDevModeSection() {
   const { authRequired } = useAuthRequired();
   const { data: config } = useConfig();
