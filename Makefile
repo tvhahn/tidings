@@ -332,7 +332,7 @@ docs-screenshots:
 	  rm -f dist/$$STAMP; \
 	  exit $$STATUS
 
-## Render the ~13.6s silent product-tour video (frame-stepped Playwright capture
+## Render the ~15.5s silent looping product-tour video (frame-stepped Playwright capture
 ## of the static-fixture demo, encoded by ffmpeg). Writes docs/media/demo-tour.mp4 + .gif.
 demo-tour:
 	cd frontend && pnpm demo:build

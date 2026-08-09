@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * Render the ~15.1s silent product-tour video for the launch (Reddit / Twitter /
+ * Render the ~15.5s silent product-tour video for the launch (Reddit / Twitter /
  * README) from the built static-fixture demo. This is a FRAME-STEPPED capture —
  * NOT Playwright recordVideo / CDP screencast. Every frame is an individual
  * viewport screenshot: static beats capture once and file-copy the hold, scroll
@@ -8,17 +8,27 @@
  * The result is deterministic and re-renderable (the demo runs on a pinned
  * clock). ffmpeg then assembles the numbered PNGs into an mp4 + gif.
  *
- * Master timeline: 30 fps, frame_%04d.png in ONE directory, 453 frames total.
+ * Master timeline: 30 fps, frame_%04d.png in ONE directory, 465 frames total.
  *
  * A SYNTHETIC MOUSE CURSOR (a DOM overlay, not page.mouse) rides on top of the
- * capture: it is parked from frame 1, eases across to the sidebar nav button for
- * the next page, pulses a click ring, and then the beat hard-cuts. Navigation
- * itself stays `page.goto` — no frames are emitted between the pulse and the
- * next beat's first settled frame, so a cosmetic click + hard cut is
- * pixel-identical to a real click, WITHOUT the two costs of real clicking:
- * real pointer movement would trip Recharts tooltips / hover states, and a real
- * nav click would drop `?month=2026-02` (the demo clock is pinned to 2026-03, so
- * a bare /summary shows a partial March). The beat URLs are authoritative.
+ * capture: it eases across to whatever control drives the next beat — a sidebar
+ * nav button, or the Summary page's Trend/Flow segmented control — pulses a
+ * click ring, and then the beat hard-cuts. EVERY beat change is preceded by a
+ * visible click on the control that would actually cause it; there are no bare
+ * cuts. State changes themselves stay `page.goto` — no frames are emitted
+ * between the pulse and the next beat's first settled frame, so a cosmetic
+ * click + hard cut is pixel-identical to a real click, WITHOUT the two costs of
+ * real clicking: real pointer movement would trip Recharts tooltips / hover
+ * states, and a real nav click would drop `?month=2026-02` (the demo clock is
+ * pinned to 2026-03, so a bare /summary shows a partial March). The beat URLs
+ * are authoritative. Because the click is cosmetic, consecutive beats that
+ * share a control (the two Summary beats) must also share a scroll offset, or
+ * the control would slide out from under the parked cursor across the cut.
+ *
+ * The timeline is a SEAMLESS LOOP: it opens with the cursor already on the
+ * Journal nav button and closes by clicking that same button, so the gif's wrap
+ * from last frame to first is just one more click + hard cut. See
+ * LOOP_ANCHOR_NAV.
  *
  * The built demo serves marketing at / and the demo SPA under /demo/*, so every
  * capture URL carries the /demo prefix. The demo shell is a fixed app-shell
@@ -132,14 +142,24 @@ const CURSOR_RING_ID = "demo-tour-cursor-ring"
 const MOVE_FRAMES = 21
 const PULSE_FRAMES = 8
 
-/** Where the cursor is parked at frame 1 — over the journal content, out of the
- *  way of every captured surface. */
-const CURSOR_PARK = { x: 1180, y: 600 }
+/** The tour is a SEAMLESS LOOP: the last thing the cursor does is click the
+ *  "Journal" sidebar button, and frame 1 shows the cursor already resting on
+ *  that same button. Wrapping from the final frame to frame 1 is therefore
+ *  pixel-identical to every other transition in the tour — a click pulse
+ *  followed by a hard cut — so the gif reads as one continuous session going
+ *  round and round rather than a clip that restarts.
+ *
+ *  Frame 1's position can't be a hardcoded constant: it has to be wherever the
+ *  Journal nav button actually is. primeCursorAtNav() resolves it from the DOM
+ *  before any frame is emitted, and assertLoopCloses() checks at the end that
+ *  the final click landed back on it. */
+const LOOP_ANCHOR_NAV = "Journal"
 
 /** Authoritative cursor position, in CSS px, owned by Node. Every goto wipes the
- *  DOM, so prepBeat re-injects the overlay at these coordinates. */
-let cursorX = CURSOR_PARK.x
-let cursorY = CURSOR_PARK.y
+ *  DOM, so prepBeat re-injects the overlay at these coordinates. Seeded by
+ *  primeCursorAtNav() before the first beat. */
+let cursorX = 0
+let cursorY = 0
 
 /** Inject (or re-position, if already present) the cursor overlay. Idempotent —
  *  safe to call after every goto. All styling is inline: the kill-switch nukes
@@ -266,6 +286,39 @@ async function clickNav(page: Page, label: string): Promise<void> {
   await clickPulse(page, PULSE_FRAMES)
 }
 
+/** Viewport centre of a segment inside a `SegmentedControl` (role="group" with
+ *  the control's aria-label), resolved at runtime. Same contract as
+ *  navButtonCenter: exactly one match or throw. */
+async function segmentCenter(
+  page: Page,
+  groupLabel: string,
+  label: string
+): Promise<{ x: number; y: number }> {
+  const button = page
+    .getByRole("group", { name: groupLabel, exact: true })
+    .getByRole("button", { name: label, exact: true })
+  const count = await button.count()
+  if (count !== 1) {
+    throw new Error(
+      `Segment "${label}" in control "${groupLabel}" matched ${count} elements (expected exactly 1)`
+    )
+  }
+  const box = await button.boundingBox()
+  if (!box) throw new Error(`Segment "${label}" in control "${groupLabel}" has no bounding box`)
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+}
+
+/** Same shape as clickNav, but for an in-page segmented control (the Summary
+ *  Trend/Flow toggle). Cosmetic like every other click here — the following
+ *  beat's URL is what actually changes the view. Callers MUST keep the source
+ *  and destination beats on the same scroll offset so the control does not
+ *  shift under the parked cursor across the hard cut. [MOVE + PULSE frames] */
+async function clickSegment(page: Page, groupLabel: string, label: string): Promise<void> {
+  const { x, y } = await segmentCenter(page, groupLabel, label)
+  await moveCursorTo(page, x, y, MOVE_FRAMES)
+  await clickPulse(page, PULSE_FRAMES)
+}
+
 async function waitLoadersGone(page: Page): Promise<void> {
   await page
     .waitForFunction(
@@ -308,6 +361,39 @@ async function prepBeat(
   await hideBanner(page)
   await page.waitForTimeout(500)
   await setScroll(page, offsetY)
+}
+
+/** Seed the loop anchor: load `path`, resolve the nav button, and park the
+ *  cursor there. Emits NO frames — this runs before the timeline starts, so
+ *  beat 1's very first frame already has the cursor on the button the tour
+ *  ends by clicking. Returns the anchor for the closing assertion.
+ *
+ *  Goes through the full prepBeat rather than a bare goto: the "Demo mode"
+ *  banner is 39px tall and every captured frame has it hidden, so measuring on
+ *  an unprepped page would put the anchor 39px low. */
+async function primeCursorAtNav(
+  page: Page,
+  path: string,
+  waitFor: string | null,
+  label: string
+): Promise<{ x: number; y: number }> {
+  await prepBeat(page, path, waitFor, 0)
+  const anchor = await navButtonCenter(page, label)
+  cursorX = anchor.x
+  cursorY = anchor.y
+  return anchor
+}
+
+/** The loop contract: the final click must land exactly where frame 1 starts,
+ *  or the wrap will visibly jump. Sub-pixel tolerance covers float easing. */
+function assertLoopCloses(anchor: { x: number; y: number }): void {
+  const drift = Math.hypot(cursorX - anchor.x, cursorY - anchor.y)
+  if (drift > 0.5) {
+    throw new Error(
+      `Loop does not close: cursor ends at (${cursorX.toFixed(1)}, ${cursorY.toFixed(1)}) but ` +
+        `frame 1 starts at (${anchor.x.toFixed(1)}, ${anchor.y.toFixed(1)}) — drift ${drift.toFixed(1)}px`
+    )
+  }
 }
 
 /** A static beat: capture the (optionally offset) view once, copy the rest. */
@@ -440,11 +526,21 @@ async function main(): Promise<void> {
   const page = await context.newPage()
 
   try {
+    // Park the cursor on the Journal nav button BEFORE frame 1 — this is the
+    // loop seam (see LOOP_ANCHOR_NAV). No frames emitted.
+    const loopAnchor = await primeCursorAtNav(
+      page,
+      "/?month=2026-02",
+      ".month-transition",
+      LOOP_ANCHOR_NAV
+    )
+
     // Beat 1 — Journal (February, full month). Scroller is <main>; land the
     // scroll on a day-card boundary (card top ≈ y1163 sits ~23px below the frame
-    // top at y1140), covering ~2–3 day-cards. The cursor sits parked at
-    // CURSOR_PARK throughout. The terminal hold is trimmed 18 → 4 because the
-    // cursor move that follows now carries the beat's tail. [24 + 78 + 4 = 106]
+    // top at y1140), covering ~2–3 day-cards. The cursor rests on the (active)
+    // Journal nav button throughout — the sidebar does not scroll with <main>.
+    // The terminal hold is trimmed 18 → 4 because the cursor move that follows
+    // now carries the beat's tail. [24 + 78 + 4 = 106]
     await scrollBeat(page, "/?month=2026-02", ".month-transition", {
       fromY: 0,
       toY: 1140,
@@ -455,17 +551,23 @@ async function main(): Promise<void> {
     // Journal → Summary. [21 + 8 = 29]
     await clickNav(page, "Summary")
 
-    // Beat 2 — Summary, trend. Bar chart (isAnimationActive=false) sits fully
-    // in the first viewport (top 311 / bottom 661), so no offset. The cursor
-    // rests on the (now active) Summary nav button. [72]
-    await staticBeat(page, "/summary?month=2026-02", ".recharts-surface", 0, 72)
+    // Beat 2 — Summary, trend. Offset 24 (the <main> inner's top padding)
+    // brings the "Summary" title flush to the top; the bar chart
+    // (isAnimationActive=false) still sits fully in the viewport (top 287 /
+    // bottom 637). Beat 3 uses the SAME offset, so the trend → flow cut swaps
+    // only the visualization — the header, the toggle, and the cursor resting
+    // on it do not shift. Hold trimmed 72 → 43 to pay for the toggle click,
+    // which carries the beat's tail. [43]
+    await staticBeat(page, "/summary?month=2026-02", ".recharts-surface", 24, 43)
+    // Trend → flow, on the segmented control rather than the sidebar: a real
+    // user has to travel to the toggle and press it, so the cursor does too.
+    // [21 + 8 = 29]
+    await clickSegment(page, "Visualization", "Flow")
 
-    // Beat 3 — Summary, flow. The 520px sankey ends 20px below the fold; the
-    // <main> inner has 24px top padding, so scrolling exactly 24 brings the
-    // "Summary" title flush to the top AND fully reveals the sankey. Trend →
-    // flow is deliberately a bare hard cut with NO cursor move: the view toggle
-    // is not a nav click, and Summary stays the active nav item on both. Hold
-    // trimmed 72 → 58 to pay for the transition that follows. [58]
+    // Beat 3 — Summary, flow. Same offset 24 as beat 2, which also fully
+    // reveals the 520px sankey (it ends 20px below the fold at offset 0). The
+    // cursor stays on the Flow segment it just pressed — now the active one.
+    // Hold trimmed 72 → 58 to pay for the transition that follows. [58]
     await staticBeat(page, "/summary?view=flow&month=2026-02", 'svg[height="520"] path', 24, 58)
     // Summary → Budgets. [21 + 8 = 29]
     await clickNav(page, "Budgets")
@@ -481,15 +583,21 @@ async function main(): Promise<void> {
     // Beat 5 — Insights (February briefing renders — .prose gates on it). Content
     // exceeds the viewport by 447px, so hold → eased scroll to the bottom →
     // hold. The cursor stays parked on the Insights nav button — the sidebar
-    // does not scroll with <main>. [30 + 45 + 21 = 96]
+    // does not scroll with <main>. Terminal hold trimmed 21 → 4, same reason as
+    // beat 1: the closing cursor move carries the tail. [30 + 45 + 4 = 79]
     await scrollBeat(page, "/insights?month=2026-02", ".prose", {
       fromY: 0,
       toY: 447,
       holdStart: 30,
       scrollCount: 45,
-      holdEnd: 21,
+      holdEnd: 4,
     })
-    // Total: 106 + 29 + 72 + 58 + 29 + 34 + 29 + 96 = 453 frames ≈ 15.1s.
+    // Insights → Journal: closes the loop. The last frame leaves the cursor on
+    // the Journal nav button, exactly where frame 1 has it, so the wrap is just
+    // another click + hard cut. [21 + 8 = 29]
+    await clickNav(page, LOOP_ANCHOR_NAV)
+    assertLoopCloses(loopAnchor)
+    // Total: 106 + 29 + 43 + 29 + 58 + 29 + 34 + 29 + 79 + 29 = 465 frames ≈ 15.5s.
   } finally {
     await browser.close()
   }
