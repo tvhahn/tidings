@@ -5,9 +5,6 @@ allowBuilds:
 
 # vite is transitive-only here (via Astro); Dependabot can't bump transitives
 # in pnpm, so security floors must be pinned as overrides.
-# js-yaml is deliberately NOT floored to 4.1.2 (merge-key DoS advisory):
-# 4.1.2 drops the ESM default export that @astrojs/markdown-remark imports,
-# breaking `astro build`. Build-time-only exposure; revisit when Astro adapts.
 overrides:
   vite: '>=7.3.5'
   esbuild: '>=0.28.1'
@@ -17,3 +14,7 @@ overrides:
   dompurify: '>=3.4.12'
   svgo: '>=4.0.2'
   "@babel/core": '>=7.29.6 <8'
+  js-yaml: '>=4.3.1 <5'
+  nanoid@3: '>=3.3.17 <4'
+  nanoid@5: '>=5.1.16 <6'
+  postcss: '>=8.5.23 <9'
