@@ -1,6 +1,6 @@
 ---
 name: agents-md-conformance
-description: Audit whether the codebase obeys the directives declared in its own CLAUDE.md / AGENTS.md / nested context files. Extracts operational rules from context prose, finds code that violates them with file:line evidence, classifies each violation as auto-fixable or human-judgment, and optionally applies a narrow allowlist of doc-only fixes. Complementary to /agent-readiness-audit (which scores whether the context files are good); this skill scores whether the code follows them. Invoke when the user mentions "conformance", "AGENTS.md compliance", "do we follow our own rules", or "Basis cleanup".
+description: Audit whether the codebase obeys the rules declared in its own CLAUDE.md / AGENTS.md / nested context files — finds violations with file:line evidence, optionally applies a narrow allowlist of doc-only fixes. Invoke when the user mentions "conformance", "AGENTS.md compliance", "do we follow our own rules", or "Basis cleanup".
 disable-model-invocation: true
 argument-hint: "[--apply] [output-dir]"
 ---
@@ -9,7 +9,7 @@ argument-hint: "[--apply] [output-dir]"
 
 > **Canonical source:** `~/dotfiles/claude/skills-optional/agents-md-conformance/` — this copy is a published snapshot (synced 2026-08-06). Make edits there and re-sync; edits made here will be overwritten.
 
-Find code that violates the rules declared in CLAUDE.md / AGENTS.md / nested context files. **Read-only on source code by default.** With the optional `--apply` flag, applies a narrow allowlist of doc-only fixes (frontmatter, structural sections, broken refs) — never source code.
+Find code that violates the rules declared in CLAUDE.md / AGENTS.md / nested context files. Each violation is classified auto-fixable or human-judgment. **Read-only on source code by default.** With the optional `--apply` flag, applies a narrow allowlist of doc-only fixes (frontmatter, structural sections, broken refs) — never source code. Complementary to `/agent-readiness-audit` (which scores whether the context files are good); this skill scores whether the code follows them.
 
 ## What this is, what it isn't
 

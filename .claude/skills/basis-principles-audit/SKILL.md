@@ -1,6 +1,6 @@
 ---
 name: basis-principles-audit
-description: Audit a codebase or notes corpus (e.g., an Obsidian vault) against the five Basis principles for agent-native architecture — canonicality, localization, verifiability, interoperability, default-no. Produces a 5-row scorecard with file:line evidence plus tiered recommendations. Read-only. Invoke for a principles read on whether a repo is structured for agents, or when the user mentions the Basis essay, "agent-native codebase", "agent-ready", or agent readiness.
+description: Audit a codebase or notes corpus (e.g., an Obsidian vault) against the five Basis principles for agent-native architecture — canonicality, localization, verifiability, interoperability, default-no. Produces a 5-row scorecard with file:line evidence plus tiered recommendations. Read-only. Invoke for a principles read on whether a repo is agent-ready, or on mentions of the Basis essay or "agent-native codebase".
 disable-model-invocation: true
 argument-hint: "[output-dir]"
 ---
