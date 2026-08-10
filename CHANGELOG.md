@@ -19,6 +19,10 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Install as an app: the self-hosted dashboard now ships a web app manifest and
+  home-screen icons, so browsers offer install / add to home screen when the
+  instance is served over HTTPS. The marketing landing and demo surfaces are
+  deliberately not installable and are unchanged.
 - Stay passwordless: a switch in Settings → Password (and a matching action on
   the banner itself) hides the "No password set" reminder for instances that
   run without a password on purpose. Auth behavior is unchanged; setting a

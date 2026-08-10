@@ -73,9 +73,18 @@ function devEntrySwap(command: "serve" | "build", mode: string): Plugin {
           // default via data-surface="demo"; the real app surface drops the
           // marker entirely so it keeps its "system" theme default.
           const swapped = html.replace("/src/main-marketing.tsx", "/src/main.tsx");
-          return mode === "demo"
-            ? swapped.replace(' data-surface="marketing"', ' data-surface="demo"')
-            : swapped.replace(' data-surface="marketing"', "");
+          if (mode === "demo")
+            return swapped.replace(' data-surface="marketing"', ' data-surface="demo"');
+          // PWA install tags for the self-hosted app shell only. The marketing
+          // and demo surfaces must never be installable, so these tags can't
+          // live statically in index.html (same reasoning as marketingHtmlMeta).
+          const pwaTags = [
+            '<link rel="manifest" href="/manifest.webmanifest" />',
+            '<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />',
+          ].join("\n    ");
+          return swapped
+            .replace(' data-surface="marketing"', "")
+            .replace("</head>", `    ${pwaTags}\n  </head>`);
         }
         return html;
       },
