@@ -44,7 +44,7 @@ dependencies = [
 # Prompt evaluation harness — dev-only, see dev/eval_harness/.
 # Install with: uv sync --extra eval
 eval = [
-    "streamlit>=1.60.0",
+    "streamlit>=1.61.1",
     "streamlit-sortables>=0.3.1",
 ]
 
