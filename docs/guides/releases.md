@@ -155,7 +155,7 @@ Two workflows publish images and releases. They split work by trigger so they ne
 ### Triggers
 
 - [`.github/workflows/release.yml`](../../.github/workflows/release.yml) fires on `git push origin v*`. Builds + pushes versioned images, then creates the GitHub Release.
-- [`.github/workflows/docker-build.yml`](../../.github/workflows/docker-build.yml) fires on push to `main` and on PRs. On main it pushes `:main`; on PRs it builds without pushing (compile-check).
+- [`.github/workflows/docker-build.yml`](../../.github/workflows/docker-build.yml) fires via `workflow_run` when a CI run on `main` completes **successfully**, and on PRs. On the CI-gated path it builds the exact commit CI validated and pushes `:main`; on PRs it builds without pushing (compile-check). A red CI run publishes nothing — `:main` only ever contains commits that passed CI.
 
 ### What gets built and pushed
 
@@ -170,7 +170,7 @@ Tag scheme:
 | Trigger | Tags written | Workflow |
 |---------|--------------|----------|
 | `git push origin v0.2.3` | `:v0.2.3`, `:latest` | `release.yml` |
-| `git push origin main` | `:main` | `docker-build.yml` |
+| `git push origin main` (after CI passes) | `:main` | `docker-build.yml` |
 | PR (open or update) | none — compile-check only | `docker-build.yml` |
 
 **Convention.** `:latest` always tracks the most recent **released** version, not trunk. `:main` is the trunk preview. Self-hosters who pin to `:latest` get stability; those who want bleeding-edge use `:main`; production deployments should pin a specific `:vX.Y.Z`.

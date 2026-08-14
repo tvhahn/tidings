@@ -1,15 +1,21 @@
 name: Docker multi-arch build
 
-# On push to main: build the self-hoster images for linux/amd64 +
-# linux/arm64 and push `:main` to GHCR. On PRs: build only (compile-check)
-# so contributors' forks don't need GHCR write access.
+# Builds the self-hoster images for linux/amd64 + linux/arm64.
+#
+# `:main` is CI-gated: a push to main runs ci.yml, and this workflow fires
+# via `workflow_run` only after that CI run succeeds — so a red trunk commit
+# never publishes to GHCR. This matters because the prod host auto-pulls
+# `:main` on a timer. On PRs: build only (compile-check) so contributors'
+# forks don't need GHCR write access.
 #
 # Coordinates with release.yml: this workflow owns `:main`; release.yml
 # owns `:vX.Y.Z` and `:latest`. No race on `:latest`. See
 # docs/guides/releases.md → "How the release workflow works".
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
   pull_request:
     branches: [main]
@@ -24,8 +30,16 @@ permissions:
   contents: read
   packages: write
 
+# Serialize `:main` publishes so an older CI run finishing late can't
+# overwrite a newer image; superseded queued builds are cancelled.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_branch || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   multiarch-build:
+    # workflow_run fires on failure/cancellation too — publish only on green CI.
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -40,6 +54,10 @@ jobs:
     name: build (${{ matrix.name }})
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Build exactly the commit CI validated, not whatever main has moved
+          # to since (empty ref ⇒ the event's default, used on the PR path).
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || '' }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
@@ -48,7 +66,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to GHCR
-        if: github.event_name == 'push'
+        if: github.event_name == 'workflow_run'
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
@@ -62,6 +80,7 @@ jobs:
           images: ${{ matrix.image }}
           tags: |
             type=ref,event=branch
+            type=raw,value=main,enable=${{ github.event_name == 'workflow_run' }}
 
       - name: Build ${{ matrix.name }} (amd64 + arm64)
         uses: docker/build-push-action@v7
@@ -69,9 +88,14 @@ jobs:
           context: .
           file: ${{ matrix.dockerfile }}
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name == 'push' }}
+          push: ${{ github.event_name == 'workflow_run' }}
           provenance: false
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          # The trailing revision line overrides metadata-action's value (last
+          # occurrence wins): on workflow_run, github.sha is the default-branch
+          # head at event time, which can drift from the commit CI validated.
+          labels: |
+            ${{ steps.meta.outputs.labels }}
+            org.opencontainers.image.revision=${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}

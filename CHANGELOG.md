@@ -30,6 +30,10 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- The `:main` container images now publish only after the commit passes CI.
+  Previously every push to trunk published immediately, tests or not; if you
+  track `:main`, a red build no longer reaches you. Release tags (`:latest`,
+  `:vX.Y.Z`) are unchanged.
 - Marketing landing: the closing olive-tree photograph now reaches up to the
   FAQ's last question and stays put when an answer opens (the text slides over
   the scene instead of pushing it), the demo subtitle says the demo runs in
