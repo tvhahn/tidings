@@ -165,9 +165,10 @@ def build_manual_transaction_data(
     ``YYYY-MM-DD``.
     """
     from src.finance.app_config import get_config
+    from src.finance.user_mapping import local_forwarded_to
 
     config = get_config()
-    forwarded_to = f"{config.get('user_id', 'default')}@local"
+    forwarded_to = local_forwarded_to()
 
     # Auto-categorize via overrides if category not provided.
     resolved_category = category

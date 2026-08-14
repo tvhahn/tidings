@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any
 
 from src.finance.app_timezone import TZ_SUFFIX_RE
 from src.finance.transaction_hash import generate_transaction_hash
+from src.finance.user_mapping import LOCAL_FORWARDED_TO_SUFFIX
 
 if TYPE_CHECKING:
     from src.finance.protocols import ITransactionsDB
@@ -37,9 +38,9 @@ TRANSACTIONS_FILENAME = "transactions.csv"
 
 # Plain-CSV imports (from the Search-tab export) have no ForwardedTo column —
 # we need a stable fallback so dedup against the current user's partition
-# works. Matches the `{user_id}@local` convention used by
-# src/api/routers/ingestion.py#add_manual_transaction.
-DEFAULT_LOCAL_FORWARDED_TO_SUFFIX = "@local"
+# works. Re-exported from user_mapping, which owns the `{user_id}@local`
+# convention shared with src/api/routers/ingestion.py#add_manual_transaction.
+DEFAULT_LOCAL_FORWARDED_TO_SUFFIX = LOCAL_FORWARDED_TO_SUFFIX
 
 
 # ---------------------------------------------------------------------------

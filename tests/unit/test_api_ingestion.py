@@ -82,6 +82,23 @@ class TestAddManualTransaction:
         # Override lookup must NOT have been consulted when category is supplied.
         override_svc.lookup_category.assert_not_called()
 
+    @patch("src.finance.user_mapping.user_id_cache", {"forwarded@bank.com": "alice"})
+    @patch("src.finance.app_config.get_config")
+    def test_write_partition_is_enumerated_by_readers(self, mock_get_config: MagicMock) -> None:
+        """The partition manual adds write to must be one the read paths query.
+
+        Regression: manual rows were keyed to ``{user_id}@local`` while every
+        read path enumerated only the user_mappings.csv addresses, so a
+        hand-entered transaction was written successfully and then never
+        rendered anywhere in the UI.
+        """
+        from src.finance.user_mapping import get_forwarded_to_addresses, local_forwarded_to
+
+        mock_get_config.return_value = {"user_id": "alice"}
+
+        assert local_forwarded_to() == "alice@local"
+        assert local_forwarded_to() in get_forwarded_to_addresses()
+
     @patch("src.api.serializers.get_override_context")
     @patch("src.finance.app_config.get_config")
     @pytest.mark.parametrize("mock_run_sync", ["ingestion"], indirect=True)

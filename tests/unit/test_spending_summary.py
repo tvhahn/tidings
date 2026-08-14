@@ -46,10 +46,29 @@ def _make_summary(dyn_resource: MagicMock | None = None) -> SpendingSummary:
 
 
 class TestGetForwardedToAddresses:
+    @patch("src.finance.user_mapping.local_forwarded_to", return_value="tester@local")
     @patch("src.finance.user_mapping.user_id_cache", {"a@b.com": "user1", "c@d.com": "user2"})
-    def test_returns_all_keys(self):
+    def test_returns_all_keys(self, _mock_local: MagicMock) -> None:
         result = get_forwarded_to_addresses()
-        assert set(result) == {"a@b.com", "c@d.com"}
+        assert set(result) == {"a@b.com", "c@d.com", "tester@local"}
+
+    @patch("src.finance.user_mapping.local_forwarded_to", return_value="tester@local")
+    @patch("src.finance.user_mapping.user_id_cache", {"a@b.com": "user1", "c@d.com": "user2"})
+    def test_includes_local_partition_last(self, _mock_local: MagicMock) -> None:
+        """Manually-added and CSV-imported rows live in `{user_id}@local`.
+
+        Readers must enumerate it or those rows are written to a partition
+        nothing queries and never render. It goes last so callers taking the
+        first entry as the primary write target keep their mapped address.
+        """
+        result = get_forwarded_to_addresses()
+        assert result[-1] == "tester@local"
+        assert result[0] == "a@b.com"
+
+    @patch("src.finance.user_mapping.local_forwarded_to", return_value="a@b.com")
+    @patch("src.finance.user_mapping.user_id_cache", {"a@b.com": "user1"})
+    def test_local_partition_not_duplicated_when_mapped(self, _mock_local: MagicMock) -> None:
+        assert get_forwarded_to_addresses() == ["a@b.com"]
 
     @patch("src.finance.user_mapping.load_user_mappings")
     def test_loads_mappings_when_empty(self, mock_load: MagicMock) -> None:

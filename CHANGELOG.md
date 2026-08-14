@@ -39,6 +39,11 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Manually added transactions and plain-CSV imports now appear in the
+  dashboard. They were stored under a separate identifier that no read path
+  looked at, so a hand-entered transaction saved without error and then showed
+  up nowhere. Rows already entered surface on upgrade — no re-entry needed, and
+  month totals that were missing them will rise accordingly.
 - Self-hosted image: a hard refresh or direct link to a dashboard route
   (`/transactions`, `/summary`, …) now serves the app instead of a 404. API
   paths keep their JSON 404.
