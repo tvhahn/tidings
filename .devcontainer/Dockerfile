@@ -144,6 +144,11 @@ RUN chmod +x /usr/local/bin/c1
 # Set up non-root user
 USER node
 
+# Pre-seed GitHub's SSH host keys so the first fetch/push over SSH in a fresh
+# container never hits an interactive host-key prompt
+RUN mkdir -p ~/.ssh && chmod 700 ~/.ssh && \
+    ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+
 # Install Python 3.12 via uv (not available in Debian bookworm apt)
 RUN uv python install 3.12
 

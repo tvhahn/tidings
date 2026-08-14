@@ -14,6 +14,10 @@ services:
       - ..:/workspace:cached
       - claude-code-bashhistory:/commandhistory
       - claude-code-config:/home/node/.claude
+      # Persist the GitHub CLI login (`gh auth login`) across container
+      # rebuilds — gh is the credential path for PR/issue work inside the
+      # container; without this the login lives in the container layer only.
+      - gh-config:/home/node/.config/gh
       - ${SSH_AUTH_SOCK:-/dev/null}:/tmp/ssh-auth-host.sock
       # Maintainer-only host mounts (AWS creds + Docker daemon access) live in
       # .devcontainer/docker-compose.override.yml (gitignored; copy from .example).
@@ -52,6 +56,7 @@ services:
 volumes:
   claude-code-bashhistory:
   claude-code-config:
+  gh-config:
 
 networks:
   tidings-network:
