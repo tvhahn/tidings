@@ -24,6 +24,17 @@ services:
     # build:
     #   args:
     #     INSTALL_AI_CLIS: "true"
+    #
+    # Caveat: this build re-tags the registry image name locally, so a later
+    # `docker compose pull` replaces it with the CLI-less published image.
+    # If this host auto-pulls a mutable tag (cron/systemd updater), layer the
+    # CLIs on the published image instead — see docker/ai_clis/Dockerfile —
+    # and give the build its own local tag:
+    #
+    # image: tidings-ai:main
+    # build:
+    #   context: docker/ai_clis
+    #   dockerfile: Dockerfile
 
     # --- Persist CLI logins ---
     # The CLIs store their credentials in the container home directory

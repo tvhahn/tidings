@@ -19,6 +19,13 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Keep the agent CLIs through image updates: a derived Dockerfile
+  (`docker/ai_clis/Dockerfile`) layers the Claude Code, Codex, and Gemini CLIs
+  onto the published image under a local tag, so hosts that auto-pull a moving
+  tag no longer lose the CLI providers on the next update. The
+  `INSTALL_AI_CLIS` full-rebuild path is unchanged; the override example
+  explains when each applies. Local builds also stop uploading `node_modules`
+  and `.env` files into the Docker build context.
 - Install as an app: the self-hosted dashboard now ships a web app manifest and
   home-screen icons, so browsers offer install / add to home screen when the
   instance is served over HTTPS. The marketing landing and demo surfaces are

@@ -35,3 +35,10 @@ LICENSE
 docker/email_parsing/src/
 docker/email_parsing/key.txt
 docker/email_parsing/pyproject.toml
+
+# Local-build hygiene: keep host dependency installs and secrets out of the
+# context. Without these, Stage 1's `COPY frontend/ ./` overlays the host's
+# node_modules onto the clean --frozen-lockfile install layer.
+**/node_modules
+frontend/dist/
+.env*
