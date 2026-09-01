@@ -35,7 +35,7 @@ dependencies = [
     "requests",
     # src/api/dependencies.py loads data/.env at import time — previously only
     # a transitive dep of uvicorn[standard].
-    "python-dotenv>=1.2.2",
+    "python-dotenv>=1.2.3",
     "twilio",
     "argon2-cffi",
 ]
