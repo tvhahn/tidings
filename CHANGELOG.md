@@ -43,6 +43,16 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Statement imports now categorize the way emailed transactions do. A row whose
+  merchant you had already filed still landed as miscellaneous, so a statement
+  cost you a manual pass over every line. Two things caused it: the review
+  screen resolved your rules without aliases, so the raw bank description never
+  matched the merchant name your email alerts use; and the import itself wrote
+  whatever the review screen had suggested, with no second look. The review
+  screen now suggests through the full resolver, and a row still uncategorized
+  at import runs the same tiers an email does, AI included when you have it
+  enabled. Statement rows also honour auto-ignore rules at write time, as email
+  rows already did. Transactions imported before this are untouched.
 - Manually added transactions and plain-CSV imports now appear in the
   dashboard. They were stored under a separate identifier that no read path
   looked at, so a hand-entered transaction saved without error and then showed

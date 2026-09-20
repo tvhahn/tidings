@@ -479,7 +479,7 @@ Description cleanup (`clean_statement_description()`) strips known prefixes like
 1. **Tier 1 (Exact):** Same date + same amount (±$0.01) + compatible type → auto-matched
 2. **Tier 2 (Suspected Duplicate):** Cross-type match (e.g., withdrawal vs e-transfer) + same direction → flagged for review
 3. **Tier 3 (Fuzzy):** Date ±2 days + same amount + compatible type → flagged as ambiguous
-4. **Tier 4 (New):** No match found → offered for import with category suggestion from overrides
+4. **Tier 4 (New):** No match found → offered for import with a category suggested by the shared tiered resolver (exact / normalized / alias, then embedding similarity), so the review screen shows what the import will write
 
 Type mapping: statement `withdrawal` matches DB `purchase`, `withdrawal`, `preauth`; statement `deposit` matches DB `e-transfer`, `deposit`. A direction filter (`_same_direction()`) rejects cross-type matches when transactions flow in opposite directions. Used-key tracking prevents double-matching.
 
@@ -490,7 +490,7 @@ Statement-imported transactions use a subset of the Transactions schema:
 - **DateFileName:** `YYYY.MM.DD_00.00_stmt_RBC_<hash8>.pdf` — synthetic sort key with `stmt_` prefix
 - **Date:** `MM/DD/YYYY 00:00 PST` — synthetic format for compatibility
 - **StatementSource:** e.g., `RBC_Chequing_2026-01` — identifies the source statement
-- **CategoryAudit:** `{"reviewed_at": "<ISO>", "source": "statement_import"}`
+- **CategoryAudit:** `{"reviewed_at": "<ISO>", "source": "statement_import"}` for a row the import preview already categorized, or `"manual"` when the user edited the category there. A row still carrying the `miscellaneous` fallback is re-run through `categorize_transactions()` at import time (the same tiered resolver the email pipeline uses), so it carries that resolver's audit instead — `override` with `tier`/`matched_rule`/`confidence`, or `ai`/`ai_fallback`. `StatementSource`, not the audit `source`, is what marks a row as statement-derived.
 - **TransactionHash:** Uses raw description (not cleaned) for hash stability. When multiple identical transactions occur on the same day (same date, amount, description, type), an occurrence counter suffix (`|1`, `|2`, ...) is appended before re-hashing to produce distinct `TransactionHash` and `DateFileName` values. Occurrence 0 (the first) is unchanged for backward compatibility.
 
 Email-specific fields (`FromName`, `FromEmail`, `ToName`, `ToEmail`, `Subject`, `Body`, `FileName`) are omitted.

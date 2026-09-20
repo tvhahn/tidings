@@ -7,7 +7,7 @@ from typing import Any
 
 from src.finance.category_resolver import resolve_override
 from src.finance.category_suggest import CategorySuggester
-from src.finance.config_loader import get_category_overrides, get_override_context
+from src.finance.config_loader import get_override_context
 from src.finance.embedding_cache import EmbeddingCache
 from src.finance.openai_client import OpenAIClient
 from src.finance.protocols import ISpendingSummary
@@ -194,9 +194,9 @@ def reconcile(
         db_items.extend(spending_summary.query_month(month))
 
     # Build embedding-based suggester if OpenAI client is available
-    overrides = get_category_overrides()
+    overrides, aliases = get_override_context()
     suggester = CategorySuggester(openai_client, embedding_cache=embedding_cache)
-    suggester.build_corpus(overrides, db_items)
+    suggester.build_corpus(overrides, db_items, aliases=aliases)
 
     # Compute the expected StatementSource for this statement
     institution = metadata.get("institution", "")

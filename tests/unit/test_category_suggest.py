@@ -481,3 +481,39 @@ class TestCacheIntegration:
 
         assert len(suggester._corpus_vectors) == 1
         client.embed.assert_called_once()
+
+
+class TestAliasTier:
+    """`build_corpus(aliases=...)` lets Tier 2 fire, matching `categorize_transactions()`.
+
+    Without it the suggester resolved Tiers 0/1 only, so a raw bank description
+    an alias exists to canonicalize fell through to the embedding tier (or to
+    `miscellaneous` with no client) — see issue #83.
+    """
+
+    def test_alias_resolves_without_an_embedding_client(self):
+        suggester = CategorySuggester(None)
+        suggester.build_corpus(
+            {"Northwind Energy": "utilities"},
+            [],
+            aliases={"billpayment westlandutilityco": "Northwind Energy"},
+        )
+
+        assert suggester.suggest("BillPayment WestlandUtilityCo") == "utilities"
+
+    def test_omitting_aliases_keeps_the_previous_behavior(self):
+        suggester = CategorySuggester(None)
+        suggester.build_corpus({"Northwind Energy": "utilities"}, [])
+
+        assert suggester.suggest("BillPayment WestlandUtilityCo") == "miscellaneous"
+
+    def test_alias_does_not_shadow_an_exact_override(self):
+        """Tier 0 still wins — an alias never redirects a merchant that matches outright."""
+        suggester = CategorySuggester(None)
+        suggester.build_corpus(
+            {"Northwind Energy": "utilities", "Walmart": "groceries"},
+            [],
+            aliases={"walmart": "Northwind Energy"},
+        )
+
+        assert suggester.suggest("Walmart") == "groceries"
