@@ -255,9 +255,16 @@ class TransactionsDBLocal(TransactionsDBBase):
             conn.close()
 
     def add_statement_transaction(
-        self, txn_data: dict[str, Any], audit_source: str = "statement_import"
+        self,
+        txn_data: dict[str, Any],
+        audit_source: str = "statement_import",
+        category_audit: dict[str, Any] | None = None,
     ) -> str | bool | None:
-        """Add a statement-imported transaction. Returns DateFileName if written, False if dup, None if invalid."""
+        """Add a statement-imported transaction. Returns DateFileName if written, False if dup, None if invalid.
+
+        When `category_audit` is given, its fields are persisted in place of a
+        bare `build_audit(audit_source)` — see the base class docstring.
+        """
         stmt_required = [
             "forwarded_to",
             "date",
@@ -288,15 +295,21 @@ class TransactionsDBLocal(TransactionsDBBase):
             date_file_name, synthetic_date = self._synthesize_statement_keys(txn_data, transaction_hash)
 
             category = self._normalize_category(txn_data)
-            reviewed_at, source, _, _, _, audit_json = _split_audit(build_audit(audit_source))
+            audit = category_audit if category_audit is not None else build_audit(audit_source)
+            reviewed_at, source, matched_rule, confidence, prev_cat, audit_json = _split_audit(audit)
+            # A merchant auto-ignore rule (or an explicit upstream flag) makes the
+            # row arrive Ignored — same write-time behavior as add_transaction.
+            ignored = 1 if self._resolve_ignored(txn_data) else 0
 
             conn.execute(
                 """INSERT INTO transactions (
                     forwarded_to, date_file_name, transaction_hash,
                     institution, amount, company, transaction_type, category,
-                    name, user_id, date, statement_source,
-                    category_audit_reviewed_at, category_audit_source, category_audit_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    name, user_id, date, statement_source, ignored,
+                    category_audit_reviewed_at, category_audit_source,
+                    category_audit_matched_rule, category_audit_confidence,
+                    category_audit_previous_category, category_audit_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     txn_data["forwarded_to"],
                     date_file_name,
@@ -310,8 +323,12 @@ class TransactionsDBLocal(TransactionsDBBase):
                     txn_data.get("user_id"),
                     synthetic_date,
                     txn_data["statement_source"],
+                    ignored,
                     reviewed_at,
                     source,
+                    matched_rule,
+                    confidence,
+                    prev_cat,
                     audit_json,
                 ),
             )

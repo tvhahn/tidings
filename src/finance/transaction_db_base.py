@@ -38,9 +38,19 @@ class TransactionsDBBase(ABC):
 
     @abstractmethod
     def add_statement_transaction(
-        self, txn_data: dict[str, Any], audit_source: str = "statement_import"
+        self,
+        txn_data: dict[str, Any],
+        audit_source: str = "statement_import",
+        category_audit: dict[str, Any] | None = None,
     ) -> str | bool | None:
         """Add a statement-imported transaction.
+
+        When `category_audit` is provided (a full audit dict from
+        `categorize_transactions()`/`resolve_override()`, carrying tier,
+        matched_rule, confidence, model, or fallback_reason) it is persisted
+        verbatim; otherwise a bare audit is built from `audit_source`. A
+        merchant auto-ignore rule match (via `_resolve_ignored`) arrives
+        Ignored, the same write-time behavior as `add_transaction`.
 
         Returns DateFileName if written, False if duplicate, None if invalid.
         """
