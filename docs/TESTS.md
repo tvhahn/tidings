@@ -268,8 +268,9 @@ cleanly when their env is absent:
   `tests/fixtures/e2e_test_email.eml` (`E2E TEST CAFE`, `$1.23`) to the
   inbound S3 bucket, invokes the Lambda, verifies the DynamoDB record and
   `TransactionContext` enrichment, and cleans up after itself — even on
-  failure. It also asserts `CategoryAudit.model`, so the deployed function's
-  model is part of the contract. Requires `E2E_EMAIL_BUCKET` + `E2E_USER_ID`
+  failure. It also checks how the category was decided: an override rule or
+  the model may decide it, a swallowed AI failure (`ai_fallback`) may not, and
+  when the model decided, `CategoryAudit.model` must be the expected one. Requires `E2E_EMAIL_BUCKET` + `E2E_USER_ID`
   (optional `E2E_LAMBDA_FUNCTION` / `E2E_TRANSACTIONS_TABLE` /
   `E2E_BUDGET_TABLE` / `E2E_EXPECTED_MODEL`, the last one for a function whose
   `CATEGORIZATION_MODEL` overrides the code default). The invocation is real,

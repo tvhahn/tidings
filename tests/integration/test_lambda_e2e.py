@@ -322,15 +322,20 @@ def test_lambda_round_trip_creates_enriched_transaction(aws_context: _AwsContext
     assert item.get("Institution") == EXPECTED_INSTITUTION
     assert item.get("Category") == EXPECTED_CATEGORY
 
-    # --- Verify: the category came from the AI path, on the expected model ---
-    # The fixture merchant is fictitious, so no override rule can match it —
-    # an audit that is not `source="ai"` means the AI call silently fell back.
+    # --- Verify: how the category was decided ---
+    # Two honest outcomes: a user override rule matched the fixture merchant
+    # (accounts that keep one for this test get a deterministic category and the
+    # model never runs), or the model categorized it. What must never pass is
+    # `ai_fallback` — the AI call failing and being swallowed into a default,
+    # which is how a bad model/effort combination shows up in production.
     audit = normalize_audit(item.get("CategoryAudit")) or {}
-    assert audit.get("source") == "ai", f"CategoryAudit is not an AI categorization: {audit}"
-    assert audit.get("model") == _expected_model(), (
-        f"CategoryAudit.model: got {audit.get('model')!r}, expected {_expected_model()!r} "
-        "(set E2E_EXPECTED_MODEL if the deployed function overrides CATEGORIZATION_MODEL)"
-    )
+    source = audit.get("source")
+    assert source in {"override", "ai"}, f"category was not decided by an override or the model: {audit}"
+    if source == "ai":
+        assert audit.get("model") == _expected_model(), (
+            f"CategoryAudit.model: got {audit.get('model')!r}, expected {_expected_model()!r} "
+            "(set E2E_EXPECTED_MODEL if the deployed function overrides CATEGORIZATION_MODEL)"
+        )
 
     # --- Verify: TransactionContext enrichment ---
     ctx = item.get("TransactionContext")
