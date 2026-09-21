@@ -898,6 +898,31 @@ An unrecognized value logs a warning and falls back to log-only.
 
 ---
 
+## Suppressing merchants
+
+Some transactions are not worth a buzz — a recurring transit tap, the coffee shop you
+visit daily. `NOTIFICATION_BLOCKED_COMPANIES` names them; a transaction whose company
+contains any entry (case-insensitive substring) is written to the database as usual but
+sends no notification.
+
+```bash
+# JSON array, or an equivalent comma-separated list. Write them unquoted, as
+# env-file lines — the value is passed through verbatim.
+NOTIFICATION_BLOCKED_COMPANIES=["Example Coffee","Example Transit"]
+NOTIFICATION_BLOCKED_COMPANIES=Example Coffee,Example Transit
+```
+
+It works on any install — `.env`, a `docker-compose.yml` `environment:` block, or a
+Lambda function's variable map. Entries are *unioned* with the bundled
+`src/finance/config/blocked_companies.json` (which ships empty) rather than replacing it,
+duplicates are dropped case-insensitively, and the variable is re-read on every
+notification, so a change applies to the next transaction without a restart. A malformed
+value is ignored with a warning — the list never breaks ingestion. For the Lambda path,
+`docker/email_parsing/11_set_function_env.sh` sets it without printing the value; see
+[AWS deployment](/self-hosting/aws/).
+
+---
+
 ## Troubleshooting
 
 **"I'm not getting notifications."**
@@ -1457,8 +1482,8 @@ changes in the changelog.
 | `insights_provider` | same enum | `"disabled"` | Which AI provider writes monthly insights briefings. |
 | `categorization_provider` | `"openai"` \| `"codex"` \| `"disabled"` | auto: `"openai"` iff `OPENAI_API_KEY` is set | Which provider runs AI categorization and email rescue (still gated by the two consents above). Codex is never auto-selected — it needs an explicit pick plus a ChatGPT login. |
 | `document_parsing_provider` | same enum as `daily_summary_provider` | `"disabled"` | Which provider parses statement PDFs and receipt attachments (still gated by the two parsing consents above). |
-| `daily_summary_model`, `insights_model`, `categorization_model`, `document_parsing_model` | string \| null | `null` | Per-feature model override. `null` means the provider's default: `gpt-5.4-nano` on the `openai` path, the CLI's own default otherwise (`sonnet` for Claude Code). Any model your provider serves is accepted — e.g. `gpt-5.6-sol` / `gpt-5.6-terra` / `gpt-5.6-luna`. |
-| `daily_summary_reasoning_effort`, `insights_reasoning_effort`, `categorization_reasoning_effort`, `document_parsing_reasoning_effort` | `"none"` \| `"minimal"` \| `"low"` \| `"medium"` \| `"high"` \| `"xhigh"` \| `"max"` \| null | `null` | Per-feature reasoning-effort override; `null` uses the provider default (no flag sent). Support varies by provider (OpenAI API none–xhigh, Codex low–xhigh, Claude Code low–max); an unsupported combination surfaces as a provider error. Gemini ignores model and effort overrides. |
+| `daily_summary_model`, `insights_model`, `categorization_model`, `document_parsing_model` | string \| null | `null` | Per-feature model override. `null` means the provider's default: `gpt-5.6-luna` on the `openai` path (`DEFAULT_OPENAI_CHAT_MODEL` in `src/finance/ai_cli.py`), the CLI's own default otherwise (`sonnet` for Claude Code). Any model your provider serves is accepted — e.g. `gpt-5.6-sol` / `gpt-5.6-terra` / `gpt-5.4-nano`. |
+| `daily_summary_reasoning_effort`, `insights_reasoning_effort`, `categorization_reasoning_effort`, `document_parsing_reasoning_effort` | `"none"` \| `"minimal"` \| `"low"` \| `"medium"` \| `"high"` \| `"xhigh"` \| `"max"` \| null | `null` | Per-feature reasoning-effort override; `null` uses the provider default (no flag sent). One exception: `categorization_reasoning_effort: null` on the `openai` provider sends `none` — the tuned default — but only while the resolved categorization model is the default one; pick any other model and no effort is sent at all. (Measured with `dev/cli/eval_categorization.py`: the forced tool call spends 0 reasoning tokens at every effort, and `none`, `low` and `medium` scored within one row of each other, so the setting exists to keep the bill and the behavior pinned, not to buy accuracy.) Support varies by provider (OpenAI API none–xhigh, Codex low–xhigh, Claude Code low–max); an unsupported combination surfaces as a provider error. Gemini ignores model and effort overrides. |
 | `insights_user_memo` | string \| null (≤ 2000 chars) | `null` | Standing free-text context injected into every AI briefing — household facts, known annual bills, savings goals, anything the briefing should already know. Edit it in Settings → Intelligence. `null` (or empty) means no memo. Values over 2000 characters are rejected with a 422. |
 | `enable_daily_summaries` | bool | `true` | Whether the in-process scheduler generates journal daily summaries at all (only takes effect when `daily_summary_provider` is not `"disabled"`). |
 | `daily_summary_schedule_time` | `"HH:MM"` (24h) | `"19:00"` | When the daily summary runs, evaluated in `timezone`. Invalid values fall back to the default with a logged warning. |
@@ -1480,9 +1505,24 @@ changes in the changelog.
 - **Budgets, category overrides, merchant aliases** — stored in the database,
   managed in the dashboard.
 - **User mappings** (`ForwardedTo` → `UserId`) — live in
-  `data/config/user_mappings.csv`. They load once into an in-memory cache with
-  no TTL (unlike the 5-minute config caches), so edits to the CSV only take
-  effect after a server restart.
+  `data/config/user_mappings.csv`, or in the `USER_MAPPINGS` environment
+  variable, which wins over it (comma-separated `forwarded_to=user_id` pairs,
+  e.g. `USER_MAPPINGS=alerts@example.com=alice`); the tracked
+  `src/finance/user_mappings.csv` demo file is the last resort. They load once
+  into an in-memory cache with no TTL (unlike the 5-minute config caches), so
+  edits to the CSV only take effect after a server restart.
+- **The SMS suppression list** — companies whose transactions send no
+  notification. The bundled `src/finance/config/blocked_companies.json` ships
+  empty; the `NOTIFICATION_BLOCKED_COMPANIES` environment variable (a JSON
+  array, `["Example Coffee","Example Transit"]`, or a comma-separated list) is
+  *unioned* with it, case-insensitively and without duplicates, and is re-read
+  on every notification.
+
+Both of those environment variables work on any install — a `docker-compose.yml`
+`environment:` block, your `.env`, or the Lambda function's variable map. They
+exist because the AWS image carries no `data/` directory at all; the Lambda
+reference table is in
+[`aws-deployment.md`](/self-hosting/aws/).
 
 ## First-run behavior
 
@@ -2198,8 +2238,48 @@ Source: https://docs.gettidings.com/self-hosting/aws.md
 
 Before running the deployment scripts:
 
-1. **Two IAM roles in the AWS console.** Create `email-parser-iam` (with `AWSLambdaBasicExecutionRole` plus `s3:GetObject` on the inbound bucket) and `lambda-s3-trigger-role` (used by the monthly-summary function). The deployment scripts assume both already exist.
+1. **Two IAM roles in the AWS console.** Create `email-parser-iam` (used by the email-parser function, per `4_establish_lambda_func.sh`) and `lambda-s3-trigger-role` (used by the monthly-summary and coverage-check functions, per scripts 7 and 9). The deployment scripts assume both already exist. Both need `AWSLambdaBasicExecutionRole` for CloudWatch Logs, plus the grants in [Execution-role permissions](#execution-role-permissions) below.
 2. **Email-to-S3 routing.** Complete [Email-to-S3 setup](/self-hosting/email-to-s3/) so your S3 bucket already receives bank emails — a separate setup step covering domain verification, SES inbound, MX record, and the S3 receipt rule. Lambda is downstream of that pipeline; without inbound emails landing in S3, the function has nothing to trigger on.
+
+### Execution-role permissions
+
+What the handlers actually call, table by table. Scope each resource to your own account
+and region; nothing here needs a wildcard resource.
+
+**`email-parser-iam` (email-parser):**
+
+| Action | Resource | Why |
+|--------|----------|-----|
+| `ssm:GetParameter` | `/email-parser/openai-api-key` | `src/finance/secrets.py` reads the key with `WithDecryption=True`. Add `kms:Decrypt` on the key too if the parameter is a SecureString under a customer-managed KMS key |
+| `s3:GetObject` | the inbound email bucket | `get_s3_file()` fetches the `.eml` the event names |
+| `dynamodb:Query`, `dynamodb:PutItem`, `dynamodb:UpdateItem` | `Transactions` | the dedup query over the partition, the row write, and the `TransactionContext` update after enrichment |
+| `dynamodb:GetItem` | `CategoryConfig` | category vocabulary, overrides, merchant aliases, and ignore rules each read one item |
+| `dynamodb:GetItem` | `BudgetConfig` | budget targets and groups for the enrichment fields |
+| `dynamodb:DescribeTable`, `dynamodb:CreateTable`, `dynamodb:PutItem`, `dynamodb:Query`, `dynamodb:UpdateItem` | `ParseFailures` | the Needs-review quarantine store; it is the one table the handler creates on demand (`_ensure_table()` probes, then creates on `ResourceNotFoundException`) |
+| `sns:Publish` | the topic in `SNS_TOPIC_ARN` | transaction notifications |
+| `sqs:SendMessage` | `email-parser-dlq` | the on-failure destination `4_establish_lambda_func.sh` attaches |
+
+**`lambda-s3-trigger-role` (monthly-summary, coverage-check):**
+
+| Action | Resource | Why |
+|--------|----------|-----|
+| `dynamodb:Query` | `Transactions` | both handlers aggregate over the mapped partitions |
+| `dynamodb:DescribeTable`, `dynamodb:Query` | `ParseFailures` | coverage-check only, for the quiet-institution check (plus `dynamodb:CreateTable` if that table does not exist yet) |
+| `sns:Publish` | the topic in `SNS_TOPIC_ARN` | the monthly summary SMS and the coverage notices |
+
+Several of these fail **silently** when the grant is missing, so a permissions gap shows
+up as wrong data rather than as an error:
+
+- The category vocabulary, overrides, merchant aliases, and ignore rules all fail open to
+  their bundled seeds on any exception, `AccessDenied` included — categorization keeps
+  running, against the shipped defaults instead of your customizations.
+- Notification dispatch is fail-open too: an `sns:Publish` denial is logged and swallowed,
+  and the transaction is still written.
+
+`Transactions`, `CategoryConfig`, and `BudgetConfig` are created by neither a script nor a
+handler — create them before the first invocation. Key schemas are in
+[`ARCHITECTURE.md`](/architecture/); `create_transaction_table()` in
+`src/finance/transaction_db_admin.py` is the helper for the `Transactions` one.
 
 ## Docker development (Lambda function)
 
@@ -2235,11 +2315,12 @@ cd docker/email_parsing/
 ./3_push_image.sh             # Push image to ECR
 ./4_establish_lambda_func.sh  # Create Lambda function
 ./5_update_func.sh            # Update existing Lambda function
-./6_invoke_func.sh            # Test invoke Lambda function
+./6_invoke_func.sh            # Post-deploy boot check (side-effect free)
 ./7_establish_summary_lambda.sh  # Create monthly-summary Lambda function
 ./8_create_schedule.sh        # Create EventBridge monthly schedule
 ./9_establish_coverage_lambda.sh  # Create coverage-check Lambda function
 ./10_create_coverage_schedule.sh  # Create EventBridge daily coverage schedule
+./11_set_function_env.sh      # Merge personal-config env vars into a function
 ```
 
 For routine updates to an existing deployment, you typically only need steps 0, 2, 3, and 5.
@@ -2249,22 +2330,122 @@ For routine updates to an existing deployment, you typically only need steps 0, 
 If you want to read the AWS documentation alongside the scripts, the canonical references are:
 
 - Steps 0–3: [Pushing a Docker image to an ECR private repository](https://docs.aws.amazon.com/AmazonECR/latest/userguide/docker-push-ecr-image.html). The build script targets `linux/amd64` because Lambda runs x86_64 by default; `aws ecr create-repository` uses `--image-tag-mutability MUTABLE` and `--image-scanning-configuration scanOnPush=true`. (Note: AWS now recommends configuring image scanning at the registry level via `PutRegistryScanningConfiguration` rather than per-repo with `--image-scanning-configuration`. The per-repo flag still works and is acceptable for a single-account hobby deployment.)
-- Step 4: [Creating Lambda functions defined as container images](https://docs.aws.amazon.com/lambda/latest/dg/images-create.html). The script invokes `aws lambda create-function --package-type Image --code ImageUri=<ECR-URI>`.
-- Step 5: [Updating Lambda function code with a container image](https://docs.aws.amazon.com/lambda/latest/dg/images-create.html). Uses `aws lambda update-function-code --image-uri` against both the email-parser and monthly-summary functions. (The same `images-create.html` page covers both create and update workflows.)
+- Step 4: [Creating Lambda functions defined as container images](https://docs.aws.amazon.com/lambda/latest/dg/images-create.html). The script invokes `aws lambda create-function --package-type Image --code ImageUri=<ECR-URI>` at 256 MB with a 60 s timeout, then creates the `email-parser-dlq` SQS queue and attaches it as the on-failure destination behind two retries. The sizing is measured: at 128 MB the live function peaked at 124 MB and ran a p95 of 15.4 s (median 4.9 s), leaving headroom on neither axis.
+- Step 5: [Updating Lambda function code with a container image](https://docs.aws.amazon.com/lambda/latest/dg/images-create.html). Uses `aws lambda update-function-code --image-uri` against both the email-parser and monthly-summary functions, waits for each update to settle, then prints the resolved image digest per function — `:latest` is a moving tag, the digest is what proves the new build landed. (The same `images-create.html` page covers both create and update workflows.)
+- Step 6: a boot check, not a real invocation — see [Verify the deployment](#verify-the-deployment).
 - Step 7: Same Lambda container-image flow for the monthly-summary function. Assumes the role `lambda-s3-trigger-role` already exists.
 - Step 8: [Creating a schedule with EventBridge Scheduler](https://docs.aws.amazon.com/scheduler/latest/UserGuide/getting-started.html). Cron `cron(0 17 8 * ? *)` is "minute 0, 17:00 UTC, day-of-month 8, any month, day-of-week placeholder, any year" — the 6-field format EventBridge Scheduler requires.
+- Step 11: [Using Lambda environment variables](https://docs.aws.amazon.com/lambda/latest/dg/configuration-envvars.html). Run on demand rather than in sequence — see [Personal config in Lambda](#personal-config-in-lambda).
 
 The Lambda function loads `OPENAI_API_KEY` from SSM Parameter Store at `/email-parser/openai-api-key` ([Working with Parameter Store](https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-working-with.html)). Falls back to env var, then `.env` for local/CI use.
 
+## Personal config in Lambda
+
+A self-hosted install keeps its personalization in `data/` — the config file, the user
+mappings CSV, the suppression list. The Lambda image ships `src/` and the handlers only:
+there is no `data/` directory in it, and the files that *are* bundled
+(`src/finance/user_mappings.csv`, `src/finance/config/blocked_companies.json`) hold public
+demo values. Environment variables are what replaces `data/` there. All of them are
+optional; unset, the handlers use the code defaults.
+
+| Variable | Function(s) | Format | Effect when unset |
+|----------|-------------|--------|-------------------|
+| `USER_ID` | email-parser | a user id string | Budget lookups, the quarantine partition (`USER#<id>`) and the `<id>@local` partition all fall back to `default`. Set it to the same `user_id` the dashboard uses, or quarantined emails never reach Needs review |
+| `USER_MAPPINGS` | email-parser, monthly-summary, coverage-check | comma-separated `forwarded_to=user_id` pairs, e.g. `alerts@example.com=alice` | The bundled demo CSV is the whole mapping: monthly-summary queries demo partitions and reports 0 transactions, and email-parser picks the wrong address out of a multi-recipient header and stamps the wrong `user_id` |
+| `NOTIFICATION_BLOCKED_COMPANIES` | email-parser | JSON array (`["Example Coffee","Example Transit"]`) or comma-separated list | Only the bundled seed applies, and it ships empty — every transaction notifies |
+| `CATEGORIZATION_MODEL` | email-parser | an OpenAI model id | `DEFAULT_OPENAI_CHAT_MODEL`, currently `gpt-5.6-luna` |
+| `CATEGORIZATION_REASONING_EFFORT` | email-parser | `none` / `low` / `medium` / `high` / `xhigh` | On the default model, the tuned `none`; on any other model no effort is sent at all. An unrecognized value is logged and dropped, never fatal |
+| `SNS_TOPIC_ARN` | all three | topic ARN | No SNS provider is selected and notifications go to the log only |
+| `AWS_REGION` | all three | region name — reserved: the Lambda runtime sets it to the function's own region and does not let you override it | n/a in Lambda; outside it the code falls back to `us-west-2` |
+
+Set them with `11_set_function_env.sh`, never with a hand-written
+`aws lambda update-function-configuration --environment`: that flag **replaces** the whole
+variable map, which is how a 2026-04-08 hand-run wiped this function's environment (the
+incident that moved the OpenAI key into SSM — see the `src/finance/secrets.py` docstring).
+The script reads the live map, merges only the four keys it owns
+(`CATEGORIZATION_MODEL`, `CATEGORIZATION_REASONING_EFFORT`,
+`NOTIFICATION_BLOCKED_COMPANIES`, `USER_MAPPINGS`), aborts if any other variable would
+change or disappear, and pins the write to the revision it read. `USER_ID`
+and `SNS_TOPIC_ARN` are outside its allowlist — set those in the console or at create time.
+
+```bash
+# The two personal values: --set-file keeps them out of the shell history, the
+# process list, and every line the script prints.
+./11_set_function_env.sh --set-file USER_MAPPINGS=mappings.txt
+./11_set_function_env.sh --function monthly-summary --set-file USER_MAPPINGS=mappings.txt
+./11_set_function_env.sh --set-file NOTIFICATION_BLOCKED_COMPANIES=blocked.json
+
+# Preview a change without writing it
+./11_set_function_env.sh --set CATEGORIZATION_MODEL=gpt-5.6-terra --dry-run
+```
+
+Both personal variables work on any install, not just Lambda — the same names in a
+`docker-compose.yml` `environment:` block do the same thing. `USER_MAPPINGS` takes
+precedence over `data/config/user_mappings.csv`, which in turn beats the bundled demo CSV;
+`NOTIFICATION_BLOCKED_COMPANIES` is *unioned* with the bundled `blocked_companies.json`
+(case-insensitive, no duplicates) rather than replacing it, and is re-read on every
+notification, so an edit applies to the next transaction without a restart.
+
 ## Verify the deployment
 
-Send a test email to your SES inbound address. Within ~30 seconds:
+**1. Boot check — safe to run against production.** After `5_update_func.sh`:
 
-1. CloudWatch Logs for the email-parser function should show parser output.
-2. The `Transactions` table in DynamoDB should have a new item with the parsed transaction.
-3. The dashboard should display the parsed transaction.
+```bash
+./6_invoke_func.sh
+```
 
-If any of those don't happen, check CloudWatch Logs first — the Lambda function logs every step from S3 trigger through DynamoDB write.
+It sync-invokes the function with `test_event.json`, whose S3 event names a bucket that
+does not exist. The handler logs the model it resolved and then dies fetching that key, so
+a `FunctionError` is the **expected** outcome: nothing downstream runs — no DynamoDB
+write, no notification, no model call. The script exits 0 when the log tail carries
+
+```text
+Categorization model=gpt-5.6-luna reasoning_effort=none
+```
+
+and exits 1 when it does not. An absent line means the function never reached the handler:
+check the resolved digest step 5 printed, and `/aws/lambda/email-parser` in CloudWatch.
+
+**2. Round-trip test.** `tests/integration/test_lambda_e2e.py` uploads a fictitious `$1.23`
+"E2E TEST CAFE" email to the inbound bucket, invokes the function, and asserts the
+DynamoDB row, its `CategoryAudit.model`, and the `TransactionContext` enrichment. It
+creates a marked temporary budget target and deletes both that and its own transaction row
+in teardown, pass or fail. It is a real invocation, so the notification fires too — expect
+one SMS. The test is excluded from every gate; run it by hand:
+
+```bash
+E2E_EMAIL_BUCKET=your-inbound-bucket E2E_USER_ID=your-user-id \
+  uv run pytest tests/integration/test_lambda_e2e.py -m integration
+```
+
+Optional: `E2E_LAMBDA_FUNCTION`, `E2E_TRANSACTIONS_TABLE`, `E2E_BUDGET_TABLE`,
+`AWS_REGION`, and `E2E_EXPECTED_MODEL` — set that last one to whatever
+`CATEGORIZATION_MODEL` the deployed function carries, or the model assertion compares
+against the code default and fails.
+
+**3. Real email.** Send one to your SES inbound address. Within ~30 seconds CloudWatch
+Logs show the parser output, the `Transactions` table holds the item, and the dashboard
+displays it. If not, read CloudWatch first — the handler logs every step from S3 trigger
+through DynamoDB write.
+
+### Changing the model later
+
+```bash
+# Point the live function at a different categorizer model
+./11_set_function_env.sh --set CATEGORIZATION_MODEL=gpt-5.6-terra
+./6_invoke_func.sh    # confirm the log line now names that model
+
+# Roll back to the previous model
+./11_set_function_env.sh --set CATEGORIZATION_MODEL=gpt-5.4-nano
+
+# Or drop the overrides entirely, back to the code defaults
+./11_set_function_env.sh --unset CATEGORIZATION_MODEL \
+                         --unset CATEGORIZATION_REASONING_EFFORT
+```
+
+No redeploy is needed: the handler reads both variables per invocation, so the next event
+picks the change up. The effort default only applies while the model is the code default —
+pin a different model and the call goes out with no reasoning effort unless you set one.
 
 ## Next step
 
@@ -2964,12 +3145,12 @@ Here's what happens when a transaction email arrives, file by file:
 
 1. **Transport trigger** — A raw email lands in the inbox (IMAP) or as a `.eml` object in S3 (AWS). The IMAP poller fetches new UIDs on its poll loop; the S3 event invokes the Lambda function.
 
-2. **Entry point** — `imap_poller.py:_process_message` or `lambda_function.py:handler()` initializes the OpenAI client (`gpt-5.4-nano`) and calls `parse_email()`.
+2. **Entry point** — `imap_poller.py:_process_message` or `lambda_function.py:handler()` builds the OpenAI client and calls `parse_email()`. The poller resolves the model and reasoning effort from `data/config.json` through `ai_client.get_ai_client()`; the Lambda ships no config file and reads the optional `CATEGORIZATION_MODEL` / `CATEGORIZATION_REASONING_EFFORT` environment variables instead. Both go through `resolve_openai_categorization_settings()`, so both land on the same default — `gpt-5.6-luna` with reasoning effort `none`.
 
 ### Processing pipeline
 
 3. **`email_pipeline.py:parse_email()`** — Orchestrates the full pipeline:
-   - `extract_raw_email_details()` parses the raw bytes into structured headers (from, to, date, subject) and extracts the body text. The `X-Forwarded-To` header is used to identify the recipient; `user_mappings.csv` maps this to a `UserId` via an in-memory cache.
+   - `extract_raw_email_details()` parses the raw bytes into structured headers (from, to, date, subject) and extracts the body text. The `X-Forwarded-To` header is used to identify the recipient; the active mapping source (the `USER_MAPPINGS` env var, else a mappings CSV) maps this to a `UserId` via an in-memory cache.
    - `parse_email_body()` detects the financial institution and delegates to the right parser (see [Parser system](#parser-system) below).
 
 4. **Parser** — The matched parser (e.g., `RBCParser`) extracts `amount`, `company`, `name`, and `transaction_type` from the body text using regex patterns.
@@ -3112,7 +3293,16 @@ The shared `etransfer_parser.py:parse_e_transfer()` function handles e-transfer 
 | `DeletedAt` | String | | ISO 8601 timestamp when soft-deleted; absent if active |
 | `TransactionContext` | Map | | Enrichment context: `category_month_total`, `merchant_month_count`, optional `category_budget_target` and `category_budget_pct` |
 
-The table is auto-created if it doesn't exist.
+Nothing on the ingestion path creates this table — `TransactionsDB` only binds
+`dyn_resource.Table("Transactions")`. Create it once before first use with
+`create_transaction_table()` in
+[`transaction_db_admin.py`](https://github.com/tvhahn/tidings/blob/main/src/finance/transaction_db_admin.py) (same key schema,
+`PAY_PER_REQUEST`); no deployment script does it for you. `BudgetConfig` and
+`CategoryConfig` are the same shape: their services carry a `create_table()` that
+nothing calls automatically. Only two tables create themselves on first access —
+`ParseFailures` (`parse_failure_store.py`) and `Activity` (`activity_store.py`), both via
+an `_ensure_table()` that probes and creates on `ResourceNotFoundException`. Of those, a
+Lambda invocation only ever reaches `ParseFailures`.
 
 ### DynamoDB: BudgetConfig table
 
@@ -3164,6 +3354,18 @@ The helper lives in `src/finance/app_timezone.py` — `get_app_timezone()` retur
 
 The system uses OpenAI's **function calling** (tool use) to get structured output — not free-text parsing.
 
+Every OpenAI call — tools, plain text, and vision — goes through `OpenAIClient.chat()`
+(`src/finance/openai_client.py`), which posts to the **Responses API** (`/v1/responses`)
+and adapts the reply back into the chat-completion shape callers read
+(`.choices[0].message.tool_calls[…]`, `.usage.*`). Two reasons it is not
+`/v1/chat/completions`: the GPT-5.6 family answers HTTP 400 there for any function-tool
+call carrying a reasoning effort other than `none` — including an omitted effort, since
+the model's own default is not `none` — and `chat()` swallows errors, so the failure was
+silent and every transaction landed as Miscellaneous. The second reason is `store=False`,
+which the client sends on every request: the Responses API persists request and response
+content server-side by default, and these payloads are transaction details, raw email
+bodies, and receipt images.
+
 ### Transaction categorization
 
 The categorization flow has three stages, in order:
@@ -3172,7 +3374,7 @@ The categorization flow has three stages, in order:
 
 2. **Feature gate.** The OpenAI call is gated on the `ai_categorization_enabled` flag in `data/config.json`. AI categorization is enabled by default when `OPENAI_API_KEY` is set; toggle in Settings → Intelligence to disable it. When disabled, the categorizer returns the `Miscellaneous` fallback without touching OpenAI.
 
-3. **OpenAI call.** If no override matches and the gate is open, the function sends the transaction amount and company to `gpt-5.4-nano` with a forced function call (`categorize_transaction`) that constrains the output to one of 39 predefined categories:
+3. **OpenAI call.** If no override matches and the gate is open, the function sends the transaction amount and company to `gpt-5.6-luna` (reasoning effort `none`) with a forced function call (`categorize_transaction`) that constrains the output to one of 39 predefined categories:
 
 > Alcohol, Auto Maintenance, Baby & Kids, Bank Fees, Car Payment, Charitable Giving, Childcare, Clothing, Coffee & Cafes, Education, Entertainment, Fitness, Gasoline, Gifts, Groceries, Health Care, Hobbies, Home Goods, Home Maintenance, Insurance, Internet, Miscellaneous, Mortgage, Moving, Personal Care, Pets, Phone, Professional Services, Public Transit, Rent, Restaurant/Dining, Rideshare & Taxi, Strata/HOA, Subscriptions, Taxes, Technology, Therapy, Travel, Utilities
 
@@ -3292,7 +3494,7 @@ The Spending Journal is a day-grouped transaction timeline that surfaces the per
 2. **Daily context gathering** — `src/finance/daily_summary_context.py:gather_daily_contexts()` takes the day-grouped list and builds a compact context dict per day: `day_of_week`, `day_total`, `transaction_count`, top merchants, `mtd_total`, top MTD categories, and budget ceiling. These dicts feed the AI prompt.
 
 3. **Multi-provider summary generation** — `src/finance/summary_provider.py` exposes four implementations of a `SummaryProvider` ABC:
-   - `OpenAISummaryProvider` — uses `instructor` + OpenAI for structured per-day output (one API call per day).
+   - `OpenAISummaryProvider` — one forced-function-tool call per day through `OpenAIClient.chat()` (Responses API), with the tool schema derived from the `DaySummaryResult` model that also validates the reply.
    - `ClaudeCLISummaryProvider` — spawns the Claude Code subprocess with a single batched prompt containing all days, then parses the response back into per-day summaries.
    - `CodexCLISummaryProvider` — spawns the OpenAI Codex CLI subprocess with the same single-batched-prompt approach.
    - `GeminiCLISummaryProvider` — spawns the Google Gemini CLI subprocess with the same single-batched-prompt approach.
@@ -3486,9 +3688,10 @@ The AWS path uses the same parser, categorizer, and override system as the self-
 - **Transport.** SES → S3 → Lambda. Bank emails arrive via SES inbound, land as `.eml` objects in an S3 bucket, and trigger the Lambda function on each new object. See [Email-to-S3 setup](/self-hosting/email-to-s3/) for the SES + DNS + bucket policy walkthrough.
 - **Storage.** DynamoDB tables (`Transactions`, `BudgetConfig`, `CategoryConfig`) replace the SQLite file. Schema definitions are in the Data storage section above; both backends share the same field names.
 - **Notifications.** SNS publishes SMS messages to your phone number; the same notification message format is used as the self-hosted Ntfy/Twilio paths.
+- **Personal config.** The image ships `src/` and the handlers only — there is no `data/` directory, so the settings a self-hosted install keeps there arrive as environment variables instead: `USER_ID`, `USER_MAPPINGS`, `NOTIFICATION_BLOCKED_COMPANIES`, `CATEGORIZATION_MODEL`, `CATEGORIZATION_REASONING_EFFORT`. All optional, all merged in by `11_set_function_env.sh`; the table of what each one does lives in [`aws-deployment.md`](/self-hosting/aws/).
 - **Deployment.** A set of numbered shell scripts in `docker/email_parsing/` automate ECR image build/push, Lambda function creation, and EventBridge schedule for the monthly summary job. See [AWS deployment](/self-hosting/aws/) for the full sequence.
 
-Code volume favours the self-hosted path: `imap_poller.py` is ~575 lines with 50 unit tests; `lambda_function.py` is ~135 lines with 13 unit tests. The Lambda handler is intentionally thin because it delegates everything to shared `src/finance/` modules.
+Code volume favours the self-hosted path: `imap_poller.py` is ~370 lines with 51 unit tests; `lambda_function.py` is ~165 lines with 24 unit tests. The Lambda handler is intentionally thin because it delegates everything to shared `src/finance/` modules.
 
 ## Configuration
 
@@ -3496,12 +3699,13 @@ Code volume favours the self-hosted path: `imap_poller.py` is ~575 lines with 50
 |---------|----------|-------|
 | `OPENAI_API_KEY` | SSM Parameter Store (`/email-parser/openai-api-key`) | Loaded via `src/finance/secrets.py` tiered loader: SSM → env var → `data/.env` → project-root `.env`. Lambda returns HTTP 500 if missing |
 | AWS credentials | IAM role / env | S3, DynamoDB, SNS, Lambda access |
-| SNS topic ARN | `lambda_function.py` | Hardcoded; update when changing regions |
-| User mappings | `src/finance/user_mappings.csv` | Maps `ForwardedTo` → `UserId`; cached in memory |
-| OpenAI model | `lambda_function.py` | `DEFAULT_OPENAI_CHAT_MODEL` (`gpt-5.4-nano`, `src/finance/ai_cli.py`) is the fallback for every OpenAI-path feature; each feature's `*_model` config key overrides it (see [`configuration.md`](/configuration/)) |
+| SNS topic ARN | `SNS_TOPIC_ARN` env var | Read by `notification_service.SnsProvider`; its presence is also what auto-selects the `sns` provider when `NOTIFICATION_PROVIDER` is unset |
+| User mappings | `USER_MAPPINGS` env var → `data/config/user_mappings.csv` → `src/finance/user_mappings.csv` | Maps `ForwardedTo` → `UserId`; cached in memory. The Lambda image carries no `data/` directory, so the env var is how both scheduled Lambdas reach the right partitions — see [Personal config in Lambda](/self-hosting/aws/) |
+| OpenAI model | `CATEGORIZATION_MODEL` env var (Lambda) / `categorization_model` config key (self-hosted) | `DEFAULT_OPENAI_CHAT_MODEL` (`gpt-5.6-luna`, `src/finance/ai_cli.py`) is the fallback for every OpenAI-path feature; each feature's `*_model` config key overrides it (see [`configuration.md`](/configuration/)) |
+| Categorization reasoning effort | `CATEGORIZATION_REASONING_EFFORT` env var (Lambda) / `categorization_reasoning_effort` config key (self-hosted) | Unset, `DEFAULT_CATEGORIZATION_REASONING_EFFORT` (`none`) applies — but only while the resolved model is the default one; any other model is called with no effort at all (`resolve_openai_categorization_settings`) |
 | Category overrides | `src/finance/config/category_overrides.json` | Company→category map; short-circuits OpenAI |
 | Categories enum | `src/finance/config/categories.json` | 39 predefined categories for OpenAI function call |
-| Blocked companies | `src/finance/config/blocked_companies.json` | Companies suppressed from SMS notifications |
+| Blocked companies | `src/finance/config/blocked_companies.json` + `NOTIFICATION_BLOCKED_COMPANIES` env var | Companies suppressed from SMS notifications. The bundled file ships empty; the env var (JSON array or comma-separated list) is unioned with it on every call, case-insensitively de-duplicated |
 | Card name mappings | `src/finance/config/card_name_mappings.json` | Maps card last-4 digits → cardholder first name |
 | Budget config backup | `src/finance/config/budget_config.json` | Local JSON backup of BudgetConfig DynamoDB items |
 | Dismissed suggestions | `src/finance/config/dismissed_suggestions.json` | Override suggestions dismissed by user; prevents re-suggestion |

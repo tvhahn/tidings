@@ -145,10 +145,10 @@ For perspective, here's where the real AWS costs are in this system:
 | Lambda invocations | ~$0.01 | 75 invocations × ~5s each |
 | S3 storage | ~$0.01 | Raw .eml files |
 | SNS (SMS) | ~$0.90-2.40 | ~$0.012/SMS US (base $0.0077 + carrier fee ~$0.0042) × 75-200 messages |
-| OpenAI API (gpt-5.4-nano) | <$0.01 | 75 categorization calls/month (~290 tokens each at $0.05/M input + $0.40/M output) |
+| OpenAI API (gpt-5.6-luna) | <$0.01 | 75 categorization calls/month, ~357 input + ~21 output tokens each at $0.20/M input + $1.20/M output — about $0.0001 per call. Reasoning tokens are zero at every effort: the forced `tool_choice` makes the model skip reasoning |
 | ECR storage | ~$0.10 | Docker image storage |
 
-**DynamoDB is essentially free at single-user scale.** SNS SMS charges dominate the AWS bill; OpenAI categorization at gpt-5.4-nano pricing is a rounding error (well under a cent/month).
+**DynamoDB is essentially free at single-user scale.** SNS SMS charges dominate the AWS bill; OpenAI categorization at gpt-5.6-luna pricing is a rounding error — ~$0.0001 per call, so under a cent a month even at ~90 calls. (The previous default, gpt-5.4-nano, cost ~$0.000026 per call: the switch moved a number that still rounds to zero.)
 
 ## Why It's So Cheap
 

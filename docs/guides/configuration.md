@@ -33,8 +33,8 @@ changes in the changelog.
 | `insights_provider` | same enum | `"disabled"` | Which AI provider writes monthly insights briefings. |
 | `categorization_provider` | `"openai"` \| `"codex"` \| `"disabled"` | auto: `"openai"` iff `OPENAI_API_KEY` is set | Which provider runs AI categorization and email rescue (still gated by the two consents above). Codex is never auto-selected — it needs an explicit pick plus a ChatGPT login. |
 | `document_parsing_provider` | same enum as `daily_summary_provider` | `"disabled"` | Which provider parses statement PDFs and receipt attachments (still gated by the two parsing consents above). |
-| `daily_summary_model`, `insights_model`, `categorization_model`, `document_parsing_model` | string \| null | `null` | Per-feature model override. `null` means the provider's default: `gpt-5.4-nano` on the `openai` path, the CLI's own default otherwise (`sonnet` for Claude Code). Any model your provider serves is accepted — e.g. `gpt-5.6-sol` / `gpt-5.6-terra` / `gpt-5.6-luna`. |
-| `daily_summary_reasoning_effort`, `insights_reasoning_effort`, `categorization_reasoning_effort`, `document_parsing_reasoning_effort` | `"none"` \| `"minimal"` \| `"low"` \| `"medium"` \| `"high"` \| `"xhigh"` \| `"max"` \| null | `null` | Per-feature reasoning-effort override; `null` uses the provider default (no flag sent). Support varies by provider (OpenAI API none–xhigh, Codex low–xhigh, Claude Code low–max); an unsupported combination surfaces as a provider error. Gemini ignores model and effort overrides. |
+| `daily_summary_model`, `insights_model`, `categorization_model`, `document_parsing_model` | string \| null | `null` | Per-feature model override. `null` means the provider's default: `gpt-5.6-luna` on the `openai` path (`DEFAULT_OPENAI_CHAT_MODEL` in `src/finance/ai_cli.py`), the CLI's own default otherwise (`sonnet` for Claude Code). Any model your provider serves is accepted — e.g. `gpt-5.6-sol` / `gpt-5.6-terra` / `gpt-5.4-nano`. |
+| `daily_summary_reasoning_effort`, `insights_reasoning_effort`, `categorization_reasoning_effort`, `document_parsing_reasoning_effort` | `"none"` \| `"minimal"` \| `"low"` \| `"medium"` \| `"high"` \| `"xhigh"` \| `"max"` \| null | `null` | Per-feature reasoning-effort override; `null` uses the provider default (no flag sent). One exception: `categorization_reasoning_effort: null` on the `openai` provider sends `none` — the tuned default — but only while the resolved categorization model is the default one; pick any other model and no effort is sent at all. (Measured with `dev/cli/eval_categorization.py`: the forced tool call spends 0 reasoning tokens at every effort, and `none`, `low` and `medium` scored within one row of each other, so the setting exists to keep the bill and the behavior pinned, not to buy accuracy.) Support varies by provider (OpenAI API none–xhigh, Codex low–xhigh, Claude Code low–max); an unsupported combination surfaces as a provider error. Gemini ignores model and effort overrides. |
 | `insights_user_memo` | string \| null (≤ 2000 chars) | `null` | Standing free-text context injected into every AI briefing — household facts, known annual bills, savings goals, anything the briefing should already know. Edit it in Settings → Intelligence. `null` (or empty) means no memo. Values over 2000 characters are rejected with a 422. |
 | `enable_daily_summaries` | bool | `true` | Whether the in-process scheduler generates journal daily summaries at all (only takes effect when `daily_summary_provider` is not `"disabled"`). |
 | `daily_summary_schedule_time` | `"HH:MM"` (24h) | `"19:00"` | When the daily summary runs, evaluated in `timezone`. Invalid values fall back to the default with a logged warning. |
@@ -56,9 +56,24 @@ changes in the changelog.
 - **Budgets, category overrides, merchant aliases** — stored in the database,
   managed in the dashboard.
 - **User mappings** (`ForwardedTo` → `UserId`) — live in
-  `data/config/user_mappings.csv`. They load once into an in-memory cache with
-  no TTL (unlike the 5-minute config caches), so edits to the CSV only take
-  effect after a server restart.
+  `data/config/user_mappings.csv`, or in the `USER_MAPPINGS` environment
+  variable, which wins over it (comma-separated `forwarded_to=user_id` pairs,
+  e.g. `USER_MAPPINGS=alerts@example.com=alice`); the tracked
+  `src/finance/user_mappings.csv` demo file is the last resort. They load once
+  into an in-memory cache with no TTL (unlike the 5-minute config caches), so
+  edits to the CSV only take effect after a server restart.
+- **The SMS suppression list** — companies whose transactions send no
+  notification. The bundled `src/finance/config/blocked_companies.json` ships
+  empty; the `NOTIFICATION_BLOCKED_COMPANIES` environment variable (a JSON
+  array, `["Example Coffee","Example Transit"]`, or a comma-separated list) is
+  *unioned* with it, case-insensitively and without duplicates, and is re-read
+  on every notification.
+
+Both of those environment variables work on any install — a `docker-compose.yml`
+`environment:` block, your `.env`, or the Lambda function's variable map. They
+exist because the AWS image carries no `data/` directory at all; the Lambda
+reference table is in
+[`aws-deployment.md`](aws-deployment.md).
 
 ## First-run behavior
 

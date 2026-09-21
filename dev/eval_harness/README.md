@@ -62,7 +62,7 @@ data/eval-harness/      # gitignored, created on first run
 | **V5_continuity** | Yesterday's summaries help today's framing | sonnet | full | 2 | identity |
 
 `temperature` is intentionally absent — the Claude Code CLI doesn't expose it.
-V3's structured output is JSON-via-prompt + manual parse (instructor is API-only).
+V3's structured output is JSON-via-prompt + manual parse (the CLI providers have no function-tool channel; the API path gets its structure from a forced tool call).
 
 ## Adding a new variant
 

@@ -34,6 +34,15 @@ This project follows [Semantic Versioning](https://semver.org/).
   the banner itself) hides the "No password set" reminder for instances that
   run without a password on purpose. Auth behavior is unchanged; setting a
   password later retires the switch.
+- AWS variant: the ingestion Lambda takes its categorization model and
+  reasoning effort from optional environment variables (`CATEGORIZATION_MODEL`,
+  `CATEGORIZATION_REASONING_EFFORT`) instead of a value baked into the image,
+  so changing models no longer needs a rebuild. Two more variables carry
+  personal settings to installs that have no `data/` directory:
+  `NOTIFICATION_BLOCKED_COMPANIES` (merchants that should not send an alert)
+  and `USER_MAPPINGS` (your forwarding addresses). They work on any install. A
+  new script sets them without disturbing the function's other variables; see
+  the [AWS deployment guide](docs/guides/aws-deployment.md).
 
 ### Changed
 
@@ -47,6 +56,18 @@ This project follows [Semantic Versioning](https://semver.org/).
   your browser, and the footer theme control is a quiet three-icon row. The
   social-share card is now an illustrated scene — an olive sapling and a
   notebook in morning light — instead of a text-only card.
+- The default OpenAI model is now `gpt-5.6-luna` (was `gpt-5.4-nano`) for every
+  feature on the OpenAI API provider with no model picked. Replaying real
+  transactions, it matched human-assigned categories more often and gave the
+  same answer more consistently. It costs about four times as much per call,
+  which is still under a cent a month at single-user volume; pick
+  `gpt-5.4-nano` in Settings → AI routing to keep the previous model.
+- OpenAI requests now use the Responses API with storage turned off, so
+  transaction details, email text, and receipt images are not retained on
+  OpenAI's side. No configuration change is needed.
+- AWS variant: new `email-parser` functions are created with 256 MB of memory
+  and a 60-second timeout; the previous sizing ran within a few megabytes of
+  its limit. Existing functions are not resized automatically.
 
 ### Fixed
 
@@ -58,6 +79,15 @@ This project follows [Semantic Versioning](https://semver.org/).
 - Self-hosted image: a hard refresh or direct link to a dashboard route
   (`/transactions`, `/summary`, …) now serves the app instead of a 404. API
   paths keep their JSON 404.
+- Picking a GPT-5.6 model for categorization or daily summaries on the OpenAI
+  API provider now works. The API rejected those requests and the error was
+  swallowed, so every transaction was filed as "Miscellaneous" and summaries
+  came back empty.
+- AWS variant: the monthly summary text no longer reports zero transactions on
+  installs whose forwarding addresses were not baked into the image (set
+  `USER_MAPPINGS`), and emails the Lambda could not parse now appear in Needs
+  review — they were being filed under a default user id the dashboard never
+  reads.
 
 ### Security
 

@@ -71,12 +71,12 @@ Here's what happens when a transaction email arrives, file by file:
 
 1. **Transport trigger** — A raw email lands in the inbox (IMAP) or as a `.eml` object in S3 (AWS). The IMAP poller fetches new UIDs on its poll loop; the S3 event invokes the Lambda function.
 
-2. **Entry point** — `imap_poller.py:_process_message` or `lambda_function.py:handler()` initializes the OpenAI client (`gpt-5.4-nano`) and calls `parse_email()`.
+2. **Entry point** — `imap_poller.py:_process_message` or `lambda_function.py:handler()` builds the OpenAI client and calls `parse_email()`. The poller resolves the model and reasoning effort from `data/config.json` through `ai_client.get_ai_client()`; the Lambda ships no config file and reads the optional `CATEGORIZATION_MODEL` / `CATEGORIZATION_REASONING_EFFORT` environment variables instead. Both go through `resolve_openai_categorization_settings()`, so both land on the same default — `gpt-5.6-luna` with reasoning effort `none`.
 
 ### Processing pipeline
 
 3. **`email_pipeline.py:parse_email()`** — Orchestrates the full pipeline:
-   - `extract_raw_email_details()` parses the raw bytes into structured headers (from, to, date, subject) and extracts the body text. The `X-Forwarded-To` header is used to identify the recipient; `user_mappings.csv` maps this to a `UserId` via an in-memory cache.
+   - `extract_raw_email_details()` parses the raw bytes into structured headers (from, to, date, subject) and extracts the body text. The `X-Forwarded-To` header is used to identify the recipient; the active mapping source (the `USER_MAPPINGS` env var, else a mappings CSV) maps this to a `UserId` via an in-memory cache.
    - `parse_email_body()` detects the financial institution and delegates to the right parser (see [Parser system](#parser-system) below).
 
 4. **Parser** — The matched parser (e.g., `RBCParser`) extracts `amount`, `company`, `name`, and `transaction_type` from the body text using regex patterns.
@@ -219,7 +219,16 @@ The shared `etransfer_parser.py:parse_e_transfer()` function handles e-transfer 
 | `DeletedAt` | String | | ISO 8601 timestamp when soft-deleted; absent if active |
 | `TransactionContext` | Map | | Enrichment context: `category_month_total`, `merchant_month_count`, optional `category_budget_target` and `category_budget_pct` |
 
-The table is auto-created if it doesn't exist.
+Nothing on the ingestion path creates this table — `TransactionsDB` only binds
+`dyn_resource.Table("Transactions")`. Create it once before first use with
+`create_transaction_table()` in
+[`transaction_db_admin.py`](../src/finance/transaction_db_admin.py) (same key schema,
+`PAY_PER_REQUEST`); no deployment script does it for you. `BudgetConfig` and
+`CategoryConfig` are the same shape: their services carry a `create_table()` that
+nothing calls automatically. Only two tables create themselves on first access —
+`ParseFailures` (`parse_failure_store.py`) and `Activity` (`activity_store.py`), both via
+an `_ensure_table()` that probes and creates on `ResourceNotFoundException`. Of those, a
+Lambda invocation only ever reaches `ParseFailures`.
 
 ### DynamoDB: BudgetConfig table
 
@@ -271,6 +280,18 @@ The helper lives in `src/finance/app_timezone.py` — `get_app_timezone()` retur
 
 The system uses OpenAI's **function calling** (tool use) to get structured output — not free-text parsing.
 
+Every OpenAI call — tools, plain text, and vision — goes through `OpenAIClient.chat()`
+(`src/finance/openai_client.py`), which posts to the **Responses API** (`/v1/responses`)
+and adapts the reply back into the chat-completion shape callers read
+(`.choices[0].message.tool_calls[…]`, `.usage.*`). Two reasons it is not
+`/v1/chat/completions`: the GPT-5.6 family answers HTTP 400 there for any function-tool
+call carrying a reasoning effort other than `none` — including an omitted effort, since
+the model's own default is not `none` — and `chat()` swallows errors, so the failure was
+silent and every transaction landed as Miscellaneous. The second reason is `store=False`,
+which the client sends on every request: the Responses API persists request and response
+content server-side by default, and these payloads are transaction details, raw email
+bodies, and receipt images.
+
 ### Transaction categorization
 
 The categorization flow has three stages, in order:
@@ -279,7 +300,7 @@ The categorization flow has three stages, in order:
 
 2. **Feature gate.** The OpenAI call is gated on the `ai_categorization_enabled` flag in `data/config.json`. AI categorization is enabled by default when `OPENAI_API_KEY` is set; toggle in Settings → Intelligence to disable it. When disabled, the categorizer returns the `Miscellaneous` fallback without touching OpenAI.
 
-3. **OpenAI call.** If no override matches and the gate is open, the function sends the transaction amount and company to `gpt-5.4-nano` with a forced function call (`categorize_transaction`) that constrains the output to one of 39 predefined categories:
+3. **OpenAI call.** If no override matches and the gate is open, the function sends the transaction amount and company to `gpt-5.6-luna` (reasoning effort `none`) with a forced function call (`categorize_transaction`) that constrains the output to one of 39 predefined categories:
 
 > Alcohol, Auto Maintenance, Baby & Kids, Bank Fees, Car Payment, Charitable Giving, Childcare, Clothing, Coffee & Cafes, Education, Entertainment, Fitness, Gasoline, Gifts, Groceries, Health Care, Hobbies, Home Goods, Home Maintenance, Insurance, Internet, Miscellaneous, Mortgage, Moving, Personal Care, Pets, Phone, Professional Services, Public Transit, Rent, Restaurant/Dining, Rideshare & Taxi, Strata/HOA, Subscriptions, Taxes, Technology, Therapy, Travel, Utilities
 
@@ -399,7 +420,7 @@ The Spending Journal is a day-grouped transaction timeline that surfaces the per
 2. **Daily context gathering** — `src/finance/daily_summary_context.py:gather_daily_contexts()` takes the day-grouped list and builds a compact context dict per day: `day_of_week`, `day_total`, `transaction_count`, top merchants, `mtd_total`, top MTD categories, and budget ceiling. These dicts feed the AI prompt.
 
 3. **Multi-provider summary generation** — `src/finance/summary_provider.py` exposes four implementations of a `SummaryProvider` ABC:
-   - `OpenAISummaryProvider` — uses `instructor` + OpenAI for structured per-day output (one API call per day).
+   - `OpenAISummaryProvider` — one forced-function-tool call per day through `OpenAIClient.chat()` (Responses API), with the tool schema derived from the `DaySummaryResult` model that also validates the reply.
    - `ClaudeCLISummaryProvider` — spawns the Claude Code subprocess with a single batched prompt containing all days, then parses the response back into per-day summaries.
    - `CodexCLISummaryProvider` — spawns the OpenAI Codex CLI subprocess with the same single-batched-prompt approach.
    - `GeminiCLISummaryProvider` — spawns the Google Gemini CLI subprocess with the same single-batched-prompt approach.
@@ -593,9 +614,10 @@ The AWS path uses the same parser, categorizer, and override system as the self-
 - **Transport.** SES → S3 → Lambda. Bank emails arrive via SES inbound, land as `.eml` objects in an S3 bucket, and trigger the Lambda function on each new object. See [Email-to-S3 setup](https://docs.gettidings.com/self-hosting/email-to-s3/) for the SES + DNS + bucket policy walkthrough.
 - **Storage.** DynamoDB tables (`Transactions`, `BudgetConfig`, `CategoryConfig`) replace the SQLite file. Schema definitions are in the Data storage section above; both backends share the same field names.
 - **Notifications.** SNS publishes SMS messages to your phone number; the same notification message format is used as the self-hosted Ntfy/Twilio paths.
+- **Personal config.** The image ships `src/` and the handlers only — there is no `data/` directory, so the settings a self-hosted install keeps there arrive as environment variables instead: `USER_ID`, `USER_MAPPINGS`, `NOTIFICATION_BLOCKED_COMPANIES`, `CATEGORIZATION_MODEL`, `CATEGORIZATION_REASONING_EFFORT`. All optional, all merged in by `11_set_function_env.sh`; the table of what each one does lives in [`aws-deployment.md`](guides/aws-deployment.md).
 - **Deployment.** A set of numbered shell scripts in `docker/email_parsing/` automate ECR image build/push, Lambda function creation, and EventBridge schedule for the monthly summary job. See [AWS deployment](https://docs.gettidings.com/self-hosting/aws/) for the full sequence.
 
-Code volume favours the self-hosted path: `imap_poller.py` is ~575 lines with 50 unit tests; `lambda_function.py` is ~135 lines with 13 unit tests. The Lambda handler is intentionally thin because it delegates everything to shared `src/finance/` modules.
+Code volume favours the self-hosted path: `imap_poller.py` is ~370 lines with 51 unit tests; `lambda_function.py` is ~165 lines with 24 unit tests. The Lambda handler is intentionally thin because it delegates everything to shared `src/finance/` modules.
 
 ## Configuration
 
@@ -603,12 +625,13 @@ Code volume favours the self-hosted path: `imap_poller.py` is ~575 lines with 50
 |---------|----------|-------|
 | `OPENAI_API_KEY` | SSM Parameter Store (`/email-parser/openai-api-key`) | Loaded via `src/finance/secrets.py` tiered loader: SSM → env var → `data/.env` → project-root `.env`. Lambda returns HTTP 500 if missing |
 | AWS credentials | IAM role / env | S3, DynamoDB, SNS, Lambda access |
-| SNS topic ARN | `lambda_function.py` | Hardcoded; update when changing regions |
-| User mappings | `src/finance/user_mappings.csv` | Maps `ForwardedTo` → `UserId`; cached in memory |
-| OpenAI model | `lambda_function.py` | `DEFAULT_OPENAI_CHAT_MODEL` (`gpt-5.4-nano`, `src/finance/ai_cli.py`) is the fallback for every OpenAI-path feature; each feature's `*_model` config key overrides it (see [`configuration.md`](guides/configuration.md)) |
+| SNS topic ARN | `SNS_TOPIC_ARN` env var | Read by `notification_service.SnsProvider`; its presence is also what auto-selects the `sns` provider when `NOTIFICATION_PROVIDER` is unset |
+| User mappings | `USER_MAPPINGS` env var → `data/config/user_mappings.csv` → `src/finance/user_mappings.csv` | Maps `ForwardedTo` → `UserId`; cached in memory. The Lambda image carries no `data/` directory, so the env var is how both scheduled Lambdas reach the right partitions — see [Personal config in Lambda](guides/aws-deployment.md) |
+| OpenAI model | `CATEGORIZATION_MODEL` env var (Lambda) / `categorization_model` config key (self-hosted) | `DEFAULT_OPENAI_CHAT_MODEL` (`gpt-5.6-luna`, `src/finance/ai_cli.py`) is the fallback for every OpenAI-path feature; each feature's `*_model` config key overrides it (see [`configuration.md`](guides/configuration.md)) |
+| Categorization reasoning effort | `CATEGORIZATION_REASONING_EFFORT` env var (Lambda) / `categorization_reasoning_effort` config key (self-hosted) | Unset, `DEFAULT_CATEGORIZATION_REASONING_EFFORT` (`none`) applies — but only while the resolved model is the default one; any other model is called with no effort at all (`resolve_openai_categorization_settings`) |
 | Category overrides | `src/finance/config/category_overrides.json` | Company→category map; short-circuits OpenAI |
 | Categories enum | `src/finance/config/categories.json` | 39 predefined categories for OpenAI function call |
-| Blocked companies | `src/finance/config/blocked_companies.json` | Companies suppressed from SMS notifications |
+| Blocked companies | `src/finance/config/blocked_companies.json` + `NOTIFICATION_BLOCKED_COMPANIES` env var | Companies suppressed from SMS notifications. The bundled file ships empty; the env var (JSON array or comma-separated list) is unioned with it on every call, case-insensitively de-duplicated |
 | Card name mappings | `src/finance/config/card_name_mappings.json` | Maps card last-4 digits → cardholder first name |
 | Budget config backup | `src/finance/config/budget_config.json` | Local JSON backup of BudgetConfig DynamoDB items |
 | Dismissed suggestions | `src/finance/config/dismissed_suggestions.json` | Override suggestions dismissed by user; prevents re-suggestion |

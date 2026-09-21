@@ -162,6 +162,31 @@ An unrecognized value logs a warning and falls back to log-only.
 
 ---
 
+## Suppressing merchants
+
+Some transactions are not worth a buzz — a recurring transit tap, the coffee shop you
+visit daily. `NOTIFICATION_BLOCKED_COMPANIES` names them; a transaction whose company
+contains any entry (case-insensitive substring) is written to the database as usual but
+sends no notification.
+
+```bash
+# JSON array, or an equivalent comma-separated list. Write them unquoted, as
+# env-file lines — the value is passed through verbatim.
+NOTIFICATION_BLOCKED_COMPANIES=["Example Coffee","Example Transit"]
+NOTIFICATION_BLOCKED_COMPANIES=Example Coffee,Example Transit
+```
+
+It works on any install — `.env`, a `docker-compose.yml` `environment:` block, or a
+Lambda function's variable map. Entries are *unioned* with the bundled
+`src/finance/config/blocked_companies.json` (which ships empty) rather than replacing it,
+duplicates are dropped case-insensitively, and the variable is re-read on every
+notification, so a change applies to the next transaction without a restart. A malformed
+value is ignored with a warning — the list never breaks ingestion. For the Lambda path,
+`docker/email_parsing/11_set_function_env.sh` sets it without printing the value; see
+[AWS deployment](aws-deployment.md).
+
+---
+
 ## Troubleshooting
 
 **"I'm not getting notifications."**

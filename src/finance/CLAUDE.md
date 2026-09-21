@@ -62,4 +62,7 @@ All parsers must implement the abstract `parse_email()` method — enforced by
 ## DynamoDB schema
 
 Table `Transactions` — PK: `ForwardedTo` (String), SK: `DateFileName` (String).
-Auto-created.
+Not auto-created: `TransactionsDB` only binds the table, so create it once with
+`create_transaction_table()` in `transaction_db_admin.py`. `ParseFailures` and
+`Activity` are the only self-creating tables (lazy `_ensure_table`), and only the
+former is reachable from the Lambda path.

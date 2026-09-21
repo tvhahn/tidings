@@ -268,8 +268,12 @@ cleanly when their env is absent:
   `tests/fixtures/e2e_test_email.eml` (`E2E TEST CAFE`, `$1.23`) to the
   inbound S3 bucket, invokes the Lambda, verifies the DynamoDB record and
   `TransactionContext` enrichment, and cleans up after itself — even on
-  failure. Requires `E2E_EMAIL_BUCKET` + `E2E_USER_ID` (optional
-  `E2E_LAMBDA_FUNCTION` / `E2E_TRANSACTIONS_TABLE` / `E2E_BUDGET_TABLE`).
+  failure. It also asserts `CategoryAudit.model`, so the deployed function's
+  model is part of the contract. Requires `E2E_EMAIL_BUCKET` + `E2E_USER_ID`
+  (optional `E2E_LAMBDA_FUNCTION` / `E2E_TRANSACTIONS_TABLE` /
+  `E2E_BUDGET_TABLE` / `E2E_EXPECTED_MODEL`, the last one for a function whose
+  `CATEGORIZATION_MODEL` overrides the code default). The invocation is real,
+  so one notification goes out.
 - `test_imap_poller.py` — the self-hosted round-trip: fetches one message
   from a real inbox (read-only `BODY.PEEK`), runs the parse → store → enrich
   pipeline against an isolated temp SQLite DB, verifies the row, cleans up.
@@ -307,9 +311,14 @@ Repo and CI tooling lives in `scripts/`; operator CLIs — the break-glass
 tools you run by hand against your own data (category maintenance, insights
 context, the DynamoDB backup/restore pair) — live in `dev/cli/`, and the
 prompt-eval Streamlit harness in `dev/eval_harness/` (`make
-dev-eval-harness`, needs `uv sync --extra eval`). Every script carries a
-header docstring; the `scripts/` entries that matter for testing and
-release:
+dev-eval-harness`, needs `uv sync --extra eval`). `dev/cli/eval_categorization.py`
+is the categorization bake-off: it replays your own already-categorized
+transactions through several (model, reasoning-effort) arms and scores the
+agreement, which is how the shipped defaults were picked. Read-only, refuses to
+run in demo mode, and prints no merchant data unless `--show-rows`; its pure
+parts are unit-tested in `tests/unit/test_eval_categorization_cli.py`. Every
+script carries a header docstring; the `scripts/` entries that matter for
+testing and release:
 
 | Script | Purpose |
 |--------|---------|
