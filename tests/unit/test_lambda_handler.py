@@ -10,7 +10,7 @@ import os
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, create_autospec, patch
 
 import pytest
 
@@ -21,6 +21,26 @@ from src.finance.secrets import get_openai_api_key
 # A model that is deliberately NOT the shared default, used to prove that an
 # env override reaches the client and that a foreign model gets no tuned effort.
 FOREIGN_MODEL = "gpt-5.4-nano"
+
+
+@pytest.fixture(autouse=True)
+def _mock_parse_failure_store() -> Iterator[MagicMock]:
+    """Replace the handler's import-time ``ParseFailureStore`` with a mock.
+
+    ``lambda_function`` builds a real DynamoDB-backed store when it is imported —
+    before any fixture runs, so with whatever credentials the machine has. Tests
+    that reach the quarantine branch used to write their placeholder email into
+    the production table on every run. Autospec keeps the mock honest about the
+    store's real interface.
+    """
+    from src.finance.parse_failure_store import ParseFailureStore
+
+    store = create_autospec(ParseFailureStore, instance=True)
+    store.record_failure.return_value = "pf_test"
+    store.has_other_recent_failure.return_value = False
+    store.set_status.return_value = True
+    with patch("docker.email_parsing.lambda_function.parse_failure_store", store):
+        yield store
 
 
 def _s3_event(bucket: str = "test-bucket", key: str = "emails/test.eml") -> dict[str, Any]:
@@ -147,6 +167,34 @@ class TestHandlerProcessing:
 
         mock_sms.assert_not_called()
         mock_enricher.enrich.assert_not_called()
+
+    @patch("docker.email_parsing.lambda_function.recover_or_quarantine")
+    @patch("docker.email_parsing.lambda_function.transactions_db")
+    @patch("docker.email_parsing.lambda_function.parse_email")
+    @patch("docker.email_parsing.lambda_function.get_s3_file")
+    def test_unparseable_email_goes_to_the_injected_store_not_aws(
+        self,
+        mock_get_s3: MagicMock,
+        mock_parse: MagicMock,
+        mock_db: MagicMock,
+        mock_recover: MagicMock,
+        _mock_parse_failure_store: MagicMock,
+    ) -> None:
+        """The quarantine branch must hand the module's store to the recovery
+        gate — and in tests that store is the autospecced mock, so a placeholder
+        email can never be written to the production ``ParseFailures`` table
+        (which is exactly what this file did before the fixture existed)."""
+        import docker.email_parsing.lambda_function as module
+
+        mock_get_s3.return_value = b"raw email bytes"
+        mock_parse.return_value = {"body": "some text"}  # no transaction_type
+        mock_recover.return_value = MagicMock(status="quarantined", failure_id="pf_test", result=None)
+
+        handler(_s3_event(), None)
+
+        assert module.parse_failure_store is _mock_parse_failure_store
+        assert mock_recover.call_args.args[1] is _mock_parse_failure_store
+        mock_db.add_transaction.assert_not_called()
 
     @patch("docker.email_parsing.lambda_function.context_enricher")
     @patch("docker.email_parsing.lambda_function.notification_service.send")

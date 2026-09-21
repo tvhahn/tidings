@@ -29,6 +29,27 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture(autouse=True)
+def _no_real_aws(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin fake AWS credentials so an un-mocked boto3 call can never reach a real account.
+
+    Developer machines (and the devcontainer) carry real credentials. The Lambda
+    handler module builds DynamoDB-backed stores at import time, and its tests
+    used to drive the quarantine branch straight into the production
+    ``ParseFailures`` table — 82 junk rows accumulated before anyone noticed.
+    With these values any call that slips past a mock fails authentication
+    instead of writing. ``moto`` intercepts before credentials matter, so the
+    ``dynamodb_resource`` fixture is unaffected. Function-scoped (restored after
+    each test) so integration tests collected in the same session keep the real
+    environment.
+    """
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
+    monkeypatch.delenv("AWS_SESSION_TOKEN", raising=False)
+    monkeypatch.delenv("AWS_PROFILE", raising=False)
+    monkeypatch.setenv("AWS_EC2_METADATA_DISABLED", "true")
+
+
+@pytest.fixture(autouse=True)
 def _isolate_statement_store(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[None]:
     """Redirect the StatementStore singleton + raw-PDF dir to a tmp path per test.
 
