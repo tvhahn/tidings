@@ -2408,7 +2408,10 @@ check the resolved digest step 5 printed, and `/aws/lambda/email-parser` in Clou
 
 **2. Round-trip test.** `tests/integration/test_lambda_e2e.py` uploads a fictitious `$1.23`
 "E2E TEST CAFE" email to the inbound bucket, invokes the function, and asserts the
-DynamoDB row, its `CategoryAudit.model`, and the `TransactionContext` enrichment. It
+DynamoDB row, how its category was decided, and the `TransactionContext` enrichment. An
+override rule or the model may decide the category; a swallowed AI failure
+(`CategoryAudit.source` of `ai_fallback`) fails the test, and when the model decided,
+`CategoryAudit.model` must match. It
 creates a marked temporary budget target and deletes both that and its own transaction row
 in teardown, pass or fail. It is a real invocation, so the notification fires too — expect
 one SMS. The test is excluded from every gate; run it by hand:
@@ -2420,8 +2423,9 @@ E2E_EMAIL_BUCKET=your-inbound-bucket E2E_USER_ID=your-user-id \
 
 Optional: `E2E_LAMBDA_FUNCTION`, `E2E_TRANSACTIONS_TABLE`, `E2E_BUDGET_TABLE`,
 `AWS_REGION`, and `E2E_EXPECTED_MODEL` — set that last one to whatever
-`CATEGORIZATION_MODEL` the deployed function carries, or the model assertion compares
-against the code default and fails.
+`CATEGORIZATION_MODEL` the deployed function carries, or the model check compares
+against the code default and fails. If an override rule matches the test merchant on your
+account the model never runs and that check is skipped.
 
 **3. Real email.** Send one to your SES inbound address. Within ~30 seconds CloudWatch
 Logs show the parser output, the `Transactions` table holds the item, and the dashboard
