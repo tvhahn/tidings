@@ -8,7 +8,9 @@ aws lambda create-function \
   --function-name email-parser \
   --package-type Image \
   --code ImageUri="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/email-parsing:latest" \
-  --role "arn:aws:iam::${ACCOUNT_ID}:role/email-parser-iam"
+  --role "arn:aws:iam::${ACCOUNT_ID}:role/email-parser-iam" \
+  --timeout 60 \
+  --memory-size 256
 
 # Dead-letter queue for the async (S3 → Lambda) path: after the retries below
 # are exhausted, the failed event lands here instead of being dropped — a
