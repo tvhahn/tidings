@@ -14,6 +14,7 @@ from src.finance.config_loader import get_category_list, get_override_context
 
 __all__ = [
     "categorize_transactions",
+    "categorize_with_ai",
     "email_is_transaction_alert",
     "extract_function_call_args",
 ]
@@ -158,6 +159,26 @@ def categorize_transactions(
         logger.info("No OpenAI client configured, defaulting to Miscellaneous for '%s'", company)
         transaction["_category_audit"] = build_audit("ai_fallback", fallback_reason="no_client")
         return "Miscellaneous"
+
+    return categorize_with_ai(api_client, transaction, categories)
+
+
+def categorize_with_ai(api_client: AIProviderClient, transaction: dict[str, Any], categories: list[str]) -> str:
+    """Ask the model to categorize ``transaction`` — the AI half of ``categorize_transactions``.
+
+    Deliberately narrow: this performs the model call and nothing else. It does
+    **not** consult user overrides and does **not** read ``get_config()`` —
+    those policy layers belong to ``categorize_transactions``, which calls this
+    once they have been cleared. Keeping them out is what lets the offline
+    bake-off harness (``dev/cli/eval_categorization.py``) replay real
+    transactions straight through a model without monkeypatching override or
+    config state.
+
+    Stamps ``transaction["_category_audit"]`` exactly as the combined function
+    always did (``ai`` on success, ``ai_fallback`` plus a ``fallback_reason``
+    otherwise) and returns ``"Miscellaneous"`` on every failure path.
+    """
+    model = getattr(api_client, "model", None)
 
     tools = [
         {

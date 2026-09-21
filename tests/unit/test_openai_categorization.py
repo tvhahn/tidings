@@ -16,7 +16,12 @@ import pytest
 from openai import APIError, AuthenticationError, PermissionDeniedError, RateLimitError
 
 from src.finance.ai_client import AIClientError
-from src.finance.categorizer import _classify_ai_error, categorize_transactions, email_is_transaction_alert
+from src.finance.categorizer import (
+    _classify_ai_error,
+    categorize_transactions,
+    categorize_with_ai,
+    email_is_transaction_alert,
+)
 from src.finance.openai_client import OpenAIClient
 
 _REQ = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
@@ -577,3 +582,75 @@ class TestCategorizeAuditErrorReasons:
         result = categorize_transactions(client, txn)
         assert result == "Miscellaneous"
         assert txn["_category_audit"]["fallback_reason"] == "empty_completion"
+
+
+# ---------------------------------------------------------------------------
+# categorize_with_ai — the AI half, extracted for the bake-off harness
+# ---------------------------------------------------------------------------
+
+
+class TestCategorizeWithAi:
+    """`categorize_with_ai` is the model call and nothing else.
+
+    The offline eval harness (`dev/cli/eval_categorization.py`) depends on that
+    narrowness: it must reach the model for merchants the user has since
+    written an override for, without monkeypatching override state or the
+    privacy gate. If either policy layer leaks back in, the harness silently
+    stops measuring the model.
+    """
+
+    TRANSACTION = {"amount": 50.00, "company": "Starbucks"}
+
+    @patch("src.finance.categorizer.get_override_context", return_value=({"Starbucks": "Restaurant/Dining"}, {}))
+    def test_calls_the_model_even_when_an_override_would_match(self, mock_ctx: MagicMock) -> None:
+        client = MagicMock(name="client")
+        client.model = "gpt-5.6-luna"
+        client.chat.return_value = _make_completion("categorize_transaction", {"category": "Groceries"})
+
+        txn = dict(self.TRANSACTION)
+        result = categorize_with_ai(client, txn, ["Groceries", "Restaurant/Dining"])
+
+        assert result == "Groceries"
+        client.chat.assert_called_once()
+        mock_ctx.assert_not_called()
+        assert txn["_category_audit"]["source"] == "ai"
+
+    @patch("src.finance.categorizer.get_config")
+    def test_does_not_read_the_privacy_gate(self, mock_config: MagicMock) -> None:
+        client = MagicMock(name="client")
+        client.chat.return_value = _make_completion("categorize_transaction", {"category": "Groceries"})
+
+        assert categorize_with_ai(client, dict(self.TRANSACTION), ["Groceries"]) == "Groceries"
+        mock_config.assert_not_called()
+
+    def test_forwards_the_supplied_categories_as_the_tool_enum(self) -> None:
+        client = MagicMock(name="client")
+        client.chat.return_value = _make_completion("categorize_transaction", {"category": "CustomCat"})
+
+        categorize_with_ai(client, dict(self.TRANSACTION), ["CustomCat", "Other"])
+
+        tools = client.chat.call_args.kwargs["tools"]
+        assert tools[0]["function"]["parameters"]["properties"]["category"]["enum"] == ["CustomCat", "Other"]
+
+    def test_none_completion_stamps_the_classified_fallback_reason(self) -> None:
+        client = MagicMock(name="client")
+        client.model = "gpt-5.6-luna"
+        client.chat.return_value = None
+        client.last_error = _openai_error(RateLimitError, 429, {"error": {"code": "insufficient_quota"}})
+
+        txn = dict(self.TRANSACTION)
+        assert categorize_with_ai(client, txn, ["Groceries"]) == "Miscellaneous"
+        assert txn["_category_audit"]["source"] == "ai_fallback"
+        assert txn["_category_audit"]["fallback_reason"] == "quota_exceeded"
+
+    def test_categorize_transactions_delegates_to_it(self) -> None:
+        """The combined entry point routes its AI half here instead of duplicating it."""
+        with (
+            patch("src.finance.categorizer.get_override_context", return_value=({}, {})),
+            patch("src.finance.categorizer.get_config", return_value={"ai_categorization_enabled": True}),
+            patch("src.finance.categorizer.categorize_with_ai", return_value="Groceries") as mock_ai,
+        ):
+            client = MagicMock(name="client")
+            txn = dict(self.TRANSACTION)
+            assert categorize_transactions(client, txn, categories=["Groceries"]) == "Groceries"
+        mock_ai.assert_called_once_with(client, txn, ["Groceries"])
