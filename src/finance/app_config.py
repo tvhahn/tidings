@@ -346,11 +346,18 @@ def get_config() -> AppConfig:
 
     # First run: auto-detect
     config = _auto_detect_defaults()
-    try:
-        _save_config(config)
-    except OSError:
-        # A read-only filesystem must not crash startup — continue in-memory.
-        logger.exception("Failed to persist first-run config; continuing in-memory")
+    if os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+        # The Lambda filesystem is read-only by design and its config is
+        # env-driven, so there is nothing to persist. Attempting the write put a
+        # full OSError traceback in the error log on every cold start — which is
+        # nearly every invocation at this volume — burying real failures.
+        logger.debug("Lambda runtime: first-run config kept in memory, not persisted")
+    else:
+        try:
+            _save_config(config)
+        except OSError:
+            # A read-only filesystem must not crash startup — continue in-memory.
+            logger.exception("Failed to persist first-run config; continuing in-memory")
     _cache = config
     return cast("AppConfig", dict(_cache))
 

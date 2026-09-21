@@ -270,6 +270,42 @@ class TestFirstRunStorageDefault:
         assert config["storage"] == "sqlite"
         assert config["demo_mode"] is True
 
+    def test_lambda_runtime_does_not_attempt_to_persist_first_run_config(self, monkeypatch, tmp_path, caplog) -> None:
+        """Lambda's filesystem is read-only and its config is env-driven. The
+        first-run persist must be skipped there rather than attempted: the
+        failed write logged a full OSError traceback on every cold start."""
+        import logging
+
+        from src.finance import app_config
+
+        monkeypatch.setenv("AWS_LAMBDA_FUNCTION_NAME", "email-parser")
+        monkeypatch.setattr(app_config, "_CONFIG_PATH", tmp_path / "data" / "config.json")
+        app_config.invalidate_config_cache()
+        saves: list[object] = []
+        monkeypatch.setattr(app_config, "_save_config", saves.append)
+
+        with caplog.at_level(logging.ERROR, logger="src.finance.app_config"):
+            config = app_config.get_config()
+
+        assert saves == []
+        assert config["storage"] == "dynamodb"
+        assert not (tmp_path / "data").exists()
+        assert [r for r in caplog.records if r.levelno >= logging.ERROR] == []
+        app_config.invalidate_config_cache()
+
+    def test_first_run_outside_lambda_still_persists(self, monkeypatch, tmp_path) -> None:
+        """The skip is Lambda-only: a normal first run keeps writing config.json."""
+        from src.finance import app_config
+
+        monkeypatch.delenv("AWS_LAMBDA_FUNCTION_NAME", raising=False)
+        monkeypatch.setattr(app_config, "_CONFIG_PATH", tmp_path / "data" / "config.json")
+        app_config.invalidate_config_cache()
+
+        app_config.get_config()
+
+        assert (tmp_path / "data" / "config.json").exists()
+        app_config.invalidate_config_cache()
+
     def test_lambda_runtime_forces_dynamodb(self, monkeypatch) -> None:
         """The Lambda pipeline ships no data/config.json and runs read-only, so
         it re-runs first-run defaults on every cold start. AWS_LAMBDA_FUNCTION_NAME
