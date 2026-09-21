@@ -24,7 +24,7 @@ from src.finance.categorizer import (
 )
 from src.finance.openai_client import OpenAIClient
 
-_REQ = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
+_REQ = httpx.Request("POST", "https://api.openai.com/v1/responses")
 
 
 def _openai_error(cls: type, status: int, body: dict[str, Any] | None) -> Exception:
@@ -72,6 +72,30 @@ def _make_no_choices_completion() -> SimpleNamespace:
 # ---------------------------------------------------------------------------
 
 
+def _make_responses_reply(text: str) -> SimpleNamespace:
+    """Build a Responses-API reply carrying a single text message.
+
+    ``OpenAIClient.chat`` posts to ``/v1/responses`` (GPT-5.6 rejects function
+    tools plus a reasoning effort on ``/v1/chat/completions``) and adapts the
+    result back into the chat-completion shape asserted below.
+    """
+    return SimpleNamespace(
+        id="resp_1",
+        status="completed",
+        error=None,
+        incomplete_details=None,
+        usage=None,
+        output=[
+            SimpleNamespace(
+                type="message",
+                role="assistant",
+                status="completed",
+                content=[SimpleNamespace(type="output_text", text=text)],
+            )
+        ],
+    )
+
+
 class TestOpenAIClientChat:
     """Tests for OpenAIClient.chat() exception path (lines 14-24)."""
 
@@ -80,7 +104,7 @@ class TestOpenAIClientChat:
         """When the underlying API call raises, chat() should return None and capture last_error."""
         boom = Exception("Connection timeout")
         mock_client = MagicMock()
-        mock_client.chat.completions.create.side_effect = boom
+        mock_client.responses.create.side_effect = boom
         mock_openai_class.return_value = mock_client
 
         client = OpenAIClient(model="gpt-5.4-nano", api_key="test-key")
@@ -92,14 +116,17 @@ class TestOpenAIClientChat:
     def test_successful_call_returns_response(self, mock_openai_class: MagicMock) -> None:
         """When the API call succeeds, chat() should return the response and clear last_error."""
         mock_client = MagicMock()
-        expected = MagicMock()
-        mock_client.chat.completions.create.return_value = expected
+        expected = _make_responses_reply("all good")
+        mock_client.responses.create.return_value = expected
         mock_openai_class.return_value = mock_client
 
         client = OpenAIClient(model="gpt-5.4-nano", api_key="test-key")
         client.last_error = Exception("stale error from a previous call")
         result = client.chat(messages=[{"role": "user", "content": "test"}])
-        assert result is expected
+        # The Responses reply is adapted into the chat-completion shape every
+        # caller reads; the untouched original hangs off `.raw`.
+        assert result.choices[0].message.content == "all good"
+        assert result.raw is expected
         assert client.last_error is None
 
 

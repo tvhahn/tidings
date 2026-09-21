@@ -12,7 +12,6 @@ dependencies = [
     "openai",
     "boto3",
     "beautifulsoup4",
-    "instructor",
     "python-dateutil",
     "fastapi",
     # Imported directly by src/api/main.py (the SPA fallback catches the

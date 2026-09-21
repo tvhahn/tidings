@@ -9,9 +9,10 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from src.finance.ai_cli import DEFAULT_OPENAI_CHAT_MODEL, _codex_signed_in, _gemini_signed_in, run_cli_provider
+from src.finance.openai_client import OpenAIClient
 
 logger = logging.getLogger(__name__)
 
@@ -61,9 +62,42 @@ Summary text here.
 
 
 class DaySummaryResult(BaseModel):
-    """Structured output for a single day summary via instructor."""
+    """Structured output for a single day summary.
+
+    Doubles as the schema of the ``record_day_summary`` function tool the
+    OpenAI provider forces (see ``DAY_SUMMARY_TOOL``), so the wire contract and
+    the parsed result can never drift apart.
+    """
 
     summary: str = Field(description="single sentence, ≤25 words, plain text")
+
+
+DAY_SUMMARY_TOOL_NAME = "record_day_summary"
+
+
+def _day_summary_tool() -> dict[str, Any]:
+    """Build the chat-format function tool from ``DaySummaryResult``.
+
+    The parameters are the model's own JSON schema (minus pydantic's top-level
+    ``title``, which is noise for the model) — the field ``description`` stays,
+    because it carries the length and format instruction. ``strict`` is
+    deliberately unset: ``OpenAIClient`` defaults it to ``False``, matching
+    every other schema in this repo.
+    """
+    schema = DaySummaryResult.model_json_schema()
+    schema.pop("title", None)
+    return {
+        "type": "function",
+        "function": {
+            "name": DAY_SUMMARY_TOOL_NAME,
+            "description": "Record the one-sentence summary of this day's spending.",
+            "parameters": schema,
+        },
+    }
+
+
+DAY_SUMMARY_TOOL = _day_summary_tool()
+DAY_SUMMARY_TOOL_CHOICE: dict[str, Any] = {"type": "function", "function": {"name": DAY_SUMMARY_TOOL_NAME}}
 
 
 def prepare_template_fields(ctx: dict[str, Any]) -> dict[str, Any]:
@@ -158,7 +192,15 @@ class SummaryProvider(ABC):
 
 
 class OpenAISummaryProvider(SummaryProvider):
-    """Uses instructor + OpenAI API for structured per-day output."""
+    """Uses the shared ``OpenAIClient`` for structured per-day output.
+
+    One forced-function-tool call per day through ``OpenAIClient.chat``, which
+    speaks the Responses API with ``store=False`` — the GPT-5.6 family rejects
+    function tools combined with a reasoning effort on
+    ``/v1/chat/completions``, and the financial detail in these prompts must
+    not be persisted server-side. The tool schema comes from
+    ``DaySummaryResult``, which also parses the reply.
+    """
 
     def __init__(
         self,
@@ -175,33 +217,76 @@ class OpenAISummaryProvider(SummaryProvider):
         day_contexts: list[dict[str, Any]],
         on_complete: Callable[[str, str], None] | None = None,
     ) -> dict[str, str]:
-        import instructor
-        from openai import OpenAI
-
-        client = instructor.from_openai(OpenAI(api_key=self.api_key))
+        # One client for the whole run; reasoning_effort=None keeps the model
+        # default (OpenAIClient only sends an effort when it resolves to one).
+        client = OpenAIClient(model=self.model, api_key=self.api_key, reasoning_effort=self.reasoning_effort)
         results: dict[str, str] = {}
-        # reasoning_effort is a passthrough OpenAI param — only send it when set
-        # so a None keeps the model's default.
-        extra: dict[str, Any] = {"reasoning_effort": self.reasoning_effort} if self.reasoning_effort else {}
 
+        # Days run sequentially and every failure is contained to its own day:
+        # a day that fails is simply absent from the result. There is no retry
+        # — the reply is one short string, so there is nothing a second attempt
+        # would validate differently.
         for ctx in day_contexts:
             date = ctx["date"]
             prompt = self._build_prompt(ctx)
             try:
-                result = await asyncio.to_thread(
-                    client.chat.completions.create,
-                    model=self.model,
-                    response_model=DaySummaryResult,
+                completion = await asyncio.to_thread(
+                    client.chat,
                     messages=[{"role": "user", "content": prompt}],
-                    **extra,
+                    tools=[DAY_SUMMARY_TOOL],
+                    tool_choice=DAY_SUMMARY_TOOL_CHOICE,
                 )
-                results[date] = result.summary
+                summary = self._read_summary(completion, client, date)
+                if summary is None:
+                    continue
+                results[date] = summary
                 if on_complete:
-                    on_complete(date, result.summary)
+                    on_complete(date, summary)
             except Exception:
                 logger.exception("OpenAI summary generation failed for %s", date)
 
         return results
+
+    @staticmethod
+    def _read_summary(completion: Any, client: OpenAIClient, date: str) -> str | None:
+        """Pull the summary out of one completion, or log why there is none.
+
+        Returns ``None`` for every failure mode — the client swallowed an
+        error, the model called no tool, or the arguments failed validation.
+        Log lines carry the date and the kind of failure only: never the
+        prompt, the transactions, or the summary text.
+        """
+        if completion is None:
+            error = client.last_error
+            logger.error(
+                "OpenAI summary generation failed for %s (%s)",
+                date,
+                type(error).__name__ if error is not None else "no error recorded",
+            )
+            return None
+
+        tool_calls = completion.choices[0].message.tool_calls
+        if not tool_calls:
+            logger.error("OpenAI summary response for %s contained no tool call", date)
+            return None
+
+        arguments = tool_calls[0].function.arguments
+        if not arguments:
+            logger.error("OpenAI summary tool call for %s carried no arguments", date)
+            return None
+
+        try:
+            return DaySummaryResult.model_validate_json(arguments).summary
+        except ValidationError as e:
+            # Log the shape of the failure, not the payload: a validation error
+            # renders the offending input, which is model-written summary text.
+            logger.error(  # noqa: TRY400 — a traceback would print the ValidationError's input: model-written summary text
+                "OpenAI summary arguments for %s failed validation (%d error(s): %s)",
+                date,
+                e.error_count(),
+                ", ".join(err["type"] for err in e.errors()),
+            )
+            return None
 
     def _build_prompt(self, ctx: dict[str, Any]) -> str:
         return build_day_prompt(ctx)

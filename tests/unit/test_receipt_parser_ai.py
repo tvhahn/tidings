@@ -290,6 +290,32 @@ class TestProviderRouting:
         assert "parsed_at" in prov
 
 
+def _sdk_mock() -> MagicMock:
+    """A stand-in OpenAI SDK handle whose Responses call returns a text reply.
+
+    ``OpenAIClient.chat`` posts to ``/v1/responses`` — GPT-5.6 rejects function
+    tools combined with a reasoning effort on ``/v1/chat/completions`` — so the
+    per-call model/effort overrides land as ``responses.create`` kwargs.
+    """
+    from types import SimpleNamespace
+
+    sdk = MagicMock(name="openai_sdk")
+    sdk.responses.create.return_value = SimpleNamespace(
+        status="completed",
+        error=None,
+        incomplete_details=None,
+        usage=None,
+        output=[
+            SimpleNamespace(
+                type="message",
+                role="assistant",
+                content=[SimpleNamespace(type="output_text", text="ok")],
+            )
+        ],
+    )
+    return sdk
+
+
 class TestChatModelOverride:
     def test_model_override_does_not_mutate_client(self) -> None:
         # The per-call model override must reach the chat endpoint without
@@ -298,11 +324,11 @@ class TestChatModelOverride:
         from src.finance.openai_client import OpenAIClient
 
         client = OpenAIClient(model="text-embedding-3-small", api_key="test-key")
-        client.client = MagicMock(name="openai_sdk")  # avoid any real network call
+        client.client = _sdk_mock()  # avoid any real network call
 
         client.chat([{"role": "user", "content": "hi"}], model="gpt-5.4-nano")
 
-        create = client.client.chat.completions.create
+        create = client.client.responses.create
         assert create.call_args.kwargs["model"] == "gpt-5.4-nano"
         # Instance default is untouched — no mutate/restore.
         assert client.model == "text-embedding-3-small"
@@ -311,11 +337,11 @@ class TestChatModelOverride:
         from src.finance.openai_client import OpenAIClient
 
         client = OpenAIClient(model="gpt-5.4-nano", api_key="test-key")
-        client.client = MagicMock(name="openai_sdk")
+        client.client = _sdk_mock()
 
         client.chat([{"role": "user", "content": "hi"}])
 
-        create = client.client.chat.completions.create
+        create = client.client.responses.create
         assert create.call_args.kwargs["model"] == "gpt-5.4-nano"
 
 
@@ -324,12 +350,13 @@ class TestChatReasoningEffort:
         from src.finance.openai_client import OpenAIClient
 
         client = OpenAIClient(model="gpt-5.4-nano", api_key="test-key")
-        client.client = MagicMock(name="openai_sdk")
+        client.client = _sdk_mock()
 
         client.chat([{"role": "user", "content": "hi"}], reasoning_effort="high")
 
-        create = client.client.chat.completions.create
-        assert create.call_args.kwargs["reasoning_effort"] == "high"
+        create = client.client.responses.create
+        # Responses carries the effort as a nested `reasoning` object.
+        assert create.call_args.kwargs["reasoning"] == {"effort": "high"}
 
     def test_reasoning_effort_omitted_when_none(self) -> None:
         from openai import omit
@@ -337,13 +364,13 @@ class TestChatReasoningEffort:
         from src.finance.openai_client import OpenAIClient
 
         client = OpenAIClient(model="gpt-5.4-nano", api_key="test-key")
-        client.client = MagicMock(name="openai_sdk")
+        client.client = _sdk_mock()
 
         client.chat([{"role": "user", "content": "hi"}])
 
-        create = client.client.chat.completions.create
+        create = client.client.responses.create
         # The SDK sentinel means "don't send this param".
-        assert create.call_args.kwargs["reasoning_effort"] is omit
+        assert create.call_args.kwargs["reasoning"] is omit
 
     def test_instance_reasoning_effort_used_when_no_per_call(self) -> None:
         # get_ai_client sets the effort on the client; the categorizer then calls
@@ -351,9 +378,9 @@ class TestChatReasoningEffort:
         from src.finance.openai_client import OpenAIClient
 
         client = OpenAIClient(model="gpt-5.4-nano", api_key="test-key", reasoning_effort="low")
-        client.client = MagicMock(name="openai_sdk")
+        client.client = _sdk_mock()
 
         client.chat([{"role": "user", "content": "hi"}])
 
-        create = client.client.chat.completions.create
-        assert create.call_args.kwargs["reasoning_effort"] == "low"
+        create = client.client.responses.create
+        assert create.call_args.kwargs["reasoning"] == {"effort": "low"}

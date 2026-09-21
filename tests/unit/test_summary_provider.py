@@ -1,15 +1,30 @@
-"""Tests for summary provider abstraction — OpenAI, Claude Code, OpenAI Codex."""
+"""Tests for summary provider abstraction — OpenAI, Claude Code, OpenAI Codex.
+
+The OpenAI provider talks to the shared ``OpenAIClient`` (Responses API,
+``store=False``) with a forced function tool derived from ``DaySummaryResult``
+— it no longer goes through ``instructor``. These tests therefore fake
+chat-completion-shaped replies, and one of them drives a real ``OpenAIClient``
+whose SDK handle is a mock so the Responses request itself can be inspected.
+
+Everything here uses fakes — no network, ever.
+"""
 
 import asyncio
+import json
+import logging
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.finance.ai_cli import _extract_codex_answer
+from src.finance.ai_cli import DEFAULT_OPENAI_CHAT_MODEL, _extract_codex_answer
+from src.finance.openai_client import OpenAIClient
 from src.finance.summary_provider import (
+    DAY_SUMMARY_TOOL_NAME,
     ClaudeCLISummaryProvider,
     CodexCLISummaryProvider,
+    DaySummaryResult,
     GeminiCLISummaryProvider,
     OpenAISummaryProvider,
     _parse_sections,
@@ -37,34 +52,239 @@ def _make_ctx(date: str = "2026-04-15") -> dict[str, Any]:
     }
 
 
-class TestOpenAISummaryProvider:
-    @patch("src.finance.summary_provider.asyncio.to_thread")
-    def test_generates_summaries(self, mock_to_thread: MagicMock) -> None:
-        mock_result = MagicMock()
-        mock_result.summary = "A grocery-heavy day with $50 spent."
-        mock_to_thread.return_value = mock_result
+# --------------------------------------------------------------------------- #
+# Fakes shaped like what OpenAIClient.chat returns (chat-completion shape)
+# --------------------------------------------------------------------------- #
 
-        provider = OpenAISummaryProvider(api_key="sk-test", model="gpt-4o-mini")
-        results = asyncio.run(provider.generate_summaries([_make_ctx()]))
+
+def _completion(tool_calls: list[Any] | None, content: str | None = None) -> SimpleNamespace:
+    message = SimpleNamespace(role="assistant", content=content, tool_calls=tool_calls)
+    return SimpleNamespace(choices=[SimpleNamespace(index=0, message=message)], usage=None)
+
+
+def _tool_call(arguments: str, name: str = DAY_SUMMARY_TOOL_NAME) -> SimpleNamespace:
+    return SimpleNamespace(
+        id="call_1",
+        type="function",
+        function=SimpleNamespace(name=name, arguments=arguments),
+    )
+
+
+def _summary_completion(summary: str) -> SimpleNamespace:
+    return _completion([_tool_call(json.dumps({"summary": summary}))])
+
+
+def _fake_client(chat: MagicMock, last_error: Exception | None = None) -> MagicMock:
+    """A stand-in for ``OpenAIClient`` with a scripted ``chat``."""
+    client = MagicMock(name="openai_client")
+    client.chat = chat
+    client.last_error = last_error
+    return client
+
+
+class TestOpenAISummaryProvider:
+    def test_generates_summaries(self) -> None:
+        chat = MagicMock(name="chat", return_value=_summary_completion("A grocery-heavy day with $50 spent."))
+        with patch("src.finance.summary_provider.OpenAIClient", return_value=_fake_client(chat)):
+            provider = OpenAISummaryProvider(api_key="sk-test", model="gpt-4o-mini")
+            results = asyncio.run(provider.generate_summaries([_make_ctx()]))
         assert "2026-04-15" in results
         assert results["2026-04-15"] == "A grocery-heavy day with $50 spent."
 
-    @patch("src.finance.summary_provider.asyncio.to_thread")
-    def test_calls_on_complete(self, mock_to_thread: MagicMock) -> None:
-        mock_result = MagicMock()
-        mock_result.summary = "Summary text."
-        mock_to_thread.return_value = mock_result
-
+    def test_calls_on_complete(self) -> None:
+        chat = MagicMock(name="chat", return_value=_summary_completion("Summary text."))
         completed = []
-        provider = OpenAISummaryProvider(api_key="sk-test")
-        asyncio.run(provider.generate_summaries([_make_ctx()], on_complete=lambda d, t: completed.append((d, t))))
+        with patch("src.finance.summary_provider.OpenAIClient", return_value=_fake_client(chat)):
+            provider = OpenAISummaryProvider(api_key="sk-test")
+            asyncio.run(provider.generate_summaries([_make_ctx()], on_complete=lambda d, t: completed.append((d, t))))
         assert completed == [("2026-04-15", "Summary text.")]
 
-    @patch("src.finance.summary_provider.asyncio.to_thread", side_effect=Exception("API error"))
-    def test_handles_api_error_gracefully(self, mock_to_thread: MagicMock) -> None:
-        provider = OpenAISummaryProvider(api_key="sk-test")
-        results = asyncio.run(provider.generate_summaries([_make_ctx()]))
+    def test_handles_api_error_gracefully(self) -> None:
+        chat = MagicMock(name="chat", side_effect=Exception("API error"))
+        with patch("src.finance.summary_provider.OpenAIClient", return_value=_fake_client(chat)):
+            provider = OpenAISummaryProvider(api_key="sk-test")
+            results = asyncio.run(provider.generate_summaries([_make_ctx()]))
         assert results == {}
+
+    def test_one_failed_day_does_not_abort_the_others(self) -> None:
+        chat = MagicMock(
+            name="chat",
+            side_effect=[
+                _summary_completion("Day one."),
+                Exception("API error"),
+                _summary_completion("Day three."),
+            ],
+        )
+        contexts = [_make_ctx("2026-04-13"), _make_ctx("2026-04-14"), _make_ctx("2026-04-15")]
+        with patch("src.finance.summary_provider.OpenAIClient", return_value=_fake_client(chat)):
+            provider = OpenAISummaryProvider(api_key="sk-test")
+            results = asyncio.run(provider.generate_summaries(contexts))
+        assert results == {"2026-04-13": "Day one.", "2026-04-15": "Day three."}
+
+    def test_forces_a_tool_derived_from_the_pydantic_model(self) -> None:
+        chat = MagicMock(name="chat", return_value=_summary_completion("Summary text."))
+        with patch("src.finance.summary_provider.OpenAIClient", return_value=_fake_client(chat)):
+            asyncio.run(OpenAISummaryProvider(api_key="sk-test").generate_summaries([_make_ctx()]))
+
+        kwargs = chat.call_args.kwargs
+        assert list(kwargs["messages"][0]) == ["role", "content"]
+        assert kwargs["messages"][0]["role"] == "user"
+        assert kwargs["messages"][0]["content"].startswith("You are a personal finance assistant.")
+
+        expected_schema = DaySummaryResult.model_json_schema()
+        expected_schema.pop("title", None)
+        (tool,) = kwargs["tools"]
+        assert tool["type"] == "function"
+        assert tool["function"]["name"] == DAY_SUMMARY_TOOL_NAME
+        assert tool["function"]["parameters"] == expected_schema
+        # The field description carries the length/format instruction.
+        assert tool["function"]["parameters"]["properties"]["summary"]["description"] == (
+            "single sentence, ≤25 words, plain text"
+        )
+        assert tool["function"]["parameters"]["required"] == ["summary"]
+        assert "strict" not in tool["function"]
+        assert kwargs["tool_choice"] == {"type": "function", "function": {"name": DAY_SUMMARY_TOOL_NAME}}
+
+    def test_none_completion_skips_the_day_and_logs_the_error_type(self, caplog: pytest.LogCaptureFixture) -> None:
+        chat = MagicMock(name="chat", return_value=None)
+        client = _fake_client(chat, last_error=TimeoutError("upstream timed out"))
+        with (
+            patch("src.finance.summary_provider.OpenAIClient", return_value=client),
+            caplog.at_level(logging.ERROR, logger="src.finance.summary_provider"),
+        ):
+            results = asyncio.run(OpenAISummaryProvider(api_key="sk-test").generate_summaries([_make_ctx()]))
+
+        assert results == {}
+        assert "2026-04-15" in caplog.text
+        assert "TimeoutError" in caplog.text
+        # The classified reason only — never the prompt or the transactions.
+        assert "upstream timed out" not in caplog.text
+        assert "Grocery Store" not in caplog.text
+
+    def test_response_without_a_tool_call_skips_the_day(self, caplog: pytest.LogCaptureFixture) -> None:
+        chat = MagicMock(name="chat", return_value=_completion(None, content="I could not comply."))
+        with (
+            patch("src.finance.summary_provider.OpenAIClient", return_value=_fake_client(chat)),
+            caplog.at_level(logging.ERROR, logger="src.finance.summary_provider"),
+        ):
+            results = asyncio.run(OpenAISummaryProvider(api_key="sk-test").generate_summaries([_make_ctx()]))
+
+        assert results == {}
+        assert "no tool call" in caplog.text
+
+    def test_invalid_json_arguments_skip_the_day(self, caplog: pytest.LogCaptureFixture) -> None:
+        chat = MagicMock(name="chat", return_value=_completion([_tool_call("{not json")]))
+        with (
+            patch("src.finance.summary_provider.OpenAIClient", return_value=_fake_client(chat)),
+            caplog.at_level(logging.ERROR, logger="src.finance.summary_provider"),
+        ):
+            results = asyncio.run(OpenAISummaryProvider(api_key="sk-test").generate_summaries([_make_ctx()]))
+
+        assert results == {}
+        assert "failed validation" in caplog.text
+
+    def test_missing_summary_field_skips_the_day(self, caplog: pytest.LogCaptureFixture) -> None:
+        chat = MagicMock(name="chat", return_value=_completion([_tool_call(json.dumps({"text": "wrong key"}))]))
+        with (
+            patch("src.finance.summary_provider.OpenAIClient", return_value=_fake_client(chat)),
+            caplog.at_level(logging.ERROR, logger="src.finance.summary_provider"),
+        ):
+            results = asyncio.run(OpenAISummaryProvider(api_key="sk-test").generate_summaries([_make_ctx()]))
+
+        assert results == {}
+        assert "failed validation" in caplog.text
+        assert "missing" in caplog.text
+
+    def test_empty_arguments_skip_the_day(self, caplog: pytest.LogCaptureFixture) -> None:
+        chat = MagicMock(name="chat", return_value=_completion([_tool_call("")]))
+        with (
+            patch("src.finance.summary_provider.OpenAIClient", return_value=_fake_client(chat)),
+            caplog.at_level(logging.ERROR, logger="src.finance.summary_provider"),
+        ):
+            results = asyncio.run(OpenAISummaryProvider(api_key="sk-test").generate_summaries([_make_ctx()]))
+
+        assert results == {}
+        assert "no arguments" in caplog.text
+
+    def test_model_and_reasoning_effort_reach_the_client(self) -> None:
+        chat = MagicMock(name="chat", return_value=_summary_completion("Summary text."))
+        with patch("src.finance.summary_provider.OpenAIClient", return_value=_fake_client(chat)) as mock_cls:
+            provider = OpenAISummaryProvider(api_key="sk-test", model="gpt-5.6-terra", reasoning_effort="high")
+            asyncio.run(provider.generate_summaries([_make_ctx("2026-04-14"), _make_ctx("2026-04-15")]))
+
+        assert mock_cls.call_args.kwargs == {
+            "model": "gpt-5.6-terra",
+            "api_key": "sk-test",
+            "reasoning_effort": "high",
+        }
+        # One client per generate_summaries call, whatever the day count.
+        assert mock_cls.call_count == 1
+
+    def test_absent_reasoning_effort_is_passed_as_none(self) -> None:
+        chat = MagicMock(name="chat", return_value=_summary_completion("Summary text."))
+        with patch("src.finance.summary_provider.OpenAIClient", return_value=_fake_client(chat)) as mock_cls:
+            asyncio.run(OpenAISummaryProvider(api_key="sk-test").generate_summaries([_make_ctx()]))
+
+        assert mock_cls.call_args.kwargs == {
+            "model": DEFAULT_OPENAI_CHAT_MODEL,
+            "api_key": "sk-test",
+            "reasoning_effort": None,
+        }
+
+    def test_end_to_end_through_a_real_client_sends_store_false(self) -> None:
+        """Real ``OpenAIClient``, faked SDK handle: the Responses request is inspectable."""
+        created: list[OpenAIClient] = []
+
+        def _build(**kwargs: Any) -> OpenAIClient:
+            client = OpenAIClient(**kwargs)
+            client.client = MagicMock(name="openai_sdk")
+            client.client.responses.create.return_value = SimpleNamespace(
+                id="resp_1",
+                object="response",
+                status="completed",
+                error=None,
+                incomplete_details=None,
+                output=[
+                    SimpleNamespace(
+                        type="function_call",
+                        call_id="call_1",
+                        id="fc_1",
+                        name=DAY_SUMMARY_TOOL_NAME,
+                        arguments=json.dumps({"summary": "Groceries led the day at $30."}),
+                        status="completed",
+                    )
+                ],
+                usage=None,
+            )
+            created.append(client)
+            return client
+
+        with patch("src.finance.summary_provider.OpenAIClient", side_effect=_build):
+            provider = OpenAISummaryProvider(api_key="sk-test", reasoning_effort="low")
+            results = asyncio.run(provider.generate_summaries([_make_ctx()]))
+
+        assert results == {"2026-04-15": "Groceries led the day at $30."}
+        kwargs = created[0].client.responses.create.call_args.kwargs  # type: ignore[union-attr]
+        assert kwargs["store"] is False
+        assert kwargs["model"] == DEFAULT_OPENAI_CHAT_MODEL
+        assert kwargs["reasoning"] == {"effort": "low"}
+        # Translated into Responses vocabulary: flat tool, flat tool choice.
+        assert kwargs["tool_choice"] == {"type": "function", "name": DAY_SUMMARY_TOOL_NAME}
+        assert kwargs["tools"][0]["name"] == DAY_SUMMARY_TOOL_NAME
+        assert kwargs["tools"][0]["strict"] is False
+        assert kwargs["input"][0]["role"] == "user"
+
+    def test_empty_summary_string_is_still_recorded(self) -> None:
+        """Unchanged from the instructor transport: a valid but empty string is a result."""
+        chat = MagicMock(name="chat", return_value=_summary_completion(""))
+        completed = []
+        with patch("src.finance.summary_provider.OpenAIClient", return_value=_fake_client(chat)):
+            provider = OpenAISummaryProvider(api_key="sk-test")
+            results = asyncio.run(
+                provider.generate_summaries([_make_ctx()], on_complete=lambda d, t: completed.append((d, t)))
+            )
+        assert results == {"2026-04-15": ""}
+        assert completed == [("2026-04-15", "")]
 
     def test_build_prompt_includes_key_data(self) -> None:
         provider = OpenAISummaryProvider(api_key="sk-test")
