@@ -127,6 +127,48 @@ class TestBlockedCompanies:
         captured_provider.send.assert_called_once()
 
 
+class TestBlockedCompaniesFromEnv:
+    """End-to-end: an entry supplied via the Lambda env channel suppresses SMS.
+
+    Lambda ships no ``data/`` directory, so ``NOTIFICATION_BLOCKED_COMPANIES``
+    is the only way the suppression list reaches the parser. Entries here are
+    synthetic — the shipped seed is empty.
+    """
+
+    ENV_VAR = "NOTIFICATION_BLOCKED_COMPANIES"
+
+    @pytest.fixture(autouse=True)
+    def _no_blocklist_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv(self.ENV_VAR, raising=False)
+
+    def test_env_blocked_company_skips_send(
+        self, captured_provider: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv(self.ENV_VAR, "SyntheticStreamCo,SyntheticNewsHound")
+        send(_make_transaction(company="SyntheticStreamCo Premium"))
+        captured_provider.send.assert_not_called()
+
+    def test_env_blocked_company_json_form_skips_send(
+        self, captured_provider: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv(self.ENV_VAR, '["SyntheticNewsHound"]')
+        send(_make_transaction(company="syntheticnewshound digital"))
+        captured_provider.send.assert_not_called()
+
+    def test_unlisted_company_still_sends(self, captured_provider: MagicMock, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv(self.ENV_VAR, "SyntheticStreamCo")
+        send(_make_transaction(company="Tim Hortons"))
+        captured_provider.send.assert_called_once()
+
+    def test_malformed_env_does_not_block_anything(
+        self, captured_provider: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Fail-open: a broken env value must not suppress real notifications."""
+        monkeypatch.setenv(self.ENV_VAR, '["SyntheticStreamCo"')
+        send(_make_transaction(company="SyntheticStreamCo Premium"))
+        captured_provider.send.assert_called_once()
+
+
 class TestUnknownType:
     def test_unknown_type_skips_send(self, captured_provider: MagicMock) -> None:
         send(_make_transaction(transaction_type="Unknown"))

@@ -3,6 +3,7 @@ and blocked companies."""
 
 import json
 import logging
+import os
 import time
 from pathlib import Path
 from typing import Any, cast
@@ -20,6 +21,11 @@ def _config_path(filename: str) -> Path:
 
 
 logger = logging.getLogger(__name__)
+
+# Environment channel for the SMS suppression list. Named after the existing
+# NOTIFICATION_PROVIDER / NOTIFICATION_URL family. Deliberately NOT cached in
+# `_simple_caches` — see get_blocked_companies().
+_BLOCKED_COMPANIES_ENV_VAR = "NOTIFICATION_BLOCKED_COMPANIES"
 
 _simple_caches: dict[str, object] = {}
 _category_overrides_cache: dict[str, str] | None = None
@@ -127,9 +133,101 @@ def get_tax_line_mappings() -> dict[str, Any]:
     return data
 
 
+def _parse_blocked_companies_env(raw: str) -> list[str]:
+    """Parse the ``NOTIFICATION_BLOCKED_COMPANIES`` value into a list of entries.
+
+    Two accepted forms: a JSON array of strings (when the trimmed value starts
+    with ``[``) or a comma-separated list. Entries are trimmed and empties are
+    dropped. A malformed value is ignored wholesale — never raised — because
+    the only consumer is the fail-open notification filter and a typo in a
+    Lambda env var must not stop ingestion.
+
+    Entry text is personal (merchant names), so nothing here logs a value;
+    warnings carry counts and positions only.
+    """
+    trimmed = raw.strip()
+    if not trimmed:
+        return []
+
+    if trimmed.startswith("["):
+        try:
+            loaded = json.loads(trimmed)
+        except ValueError:
+            logger.warning(
+                "%s is not valid JSON; ignoring the environment override (entries not logged)",
+                _BLOCKED_COMPANIES_ENV_VAR,
+            )
+            return []
+        if not isinstance(loaded, list):
+            logger.warning(
+                "%s parsed as %s, expected a JSON array; ignoring the environment override",
+                _BLOCKED_COMPANIES_ENV_VAR,
+                type(loaded).__name__,
+            )
+            return []
+        for index, item in enumerate(loaded):
+            if not isinstance(item, str):
+                logger.warning(
+                    "%s entry %d is %s, expected a string; ignoring the environment override",
+                    _BLOCKED_COMPANIES_ENV_VAR,
+                    index,
+                    type(item).__name__,
+                )
+                return []
+        candidates = [str(item) for item in loaded]
+    else:
+        candidates = trimmed.split(",")
+
+    return [stripped for entry in candidates if (stripped := entry.strip())]
+
+
 def get_blocked_companies() -> list[str]:
-    """Return the list of companies whose transactions should not trigger SMS."""
-    return cast("list[str]", _cached_json_load("blocked_companies.json"))
+    """Return the list of companies whose transactions should not trigger SMS.
+
+    Two sources, unioned: the bundled ``blocked_companies.json`` seed (cached
+    after the first read, like the other seeds) and the
+    ``NOTIFICATION_BLOCKED_COMPANIES`` environment variable. The env channel
+    exists for AWS Lambda, whose image carries ``src/`` only — there is no
+    ``data/`` directory to personalize, so without it the bundled (empty) seed
+    would be the whole suppression list. Set it with
+    ``docker/email_parsing/11_set_function_env.sh``.
+
+    The env var is read on *every* call (never cached) so an env-map update
+    takes effect on the next invocation rather than waiting for a cold start.
+    Bundled entries come first; env entries are appended only when no existing
+    entry matches case-insensitively, so ordering is stable and a value present
+    in both sources is not duplicated. When the env var is absent, blank or
+    malformed, the cached seed list is returned unchanged — the same object as
+    before this channel existed.
+    """
+    bundled = cast("list[str]", _cached_json_load("blocked_companies.json"))
+
+    raw = os.environ.get(_BLOCKED_COMPANIES_ENV_VAR)
+    if not raw or not raw.strip():
+        return bundled
+
+    extra = _parse_blocked_companies_env(raw)
+    if not extra:
+        return bundled
+
+    merged = list(bundled)
+    seen = {entry.lower() for entry in merged}
+    for entry in extra:
+        lowered = entry.lower()
+        if lowered in seen:
+            continue
+        seen.add(lowered)
+        merged.append(entry)
+
+    # Counts only — the entries themselves are personal merchant names.
+    logger.debug(
+        "Blocked companies: %d bundled + %d from %s -> %d total",
+        len(bundled),
+        len(extra),
+        _BLOCKED_COMPANIES_ENV_VAR,
+        len(merged),
+    )
+    return merged
 
 
 def get_category_overrides() -> dict[str, str]:
