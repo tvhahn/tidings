@@ -4,6 +4,7 @@ import os
 
 import pytest
 
+from src.finance.ai_client import resolve_openai_categorization_settings
 from src.finance.config_loader import get_categories
 from src.finance.email_pipeline import parse_email_body
 from src.finance.openai_client import OpenAIClient
@@ -27,7 +28,14 @@ SELECTED_FIXTURES = [
 
 @pytest.fixture(scope="module")
 def openai_client() -> OpenAIClient:
-    return OpenAIClient(model="gpt-5.4-nano", api_key=OPENAI_API_KEY)
+    """Live client built exactly as production builds it.
+
+    Both the model and the reasoning effort come from the shared resolver, so
+    this test exercises whatever the app actually ships rather than a literal
+    that silently rots when the default moves.
+    """
+    model, reasoning_effort = resolve_openai_categorization_settings(None, None)
+    return OpenAIClient(model=model, api_key=OPENAI_API_KEY, reasoning_effort=reasoning_effort)
 
 
 @pytest.mark.parametrize(("institution", "fixture_stem"), SELECTED_FIXTURES)

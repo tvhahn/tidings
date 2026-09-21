@@ -3,16 +3,21 @@
 from __future__ import annotations
 
 import json
+import logging
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from unittest.mock import patch
 
+import pytest
+
 from src.finance import ai_client
+from src.finance.ai_cli import DEFAULT_CATEGORIZATION_REASONING_EFFORT, DEFAULT_OPENAI_CHAT_MODEL
 from src.finance.openai_client import OpenAIClient
 
-if TYPE_CHECKING:
-    import pytest
+# A model that is deliberately NOT the shared default, used to prove the
+# "foreign model gets no tuned effort" rule.
+FOREIGN_MODEL = "gpt-5.4-nano"
 
 CATEGORIZE_TOOLS = [
     {
@@ -35,11 +40,18 @@ MESSAGES = [
 ]
 
 
-def _codex_selected(connected: bool = True, provider: str = "codex", model: str | None = None):
+def _codex_selected(
+    connected: bool = True,
+    provider: str = "codex",
+    model: str | None = None,
+    reasoning_effort: str | None = None,
+):
     """Patch context: categorization provider selection + codex availability + login state."""
     cfg: dict[str, object] = {"categorization_provider": provider}
     if model is not None:
         cfg["categorization_model"] = model
+    if reasoning_effort is not None:
+        cfg["categorization_reasoning_effort"] = reasoning_effort
     return (
         patch("src.finance.ai_client.get_config", return_value=cfg),
         patch("src.finance.ai_client.shutil.which", return_value="/usr/bin/codex"),
@@ -77,16 +89,63 @@ class TestGetAIClient:
         with cfg, which, connected, patch("src.finance.openai_client.OpenAI"):
             client = ai_client.get_ai_client()
         assert isinstance(client, OpenAIClient)
-        # Falls back to the shared default chat model when no override is set.
+        # Falls back to the shared default chat model when no override is set,
+        # and with it the effort tuned for that model.
         assert client.model == ai_client.DEFAULT_OPENAI_CHAT_MODEL
+        assert client.reasoning_effort == DEFAULT_CATEGORIZATION_REASONING_EFFORT
 
     def test_categorization_model_threads_to_openai_client(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
-        cfg, which, connected = _codex_selected(provider="openai", model="gpt-5.6-luna")
+        cfg, which, connected = _codex_selected(provider="openai", model=FOREIGN_MODEL)
         with cfg, which, connected, patch("src.finance.openai_client.OpenAI"):
             client = ai_client.get_ai_client()
         assert isinstance(client, OpenAIClient)
-        assert client.model == "gpt-5.6-luna"
+        assert client.model == FOREIGN_MODEL
+
+    def test_foreign_model_gets_no_tuned_effort(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The tuned effort is measured on the default model only — never sent with another."""
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        cfg, which, connected = _codex_selected(provider="openai", model=FOREIGN_MODEL)
+        with cfg, which, connected, patch("src.finance.openai_client.OpenAI"):
+            client = ai_client.get_ai_client()
+        assert isinstance(client, OpenAIClient)
+        assert client.reasoning_effort is None
+
+    def test_default_model_picked_explicitly_still_gets_tuned_effort(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        cfg, which, connected = _codex_selected(provider="openai", model=DEFAULT_OPENAI_CHAT_MODEL)
+        with cfg, which, connected, patch("src.finance.openai_client.OpenAI"):
+            client = ai_client.get_ai_client()
+        assert isinstance(client, OpenAIClient)
+        assert client.model == DEFAULT_OPENAI_CHAT_MODEL
+        assert client.reasoning_effort == DEFAULT_CATEGORIZATION_REASONING_EFFORT
+
+    def test_explicit_reasoning_effort_threads_to_openai_client(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        cfg, which, connected = _codex_selected(provider="openai", model=FOREIGN_MODEL, reasoning_effort="high")
+        with cfg, which, connected, patch("src.finance.openai_client.OpenAI"):
+            client = ai_client.get_ai_client()
+        assert isinstance(client, OpenAIClient)
+        assert client.model == FOREIGN_MODEL
+        assert client.reasoning_effort == "high"
+
+    def test_codex_client_gets_raw_config_effort(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The codex branch is untouched by the API-tuned default — it has its own."""
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        cfg, which, connected = _codex_selected(reasoning_effort="medium")
+        with cfg, which, connected:
+            client = ai_client.get_ai_client()
+        assert isinstance(client, ai_client.CodexCLIClient)
+        assert client.reasoning_effort == "medium"
+
+    def test_codex_client_gets_no_effort_when_config_omits_it(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        cfg, which, connected = _codex_selected()
+        with cfg, which, connected:
+            client = ai_client.get_ai_client()
+        assert isinstance(client, ai_client.CodexCLIClient)
+        assert client.model is None
+        assert client.reasoning_effort is None
 
     def test_codex_selected_but_not_connected_returns_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Per-feature routing is explicit: a codex pick that isn't signed in does
@@ -227,3 +286,65 @@ class TestCodexCLIClient:
             patch("src.finance.ai_client.subprocess.run", side_effect=fake_run),
         ):
             assert ai_client.CodexCLIClient().chat(MESSAGES) is None
+
+
+class TestCoerceReasoningEffort:
+    """Operator-supplied effort strings are normalized, never trusted blindly."""
+
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            (" LOW ", "low"),
+            ("low", "low"),
+            ("Medium", "medium"),
+            ("", None),
+            ("   ", None),
+            (None, None),
+        ],
+    )
+    def test_normalization(self, raw: str | None, expected: str | None) -> None:
+        assert ai_client.coerce_reasoning_effort(raw) == expected
+
+    def test_unknown_value_warns_and_returns_none(self, caplog: pytest.LogCaptureFixture) -> None:
+        with caplog.at_level(logging.WARNING, logger="src.finance.ai_client"):
+            assert ai_client.coerce_reasoning_effort("turbo") is None
+        assert "turbo" in caplog.text
+        assert any(record.levelno == logging.WARNING for record in caplog.records)
+
+    def test_every_accepted_spelling_round_trips(self) -> None:
+        for value in ai_client.OPENAI_REASONING_EFFORTS:
+            assert ai_client.coerce_reasoning_effort(value.upper()) == value
+
+
+class TestResolveOpenAICategorizationSettings:
+    """The one resolver shared by the config path and the Lambda."""
+
+    @pytest.mark.parametrize(
+        ("model", "effort", "expected"),
+        [
+            # Nothing chosen: shared default model + the effort tuned for it.
+            (None, None, (DEFAULT_OPENAI_CHAT_MODEL, DEFAULT_CATEGORIZATION_REASONING_EFFORT)),
+            # The default model chosen explicitly behaves identically.
+            (
+                DEFAULT_OPENAI_CHAT_MODEL,
+                None,
+                (DEFAULT_OPENAI_CHAT_MODEL, DEFAULT_CATEGORIZATION_REASONING_EFFORT),
+            ),
+            # A foreign model must never inherit the tuned effort.
+            (FOREIGN_MODEL, None, (FOREIGN_MODEL, None)),
+            # Explicit effort always wins, with or without a model override.
+            (None, "high", (DEFAULT_OPENAI_CHAT_MODEL, "high")),
+            (FOREIGN_MODEL, "high", (FOREIGN_MODEL, "high")),
+            # Empty strings mean "unset", not "a value".
+            ("", None, (DEFAULT_OPENAI_CHAT_MODEL, DEFAULT_CATEGORIZATION_REASONING_EFFORT)),
+            (None, "", (DEFAULT_OPENAI_CHAT_MODEL, DEFAULT_CATEGORIZATION_REASONING_EFFORT)),
+            ("", "", (DEFAULT_OPENAI_CHAT_MODEL, DEFAULT_CATEGORIZATION_REASONING_EFFORT)),
+            (FOREIGN_MODEL, "", (FOREIGN_MODEL, None)),
+        ],
+    )
+    def test_resolution_table(self, model: str | None, effort: str | None, expected: tuple[str, str | None]) -> None:
+        assert ai_client.resolve_openai_categorization_settings(model, effort) == expected
+
+    def test_default_effort_is_an_accepted_spelling(self) -> None:
+        """Guards the tuned constant against a typo the API would reject."""
+        assert DEFAULT_CATEGORIZATION_REASONING_EFFORT in ai_client.OPENAI_REASONING_EFFORTS

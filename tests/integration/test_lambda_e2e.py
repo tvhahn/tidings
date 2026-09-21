@@ -21,6 +21,12 @@ Optional environment (with defaults):
     E2E_LAMBDA_FUNCTION      Lambda function name         (default: email-parser)
     E2E_TRANSACTIONS_TABLE   DynamoDB transactions table  (default: Transactions)
     E2E_BUDGET_TABLE         DynamoDB budget table        (default: BudgetConfig)
+    E2E_EXPECTED_MODEL       categorization model the deployed Lambda should
+                             have used, as recorded in CategoryAudit.model
+                             (default: the code default,
+                             `DEFAULT_OPENAI_CHAT_MODEL`) — set this when the
+                             function's CATEGORIZATION_MODEL env var overrides
+                             the default
     AWS_REGION               AWS region                   (default: us-west-2)
 
 Example invocation (against a real, disposable AWS account):
@@ -37,6 +43,9 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+
+from src.finance.ai_cli import DEFAULT_OPENAI_CHAT_MODEL
+from src.finance.category_audit import normalize_audit
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +96,11 @@ def _transactions_table_name() -> str:
 
 def _budget_table_name() -> str:
     return os.environ.get("E2E_BUDGET_TABLE", "BudgetConfig")
+
+
+def _expected_model() -> str:
+    """The model the deployed Lambda is expected to have categorized with."""
+    return os.environ.get("E2E_EXPECTED_MODEL", DEFAULT_OPENAI_CHAT_MODEL)
 
 
 def _budget_pk() -> str:
@@ -307,6 +321,16 @@ def test_lambda_round_trip_creates_enriched_transaction(aws_context: _AwsContext
     assert str(item.get("Amount")) == EXPECTED_AMOUNT
     assert item.get("Institution") == EXPECTED_INSTITUTION
     assert item.get("Category") == EXPECTED_CATEGORY
+
+    # --- Verify: the category came from the AI path, on the expected model ---
+    # The fixture merchant is fictitious, so no override rule can match it —
+    # an audit that is not `source="ai"` means the AI call silently fell back.
+    audit = normalize_audit(item.get("CategoryAudit")) or {}
+    assert audit.get("source") == "ai", f"CategoryAudit is not an AI categorization: {audit}"
+    assert audit.get("model") == _expected_model(), (
+        f"CategoryAudit.model: got {audit.get('model')!r}, expected {_expected_model()!r} "
+        "(set E2E_EXPECTED_MODEL if the deployed function overrides CATEGORIZATION_MODEL)"
+    )
 
     # --- Verify: TransactionContext enrichment ---
     ctx = item.get("TransactionContext")

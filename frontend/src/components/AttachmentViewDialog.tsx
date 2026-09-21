@@ -51,7 +51,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   openai: "OpenAI",
 };
 
-/** "Claude Code" or "OpenAI · gpt-5.4-nano" — never a duplicated internal id. */
+/** "Claude Code" or "OpenAI · gpt-5.6-luna" — never a duplicated internal id. */
 function provenanceLabel(p: ReceiptProvenance): string {
   const parts: string[] = [];
   if (p.provider) parts.push(PROVIDER_LABELS[p.provider] ?? p.provider);

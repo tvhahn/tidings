@@ -32,13 +32,75 @@ from types import SimpleNamespace
 from typing import Any, Protocol
 
 from src.finance import chatgpt_oauth
-from src.finance.ai_cli import DEFAULT_OPENAI_CHAT_MODEL
+from src.finance.ai_cli import DEFAULT_CATEGORIZATION_REASONING_EFFORT, DEFAULT_OPENAI_CHAT_MODEL
 from src.finance.app_config import get_config
 from src.finance.openai_client import OpenAIClient
 
 logger = logging.getLogger(__name__)
 
 _CODEX_TIMEOUT_SECONDS = 120
+
+# Reasoning-effort values the OpenAI chat-completions API accepts across the
+# model families we may be pointed at. Individual models accept a subset —
+# GPT-5.6 rejects `minimal`, older GPT-5 models accept it — so this is a
+# spelling gate, not a per-model compatibility check: it exists to catch typos
+# and junk env values before they reach the API, not to second-guess the
+# operator's model choice.
+OPENAI_REASONING_EFFORTS = frozenset({"none", "minimal", "low", "medium", "high", "xhigh"})
+
+
+def coerce_reasoning_effort(raw: str | None) -> str | None:
+    """Normalize an operator-supplied reasoning effort, or return ``None``.
+
+    Trims and lowercases; treats ``None`` and blank/whitespace-only input as
+    "not set". An unrecognized value is logged and dropped rather than raised:
+    the callers are background workers (the Lambda, the poller) where a typo in
+    an env var or a config file must degrade to the default, never crash the
+    ingestion path.
+    """
+    if raw is None:
+        return None
+    value = raw.strip().lower()
+    if not value:
+        return None
+    if value not in OPENAI_REASONING_EFFORTS:
+        logger.warning(
+            "Ignoring unknown reasoning effort %r; expected one of %s",
+            raw,
+            ", ".join(sorted(OPENAI_REASONING_EFFORTS)),
+        )
+        return None
+    return value
+
+
+def resolve_openai_categorization_settings(model: str | None, reasoning_effort: str | None) -> tuple[str, str | None]:
+    """Resolve the ``(model, reasoning_effort)`` pair for an OpenAI categorization client.
+
+    The single place this decision is made, shared by the config-driven
+    `get_ai_client()` path and the Lambda's env-driven path so the two cannot
+    drift apart.
+
+    Rules:
+
+    - An explicit ``reasoning_effort`` always wins — the operator asked for it.
+    - Otherwise the tuned `DEFAULT_CATEGORIZATION_REASONING_EFFORT` applies iff
+      the *resolved* model is `DEFAULT_OPENAI_CHAT_MODEL`, so "no model picked"
+      and "the default model picked explicitly" behave identically.
+    - Any other model gets no effort at all. The tuned value was measured on
+      the default model only, and a foreign model may reject the literal
+      outright (e.g. GPT-5.6 rejects ``minimal``, older models reject
+      ``xhigh``) — silently attaching it would turn a model swap into a hard
+      API error.
+
+    ``model`` is returned already defaulted, so callers never re-apply
+    ``or DEFAULT_OPENAI_CHAT_MODEL``.
+    """
+    resolved = model or DEFAULT_OPENAI_CHAT_MODEL
+    if reasoning_effort:
+        return resolved, reasoning_effort
+    if resolved == DEFAULT_OPENAI_CHAT_MODEL:
+        return resolved, DEFAULT_CATEGORIZATION_REASONING_EFFORT
+    return resolved, None
 
 
 class AIClientError(Exception):
@@ -74,8 +136,11 @@ class CodexCLIClient:
     """Runs `codex exec` headlessly, billing against the ChatGPT subscription.
 
     `model=None` uses the CLI's default model — the subscription backend only
-    serves codex-family models (`gpt-5.4-nano` is not available on this path),
-    and which ones varies by plan, so the CLI default is the safe choice.
+    serves codex-family models (the shared `DEFAULT_OPENAI_CHAT_MODEL` is not
+    available on this path), and which ones varies by plan, so the CLI default
+    is the safe choice. `reasoning_effort=None` likewise leaves the CLI's own
+    default in place; the API-path categorization default is deliberately not
+    applied here (see `resolve_openai_categorization_settings`).
     """
 
     def __init__(
@@ -217,6 +282,12 @@ def get_ai_client() -> AIProviderClient | None:
     - ``"openai"`` → the OPENAI_API_KEY path, provided a key is configured.
     - ``"disabled"`` (or an unavailable provider) → ``None``; the categorizer
       then defaults to "Miscellaneous".
+
+    The openai branch runs its model/effort pair through
+    `resolve_openai_categorization_settings`, the resolver the Lambda shares.
+    The codex branch passes the raw config values straight through: the CLI
+    carries its own model and effort defaults and rejects some of the API's
+    spellings, so the API-tuned default must not leak into it.
     """
     config = get_config()
     provider = config.get("categorization_provider", "disabled")
@@ -227,9 +298,10 @@ def get_ai_client() -> AIProviderClient | None:
     if provider == "openai":
         api_key = os.environ.get("OPENAI_API_KEY")
         if api_key:
+            resolved_model, resolved_effort = resolve_openai_categorization_settings(model, reasoning_effort)
             return OpenAIClient(
-                model=model or DEFAULT_OPENAI_CHAT_MODEL,
+                model=resolved_model,
                 api_key=api_key,
-                reasoning_effort=reasoning_effort,
+                reasoning_effort=resolved_effort,
             )
     return None

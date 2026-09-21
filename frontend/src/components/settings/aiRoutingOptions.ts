@@ -38,7 +38,7 @@ export const CATEGORIZATION_PROVIDER_OPTIONS: { value: CategorizationProvider; l
 // Model lists per provider. The first entry is always the provider default,
 // carrying the sentinel value so selecting it clears the stored model to null.
 const OPENAI_MODELS: SelectableOption[] = [
-  { value: DEFAULT_VALUE, label: "Default (gpt-5.4-nano)" },
+  { value: DEFAULT_VALUE, label: "Default (gpt-5.6-luna)" },
   { value: "gpt-5.6-sol", label: "gpt-5.6-sol — flagship" },
   { value: "gpt-5.6-terra", label: "gpt-5.6-terra — balanced" },
   { value: "gpt-5.6-luna", label: "gpt-5.6-luna — fast" },

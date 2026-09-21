@@ -4,6 +4,7 @@ import os
 import boto3
 
 from src.finance import notification_service
+from src.finance.ai_client import coerce_reasoning_effort, resolve_openai_categorization_settings
 from src.finance.aws_region import get_aws_region
 from src.finance.budget_service import BudgetService
 from src.finance.email_pipeline import parse_email
@@ -29,7 +30,32 @@ transactions_db = TransactionsDB(dynamo_resource)
 budget_service = BudgetService(dynamo_resource, user_id=os.environ.get("USER_ID", "default"))
 context_enricher = TransactionContextEnricher(transactions_db, budget_service)
 # Lambda is always DynamoDB-backed; build the dead-letter store directly.
-parse_failure_store = ParseFailureStore(dyn_resource=dynamo_resource)
+# The user_id is not optional here: the dashboard reads quarantined emails
+# through `storage.create_parse_failure_store()`, which keys off
+# `USER#<USER_ID>`. Left at the "default" fallback, every quarantined email
+# lands in a partition no read path queries and "Needs review" stays empty.
+parse_failure_store = ParseFailureStore(dyn_resource=dynamo_resource, user_id=os.environ.get("USER_ID", "default"))
+
+
+def _categorization_settings() -> tuple[str, str | None]:
+    """Resolve the categorization model + reasoning effort for this invocation.
+
+    The Lambda ships no `data/config.json`, so the config-driven
+    `get_ai_client()` path is unreachable here and environment variables are
+    its override channel — set with
+    `docker/email_parsing/11_set_function_env.sh`, which *merges* into
+    the function's env map rather than replacing it. Missing or blank values
+    fall back to the shared code defaults; an invalid effort is logged and
+    dropped (never a crash — a typo in an env var must not stop ingestion).
+    Both go through the same resolver as the config path so the two cannot
+    drift.
+
+    Read at invocation time, not import time, so an env-map update takes
+    effect on the next invocation without waiting for a cold start.
+    """
+    model = (os.environ.get("CATEGORIZATION_MODEL") or "").strip() or None
+    effort = coerce_reasoning_effort(os.environ.get("CATEGORIZATION_REASONING_EFFORT"))
+    return resolve_openai_categorization_settings(model, effort)
 
 
 def handler(event, context):
@@ -46,11 +72,15 @@ def handler(event, context):
     # "Miscellaneous" even though the client below is fully functional.
     os.environ["OPENAI_API_KEY"] = api_key
 
-    model = "gpt-5.4-nano"
+    # This client also serves the relevance gate and the extraction-recovery
+    # calls below, so the resolved effort applies to those too — intended.
+    model, effort = _categorization_settings()
+    logger.info("Categorization model=%s reasoning_effort=%s", model, effort)
 
     client = OpenAIClient(
         model=model,
         api_key=api_key,
+        reasoning_effort=effort,
     )
 
     # Per-record isolation: one poison email must not abort the rest of the

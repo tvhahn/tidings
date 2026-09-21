@@ -4,15 +4,23 @@ Tests mock at the function level (parse_email, add_transaction, send_sms)
 rather than at the AWS SDK level, to verify the handler's orchestration logic.
 """
 
+import importlib
+import logging
 import os
 from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from docker.email_parsing.lambda_function import handler
+from src.finance.ai_cli import DEFAULT_CATEGORIZATION_REASONING_EFFORT, DEFAULT_OPENAI_CHAT_MODEL
 from src.finance.secrets import get_openai_api_key
+
+# A model that is deliberately NOT the shared default, used to prove that an
+# env override reaches the client and that a foreign model gets no tuned effort.
+FOREIGN_MODEL = "gpt-5.4-nano"
 
 
 def _s3_event(bucket: str = "test-bucket", key: str = "emails/test.eml") -> dict[str, Any]:
@@ -428,3 +436,157 @@ class TestHandlerFailureIsolation:
 
         mock_parse.assert_not_called()
         mock_sms.assert_not_called()
+
+
+class TestCategorizationSettings:
+    """The Lambda's env-var override channel for model + reasoning effort.
+
+    The Lambda ships no `data/config.json`, so `get_ai_client()`'s config path
+    is unreachable there; `CATEGORIZATION_MODEL` / `CATEGORIZATION_REASONING_EFFORT`
+    are the override channel, resolved through the same shared resolver.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _setup_env(self, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+        get_openai_api_key.cache_clear()
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+        monkeypatch.delenv("CATEGORIZATION_MODEL", raising=False)
+        monkeypatch.delenv("CATEGORIZATION_REASONING_EFFORT", raising=False)
+        with (
+            patch(
+                "docker.email_parsing.lambda_function.get_openai_api_key",
+                return_value="test-key",
+            ),
+            # Empty S3 object → the record is skipped and the handler returns
+            # after the client has been built, which is all these tests need.
+            patch("docker.email_parsing.lambda_function.get_s3_file", return_value=b""),
+        ):
+            yield
+        get_openai_api_key.cache_clear()
+
+    def _run(self) -> MagicMock:
+        """Invoke the handler with OpenAIClient mocked; return the mock."""
+        with patch("docker.email_parsing.lambda_function.OpenAIClient") as mock_client:
+            handler(_s3_event(), None)
+        return mock_client
+
+    def test_no_env_uses_shared_defaults(self) -> None:
+        mock_client = self._run()
+        mock_client.assert_called_once_with(
+            model=DEFAULT_OPENAI_CHAT_MODEL,
+            api_key="test-key",
+            reasoning_effort=DEFAULT_CATEGORIZATION_REASONING_EFFORT,
+        )
+
+    def test_both_env_vars_pass_through(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("CATEGORIZATION_MODEL", FOREIGN_MODEL)
+        monkeypatch.setenv("CATEGORIZATION_REASONING_EFFORT", "medium")
+        mock_client = self._run()
+        mock_client.assert_called_once_with(model=FOREIGN_MODEL, api_key="test-key", reasoning_effort="medium")
+
+    def test_blank_env_vars_fall_back_to_defaults(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("CATEGORIZATION_MODEL", "   ")
+        monkeypatch.setenv("CATEGORIZATION_REASONING_EFFORT", "  ")
+        mock_client = self._run()
+        mock_client.assert_called_once_with(
+            model=DEFAULT_OPENAI_CHAT_MODEL,
+            api_key="test-key",
+            reasoning_effort=DEFAULT_CATEGORIZATION_REASONING_EFFORT,
+        )
+
+    def test_model_only_override_drops_the_tuned_effort(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A foreign model must not inherit an effort tuned for the default one."""
+        monkeypatch.setenv("CATEGORIZATION_MODEL", FOREIGN_MODEL)
+        mock_client = self._run()
+        mock_client.assert_called_once_with(model=FOREIGN_MODEL, api_key="test-key", reasoning_effort=None)
+
+    def test_effort_only_override_keeps_the_default_model(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("CATEGORIZATION_REASONING_EFFORT", "high")
+        mock_client = self._run()
+        mock_client.assert_called_once_with(
+            model=DEFAULT_OPENAI_CHAT_MODEL, api_key="test-key", reasoning_effort="high"
+        )
+
+    def test_invalid_effort_warns_and_falls_back(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A typo in the env map must degrade to the default, never crash ingestion."""
+        monkeypatch.setenv("CATEGORIZATION_REASONING_EFFORT", "turbo")
+        with caplog.at_level(logging.WARNING):
+            mock_client = self._run()
+        mock_client.assert_called_once_with(
+            model=DEFAULT_OPENAI_CHAT_MODEL,
+            api_key="test-key",
+            reasoning_effort=DEFAULT_CATEGORIZATION_REASONING_EFFORT,
+        )
+        assert "turbo" in caplog.text
+
+    def test_settings_are_read_at_invocation_time(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Env is consulted per invocation, so an env-map update needs no cold start."""
+        first = self._run()
+        first.assert_called_once_with(
+            model=DEFAULT_OPENAI_CHAT_MODEL,
+            api_key="test-key",
+            reasoning_effort=DEFAULT_CATEGORIZATION_REASONING_EFFORT,
+        )
+        monkeypatch.setenv("CATEGORIZATION_MODEL", FOREIGN_MODEL)
+        second = self._run()
+        second.assert_called_once_with(model=FOREIGN_MODEL, api_key="test-key", reasoning_effort=None)
+
+    def test_resolved_settings_are_logged(self, caplog: pytest.LogCaptureFixture) -> None:
+        """A deploy boot-check greps CloudWatch for this exact prefix."""
+        with caplog.at_level(logging.INFO):
+            self._run()
+        expected = (
+            f"Categorization model={DEFAULT_OPENAI_CHAT_MODEL} "
+            f"reasoning_effort={DEFAULT_CATEGORIZATION_REASONING_EFFORT}"
+        )
+        assert expected in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# Import-time partition wiring
+# ---------------------------------------------------------------------------
+
+
+@contextmanager
+def _module_with_user_id(user_id: str | None) -> Iterator[Any]:
+    """Re-import the handler module with ``USER_ID`` set (or absent).
+
+    The module builds its stores at import time, so the env has to be in place
+    before the module body runs — hence the reload. ``patch.dict`` restores the
+    ambient environment on exit and the trailing reload rebuilds the module
+    against it, so no later test sees a partition from this one.
+    """
+    module = importlib.import_module("docker.email_parsing.lambda_function")
+    with patch.dict(os.environ, {} if user_id is None else {"USER_ID": user_id}):
+        if user_id is None:
+            os.environ.pop("USER_ID", None)
+        importlib.reload(module)
+        try:
+            yield module
+        finally:
+            pass
+    importlib.reload(module)
+
+
+class TestParseFailurePartition:
+    """Quarantined emails must land where the dashboard reads them.
+
+    ``storage.create_parse_failure_store()`` keys off ``USER#<USER_ID>``; a
+    handler that used the "default" fallback wrote quarantined emails into a
+    partition no read path enumerates, so "Needs review" stayed empty.
+    """
+
+    def test_store_partition_follows_the_user_id_env(self) -> None:
+        with _module_with_user_id("alice") as module:
+            assert module.parse_failure_store.USER_PK == "USER#alice"
+
+    def test_store_partition_matches_the_budget_service(self) -> None:
+        """Both import-time stores resolve the user the same way."""
+        with _module_with_user_id("alice") as module:
+            assert module.parse_failure_store.USER_PK == module.budget_service.USER_PK
+
+    def test_falls_back_to_default_without_the_env(self) -> None:
+        with _module_with_user_id(None) as module:
+            assert module.parse_failure_store.USER_PK == "USER#default"

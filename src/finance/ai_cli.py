@@ -31,12 +31,26 @@ logger = logging.getLogger(__name__)
 # parsing). A per-feature `*_model` config key overrides it; `None` there means
 # "use this default". Kept in one place so the literal never drifts between
 # features. The subscription-backed CLI providers do not serve this model.
-DEFAULT_OPENAI_CHAT_MODEL = "gpt-5.4-nano"
+DEFAULT_OPENAI_CHAT_MODEL = "gpt-5.6-luna"
+
+# Reasoning effort for the forced-function categorization call on the default
+# model above, measured with `dev/cli/eval_categorization.py` (2026-09, 180 real
+# transactions x 2 repeats): `none`, `low` and `medium` scored within one row of
+# each other because a forced `tool_choice` makes the model skip reasoning
+# altogether (0 reasoning tokens at every effort), so the lowest setting wins.
+# Pinning `none` rather than omitting the param keeps that true — and keeps
+# reasoning tokens off the bill — if the model's own default ever changes.
+# It applies ONLY when the resolved model is the default — a foreign model may
+# price, interpret, or outright reject an effort we tuned elsewhere. See
+# `src.finance.ai_client.resolve_openai_categorization_settings`, the single
+# place that decides this, so the config path and the Lambda cannot drift.
+DEFAULT_CATEGORIZATION_REASONING_EFFORT = "none"
 
 # Cross-module surface consumed by the summary-provider, statement-parser, and
 # receipt-parser modules. The signed-in probes are underscore-prefixed but
 # genuinely shared, so they belong on the export list.
 __all__ = [
+    "DEFAULT_CATEGORIZATION_REASONING_EFFORT",
     "DEFAULT_OPENAI_CHAT_MODEL",
     "_codex_signed_in",
     "_gemini_signed_in",
