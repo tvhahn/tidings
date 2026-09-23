@@ -31,14 +31,16 @@ services:
       # --- AWS credentials (Lambda E2E, live DynamoDB) ---
       # Read-only mount of your host `~/.aws` directory so `aws` CLI,
       # boto3, and live-DynamoDB integration tests can authenticate with
-      # your AWS account.
+      # your AWS account. Prefer mounting a dedicated directory holding a
+      # scoped IAM key (e.g. ~/.config/tidings-aws) over your whole ~/.aws.
       # - ~/.aws:/home/node/.aws:ro
 
-      # --- Docker socket (build/run prod stack from inside devcontainer) ---
-      # Lets you run `docker build`, `docker compose`, etc. from inside the
-      # devcontainer against the host's Docker daemon. Useful for building
-      # the prod images or driving the prod stack while developing.
-      # - /var/run/docker.sock:/var/run/docker.sock
+      # --- No host Docker access ---
+      # The docker CLI is no longer installed in the image and the host
+      # Docker socket mount was dropped. If you need it, add the
+      # ghcr.io/devcontainers/features/docker-outside-of-docker:1 feature to
+      # devcontainer.json locally as well as a
+      # /var/run/docker.sock:/var/run/docker.sock mount here.
 
       # --- Host Claude Code config (power-user) ---
       # Bind-mount your host `~/.claude` so any Claude Code sessions,

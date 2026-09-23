@@ -6,10 +6,9 @@
   ],
   "service": "devcontainer",
   "shutdownAction": "none",
-  "initializeCommand": "[ -f .devcontainer/docker-compose.override.yml ] || cp .devcontainer/docker-compose.override.yml.example .devcontainer/docker-compose.override.yml",
+  "initializeCommand": "mkdir -p .venv && ([ -f .devcontainer/docker-compose.override.yml ] || cp .devcontainer/docker-compose.override.yml.example .devcontainer/docker-compose.override.yml)",
   "features": {
-    "ghcr.io/devcontainers/features/aws-cli:1": {},
-    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+    "ghcr.io/devcontainers/features/aws-cli:1": {}
   },
   "customizations": {
     "vscode": {
@@ -71,6 +70,6 @@
     "8000": { "label": "Backend (FastAPI)" },
     "8501": { "label": "dev-eval-harness (Streamlit prompt eval)" }
   },
-  "postCreateCommand": "bash -c '([ -f ~/.docker/config.json ] && jq '\\''del(.credsStore)'\\'' ~/.docker/config.json > /tmp/docker-config.json && mv /tmp/docker-config.json ~/.docker/config.json) || true && { [ -f /home/node/.claude/settings.json ] || cp .devcontainer/settings.json /home/node/.claude/settings.json 2>/dev/null || true; } && curl -fsSL https://raw.githubusercontent.com/ericbuess/claude-code-docs/main/install.sh | bash && git config core.hooksPath .githooks/ && uv sync && (cd frontend && pnpm install && pnpm build) && (npx -y chrome-devtools-mcp@latest --version 2>/dev/null || true) || true'",
-  "postStartCommand": "bash -c '([ -f ~/.docker/config.json ] && jq '\\''del(.credsStore)'\\'' ~/.docker/config.json > /tmp/docker-config.json && mv /tmp/docker-config.json ~/.docker/config.json 2>/dev/null || true) && bash /workspace/dev/start-dev-servers.sh || true'"
+  "postCreateCommand": "bash -c '{ [ -f /home/node/.claude/settings.json ] || cp .devcontainer/settings.json /home/node/.claude/settings.json 2>/dev/null || true; } && curl -fsSL https://raw.githubusercontent.com/ericbuess/claude-code-docs/main/install.sh | bash && git config core.hooksPath .githooks/ && git config --global credential.https://github.com.helper '\\''!gh auth git-credential'\\'' && git config --global credential.https://gist.github.com.helper '\\''!gh auth git-credential'\\'' && uv sync && (cd frontend && pnpm install && pnpm build) && (npx -y chrome-devtools-mcp@latest --version 2>/dev/null || true) || true'",
+  "postStartCommand": "bash -c 'bash /workspace/dev/start-dev-servers.sh || true'"
 }

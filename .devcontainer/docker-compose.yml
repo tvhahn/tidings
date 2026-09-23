@@ -12,17 +12,22 @@ services:
     shm_size: '2gb'
     volumes:
       - ..:/workspace:cached
+      # Container-only venv shadowing the bind-mounted ./.venv. Host and
+      # container share the checkout, and a venv's python symlink points at
+      # whichever side last ran `uv sync` — so one shared .venv gets rebuilt
+      # (and broken for the other side) every time either side syncs.
+      # Worktrees under the checkout keep their own ./.venv as usual.
+      - devcontainer-venv:/workspace/.venv
       - claude-code-bashhistory:/commandhistory
       - claude-code-config:/home/node/.claude
       # Persist the GitHub CLI login (`gh auth login`) across container
       # rebuilds — gh is the credential path for PR/issue work inside the
       # container; without this the login lives in the container layer only.
       - gh-config:/home/node/.config/gh
-      - ${SSH_AUTH_SOCK:-/dev/null}:/tmp/ssh-auth-host.sock
-      # Maintainer-only host mounts (AWS creds + Docker daemon access) live in
+      # The maintainer-only AWS credentials mount lives in
       # .devcontainer/docker-compose.override.yml (gitignored; copy from .example).
-      # Restore them only if you build/run the prod stack from inside the
-      # devcontainer or run Lambda E2E / live-DynamoDB tests.
+      # Add it only if you run Lambda E2E / live-DynamoDB tests from inside the
+      # devcontainer.
     ports:
       - "${JUPYTER_HOST_PORT:-8888}:8888"  # Jupyter notebook server
       - "5173:5173"  # dev-frontend  — real dashboard (vite, real backend)
@@ -37,8 +42,6 @@ services:
       - CLAUDE_CONFIG_DIR=/home/node/.claude
       - CLAUDE_CODE_NO_FLICKER=1
       - POWERLEVEL9K_DISABLE_GITSTATUS=true
-      # Point bash/docker exec (not just zsh) at the forwarded host SSH agent so git push works.
-      - SSH_AUTH_SOCK=/tmp/ssh-auth-host.sock
       - COREPACK_ENABLE_DOWNLOAD_PROMPT=0
     working_dir: /workspace
     command: sleep infinity
@@ -50,10 +53,9 @@ services:
     # here. Keeping them broke DNS on systemd-resolved hosts — with NET_ADMIN
     # set, Docker bypasses its embedded resolver (127.0.0.11) and falls back
     # to the host's stub 127.0.0.53, unreachable from inside the container.
-    group_add:
-      - "999"  # host docker group GID — only meaningful with the override mount
 
 volumes:
+  devcontainer-venv:
   claude-code-bashhistory:
   claude-code-config:
   gh-config:

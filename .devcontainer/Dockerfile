@@ -92,8 +92,10 @@ RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhisto
 # Set `DEVCONTAINER` environment variable to help with orientation
 ENV DEVCONTAINER=true
 
-# Create workspace and config directories and set permissions
-RUN mkdir -p /workspace /home/node/.claude && \
+# Create workspace and config directories and set permissions.
+# /workspace/.venv is the devcontainer-venv volume's mount point; creating it
+# here makes Docker seed that volume node-owned instead of root-owned.
+RUN mkdir -p /workspace/.venv /home/node/.claude && \
   chown -R node:node /workspace /home/node/.claude
 
 WORKDIR /workspace
@@ -175,22 +177,6 @@ RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/
   -a "source /usr/share/doc/fzf/examples/completion.zsh" \
   -a "export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhistory/.bash_history" \
   -x
-
-# Keep SSH agent accessible inside tmux and docker exec sessions
-RUN cat <<'ZSHRC' >> ~/.zshenv
-
-# SSH agent: use existing socket (VS Code) or fall back to host-mounted socket
-if [ -z "$SSH_AUTH_SOCK" ] || ! [ -S "$SSH_AUTH_SOCK" ]; then
-    [ -S "/tmp/ssh-auth-host.sock" ] && export SSH_AUTH_SOCK="/tmp/ssh-auth-host.sock"
-fi
-
-# Stable symlink so tmux sessions survive VS Code reconnects
-if [ -n "$SSH_AUTH_SOCK" ] && [ -S "$SSH_AUTH_SOCK" ] && [ "$SSH_AUTH_SOCK" != "$HOME/.ssh/ssh_auth_sock" ]; then
-    mkdir -p ~/.ssh
-    ln -sf "$SSH_AUTH_SOCK" "$HOME/.ssh/ssh_auth_sock"
-    export SSH_AUTH_SOCK="$HOME/.ssh/ssh_auth_sock"
-fi
-ZSHRC
 
 # Configure tmux: mouse scrolling + refresh SSH/display env vars on attach
 RUN cat <<'EOF' > ~/.tmux.conf

@@ -31,6 +31,8 @@ uv run ruff check src/ tests/
 
 The DevContainer is the primary development environment. Open the project in VS Code with the Dev Containers extension (or GitHub Codespaces) and the `postCreateCommand` runs `uv sync` automatically. No manual setup needed.
 
+Inside the container, `/workspace/.venv` is a named Docker volume (`devcontainer-venv`), not the host's `./.venv`. The checkout is bind-mounted, and a venv's `python` symlink points at the interpreter of whichever side created it, so a single shared `.venv` would be rebuilt — and broken for the other side — every time the host or the container ran `uv sync` (including the `uv sync` in Claude Code's SessionStart hook). Each side keeps its own venv instead; worktrees get their own `./.venv` as usual. To reset the container's venv, remove the volume (`docker volume rm tidings_devcontainer_devcontainer-venv`) and rebuild.
+
 ### Local Setup
 
 A single command creates the virtual environment, installs Python 3.12 if needed, and installs all dependencies:
