@@ -61,8 +61,11 @@ handler — create them before the first invocation. Key schemas are in
 # Build docker image for Lambda (from repo root, using -f flag)
 docker build --platform linux/amd64 -f docker/email_parsing/Dockerfile -t docker-image:test .
 
-# Or use the build script (can be run from any directory):
+# Or use the local build script (can be run from any directory):
 bash docker/email_parsing/2_build_image.sh
+
+# No local Docker? Build in AWS CodeBuild instead (pushes to ECR; see below):
+bash docker/email_parsing/13_codebuild_build_and_push.sh
 
 # Run container locally for testing
 docker run -it --rm docker-image:test
@@ -91,9 +94,19 @@ cd docker/email_parsing/
 ./9_establish_coverage_lambda.sh  # Create coverage-check Lambda function
 ./10_create_coverage_schedule.sh  # Create EventBridge daily coverage schedule
 ./11_set_function_env.sh      # Merge personal-config env vars into a function
+./12_create_codebuild_project.sh  # One-time: create the CodeBuild project and its IAM role
+./13_codebuild_build_and_push.sh  # Build in CodeBuild and push to ECR (replaces 0, 2, 3)
 ```
 
-For routine updates to an existing deployment, you typically only need steps 0, 2, 3, and 5.
+For routine updates to an existing deployment, run step 13 and then step 5. Steps 0, 2, and 3 are the local-Docker alternative to 13: authenticate, build, and push from your own machine.
+
+### Building in CodeBuild
+
+`12_create_codebuild_project.sh` creates the CodeBuild project `tidings-email-parsing`, its service role `tidings-codebuild-email-parsing`, and the log group `/aws/codebuild/tidings-email-parsing`. The role can write that log group and push to the `email-parsing` ECR repository, nothing else. The project runs `docker/email_parsing/buildspec.yml` on a `BUILD_GENERAL1_SMALL` x86_64 Amazon Linux instance in privileged mode (needed for `docker build`), with a 20-minute timeout and no webhook, so it only builds when you start it. The script is safe to re-run: it updates what already exists, so it is also how you re-create or repair the project.
+
+`13_codebuild_build_and_push.sh [git-ref]` starts a build of one commit (default `HEAD`), polls it every 10 seconds, and prints the image URI and digest when it succeeds. CodeBuild checks the source out from the public GitHub repository, not from your working tree, so the commit must be pushed first; the script refuses a commit that is not on any `origin/*` branch. Each build pushes two tags: `latest` (or `IMAGE_TAG=<tag>` when set) and `git-<12-char sha>`, which names that exact build and is what you would roll back to. On failure the script prints the last 60 log lines; the full log is in CloudWatch under `/aws/codebuild/tidings-email-parsing`.
+
+Cost: a build takes about a minute (55 seconds measured, 2026-09-22). [CodeBuild pricing](https://aws.amazon.com/codebuild/pricing/) bills `general1.small` on Linux at $0.005 per build minute, rounded up to the whole minute, so a build costs half a cent. The free tier covers 100 build minutes per month on that instance type and does not expire after the 12-month AWS free tier term.
 
 ### What each step relies on
 
@@ -106,6 +119,7 @@ If you want to read the AWS documentation alongside the scripts, the canonical r
 - Step 7: Same Lambda container-image flow for the monthly-summary function. Assumes the role `lambda-s3-trigger-role` already exists.
 - Step 8: [Creating a schedule with EventBridge Scheduler](https://docs.aws.amazon.com/scheduler/latest/UserGuide/getting-started.html). Cron `cron(0 17 8 * ? *)` is "minute 0, 17:00 UTC, day-of-month 8, any month, day-of-week placeholder, any year" — the 6-field format EventBridge Scheduler requires.
 - Step 11: [Using Lambda environment variables](https://docs.aws.amazon.com/lambda/latest/dg/configuration-envvars.html). Run on demand rather than in sequence — see [Personal config in Lambda](#personal-config-in-lambda).
+- Steps 12–13: [Build a Docker image and push it to Amazon ECR with CodeBuild](https://docs.aws.amazon.com/codebuild/latest/userguide/sample-docker.html). The buildspec logs in to ECR, builds from the repository root exactly as `2_build_image.sh` does, and pushes both tags; the Lambda update stays a separate step (5).
 
 The Lambda function loads `OPENAI_API_KEY` from SSM Parameter Store at `/email-parser/openai-api-key` ([Working with Parameter Store](https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-working-with.html)). Falls back to env var, then `.env` for local/CI use.
 

@@ -303,7 +303,7 @@ Before pushing a new Docker image to ECR:
 - [ ] `make test-ci` — all unit tests pass with the 90% branch-coverage gate enforced
 - [ ] `uv run ruff check src/ tests/` — no lint errors
 - [ ] `uv run ruff format --check src/ tests/` — no format issues
-- [ ] `bash docker/email_parsing/2_build_image.sh` — Docker image builds
+- [ ] `bash docker/email_parsing/13_codebuild_build_and_push.sh` — the image builds in CodeBuild from the pushed commit (or `2_build_image.sh` locally with Docker)
 - [ ] `uv run pytest tests/integration/test_lambda_e2e.py -m integration` with the `E2E_*` env set — the round-trip passes and cleans up (see [End-to-End Lambda Testing](#end-to-end-lambda-testing))
 
 ## Scripts Reference

@@ -1,0 +1,44 @@
+# CodeBuild buildspec for the Lambda container image (email-parser,
+# monthly-summary, coverage-check all share it). Used by the CodeBuild project
+# `tidings-email-parsing` (created by 12_create_codebuild_project.sh) and
+# started by 13_codebuild_build_and_push.sh.
+#
+# Builds docker/email_parsing/Dockerfile from the source root (the checked-out
+# GitHub commit), tags it `$IMAGE_TAG` and `git-<12-char sha>`, and pushes both
+# tags to the ECR repo `$ECR_REPO`. It does not touch the Lambda functions;
+# 5_update_func.sh rolls `:latest` onto them as a separate step.
+#
+# Every command runs in one bash shell (buildspec 0.2), so variables set in
+# pre_build persist. CodeBuild fails the phase on any nonzero exit; nothing
+# here masks one. `set -e` is deliberately not used: it would persist into
+# CodeBuild's own phase wrapper for the rest of the build.
+version: 0.2
+
+env:
+  shell: bash
+  variables:
+    AWS_REGION: us-west-2
+    ECR_REPO: email-parsing
+    IMAGE_TAG: latest
+
+phases:
+  pre_build:
+    commands:
+      - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+      - REGISTRY="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+      - URI="${REGISTRY}/${ECR_REPO}"
+      - test -n "${CODEBUILD_RESOLVED_SOURCE_VERSION:-}"
+      - SHORT_SHA="${CODEBUILD_RESOLVED_SOURCE_VERSION:0:12}"
+      - echo "Building ${URI} tags ${IMAGE_TAG} and git-${SHORT_SHA} from ${CODEBUILD_RESOLVED_SOURCE_VERSION}"
+      - (set -o pipefail; aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$REGISTRY")
+  build:
+    commands:
+      - docker build --platform linux/amd64 -f docker/email_parsing/Dockerfile -t "${URI}:${IMAGE_TAG}" -t "${URI}:git-${SHORT_SHA}" .
+  post_build:
+    commands:
+      # post_build runs even when build failed; do not push a stale or missing image.
+      - test "${CODEBUILD_BUILD_SUCCEEDING}" = "1"
+      - docker push "${URI}:${IMAGE_TAG}"
+      - docker push "${URI}:git-${SHORT_SHA}"
+      - DIGEST=$(aws ecr describe-images --region "$AWS_REGION" --repository-name "$ECR_REPO" --image-ids "imageTag=git-${SHORT_SHA}" --query 'imageDetails[0].imageDigest' --output text)
+      - echo "Pushed ${URI}@${DIGEST} (tags ${IMAGE_TAG}, git-${SHORT_SHA})"

@@ -19,6 +19,7 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Build the Lambda container image in AWS CodeBuild instead of on a local Docker daemon: `docker/email_parsing/12_create_codebuild_project.sh` creates the project once and `13_codebuild_build_and_push.sh` builds a pushed commit and pushes `:latest` plus a `git-<sha>` tag to ECR (about a minute and half a cent per build, inside the free tier). The local-Docker scripts 0/2/3 still work.
 - Keep the agent CLIs through image updates: a derived Dockerfile
   (`docker/ai_clis/Dockerfile`) layers the Claude Code, Codex, and Gemini CLIs
   onto the published image under a local tag, so hosts that auto-pull a moving

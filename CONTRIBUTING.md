@@ -59,15 +59,7 @@ Commands you'll lean on:
 | `ruff check src/ tests/ --fix` | Lint + auto-fix. |
 | `ruff format src/ tests/` | Format. |
 
-**Opt-in host resources.** By default the DevContainer mounts none of your host
-AWS credentials, Docker socket, or Claude config — a fresh clone stays isolated.
-To enable any of them, copy
-[`.devcontainer/docker-compose.override.yml.example`](.devcontainer/docker-compose.override.yml.example)
-to `.devcontainer/docker-compose.override.yml` (gitignored) and uncomment what
-you need: `~/.aws` (read-only, required for Lambda/DynamoDB paths),
-`/var/run/docker.sock` (host Docker daemon — host-escape risk, enable only when
-building or running the prod stack), or `~/.claude` (your host Claude config).
-Rebuild the container to apply.
+**Opt-in host resources.** By default the DevContainer mounts none of your host AWS credentials or Claude config — a fresh clone stays isolated. To enable either, copy [`.devcontainer/docker-compose.override.yml.example`](.devcontainer/docker-compose.override.yml.example) to `.devcontainer/docker-compose.override.yml` (gitignored) and uncomment what you need: an AWS credentials directory (read-only, required for Lambda/DynamoDB paths; prefer a dedicated directory holding a scoped IAM key over your whole `~/.aws`), or `~/.claude` (your host Claude config). Rebuild the container to apply. The container has no host Docker access: the docker CLI is not installed and the socket is not mounted, because anything that can reach the host daemon is root on the host. Lambda images build in AWS CodeBuild (`docker/email_parsing/13_codebuild_build_and_push.sh`), and the prod compose stack is driven from a host shell. If you truly need host Docker inside the container, add the `docker-outside-of-docker` feature to `devcontainer.json` locally together with the socket mount.
 
 **Other conveniences.** The image ships a `c1` helper that opens Claude Code in a
 persistent tmux session (survives reconnects). OpenAI Codex and Google Gemini

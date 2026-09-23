@@ -9,7 +9,7 @@
 - **Verify (all gates):** `make verify` — canon-doc links, backend pytest + ruff + pyright, frontend lint/typecheck/format/vitest + de-slop P0 gate, Playwright e2e, openapi drift. Runs the sub-targets as a parallel dependency graph; about a minute on a many-core box, a few minutes on a typical laptop. Use before committing non-trivial changes.
 - **Lint:** `ruff check src/ tests/` (auto-fix: `--fix`)
 - **Format:** `ruff format src/ tests/`
-- **Build Lambda image:** `bash docker/email_parsing/2_build_image.sh`
+- **Build Lambda image:** `bash docker/email_parsing/13_codebuild_build_and_push.sh` — builds in AWS CodeBuild from the pushed commit (no local Docker); then `5_update_func.sh` rolls the Lambdas. `2_build_image.sh` is the local-Docker alternative.
 - **Frontend dev:** `make dev-frontend` (port 5173) or `make dev` (frontend + API)
 
 ## Technical decisions
