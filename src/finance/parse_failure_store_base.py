@@ -34,7 +34,14 @@ class ParseFailureStoreBase(ABC):
 
     @abstractmethod
     def record_failure(self, failure: dict[str, Any]) -> str:
-        """Persist (idempotently) a parse failure and return its deterministic id."""
+        """Persist (idempotently) a parse failure and return its deterministic id.
+
+        Re-recording an existing id (a redelivered or re-uploaded email) is an
+        upsert that refreshes only ``failure_stage`` and ``updated_at``. Every
+        other field — ``status``, ``recovered_date_file_name``, ``created_at``,
+        ``received_at`` and the captured email — keeps its first-recorded value,
+        so a dismissed or recovered row never reverts to quarantined.
+        """
 
     @abstractmethod
     def get_failure(self, failure_id: str) -> dict[str, Any] | None:

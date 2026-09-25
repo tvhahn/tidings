@@ -8,7 +8,7 @@ Item shape (single-table, PK/SK):
 * ``PK`` = ``USER#<user_id>``
 * ``SK`` = ``FAIL#<received_at>#<id>`` — ``received_at`` is derived from the
   email's own ``date`` header (stable across redeliveries) so a redelivered
-  email maps to the same SK and ``put_item`` is a natural upsert.
+  email maps to the same SK and ``record_failure``'s ``update_item`` upserts it.
 * row fields as top-level PascalCase attributes (``ReceivedAt``,
   ``FailureStage``, ``EmailJson`` …), plus a ``FailureId`` attribute so
   ``get_failure(id)`` can resolve via a ``Query`` on PK + ``FilterExpression``
@@ -91,7 +91,7 @@ class ParseFailureStore(ParseFailureStoreBase):
 
         Using the email's ``date`` (stable across redeliveries) rather than
         wall-clock keeps the SK identical for a redelivered email, so
-        ``put_item`` upserts instead of duplicating. ``ReceivedAt`` (the ISO
+        ``update_item`` upserts instead of duplicating. ``ReceivedAt`` (the ISO
         wall-clock attribute used for recency windows) is stored separately.
         """
         date_header = email_details.get("date")
@@ -117,26 +117,35 @@ class ParseFailureStore(ParseFailureStoreBase):
             email_json = json.dumps(email_details)
         classifier = failure.get("alert_classifier_result")
 
-        item: dict[str, Any] = {
-            "PK": self.USER_PK,
-            "SK": f"FAIL#{sk_token}#{failure_id}",
+        # Upsert semantics mirror ParseFailureStoreLocal.record_failure's ON
+        # CONFLICT clause: only the stage and UpdatedAt change on a re-record;
+        # review status and the recovery link survive redelivery.
+        always = {"FailureStage": failure.get("failure_stage", "no_parser_match"), "UpdatedAt": now}
+        if_absent = {
             "FailureId": failure_id,
             "ReceivedAt": received_at,
             "FromEmail": failure.get("from_email") or email_details.get("from_email"),
             "Subject": failure.get("subject") or email_details.get("subject"),
             "FileName": failure.get("file_name") or email_details.get("file_name"),
             "DetectedInstitution": failure.get("detected_institution"),
-            "FailureStage": failure.get("failure_stage", "no_parser_match"),
             "Status": failure.get("status", "quarantined"),
             "RecoveredDateFileName": failure.get("recovered_date_file_name"),
             "AlertClassifierResult": self.coerce_classifier(classifier),
             "EmailJson": email_json,
             "CreatedAt": received_at,
-            "UpdatedAt": now,
         }
+        # Alias every attribute name: several (Status, ...) are reserved words.
+        names = {f"#{k}": k for k in (*always, *if_absent)}
+        values = {f":{k}": v for k, v in (*always.items(), *if_absent.items())}
+        clauses = [f"#{k} = :{k}" for k in always] + [f"#{k} = if_not_exists(#{k}, :{k})" for k in if_absent]
         # Pruning: SQLite prunes on write; DynamoDB rows are few and cheap —
         # revisit with TTL if needed.
-        self.table.put_item(Item=item)
+        self.table.update_item(
+            Key={"PK": self.USER_PK, "SK": f"FAIL#{sk_token}#{failure_id}"},
+            UpdateExpression="SET " + ", ".join(clauses),
+            ExpressionAttributeNames=names,
+            ExpressionAttributeValues=values,
+        )
         return failure_id
 
     def _item_to_summary(self, item: dict[str, Any]) -> dict[str, Any]:
