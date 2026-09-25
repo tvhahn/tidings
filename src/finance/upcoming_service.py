@@ -5,8 +5,10 @@ safe. For each recurring merchant found in ``13 complete months + the current
 month`` of raw ``query_month`` rows (the ``tax_pack_service`` fan-out pattern,
 NOT month-level ``by_company`` aggregates — charge dates are gone at that
 altitude), it derives a profile (cadence, median charge day, amount estimate,
-observation channel, modal category, confidence) and then, for the current
-month, runs the four-state status machine (L4):
+observation channel, modal category, confidence) and then, for the requested
+month, runs the four-state status machine (L4). "Today" below is the
+evaluation date: today for the current month, the month's last day for a past
+month, and the day before its 1st for a future month.
 
 - ``upcoming``   — expected day is still ahead of today.
 - ``arrived``    — a current-month row (or the previous month's last few days,
@@ -195,11 +197,28 @@ def _months_between(earlier: date, later: date) -> int:
     return (later.year - earlier.year) * 12 + (later.month - earlier.month)
 
 
+def _evaluation_date(month_start: date, today: date) -> date:
+    """The "as of" date the status machine judges ``month_start``'s month by.
+
+    The current month is judged as of today; a past month as of its last day
+    (everything that was going to land has had its chance); a future month as
+    of the day before its 1st (nothing is due yet, so all unmatched charges
+    are ``upcoming``).
+    """
+    if (month_start.year, month_start.month) == (today.year, today.month):
+        return today
+    if month_start < today:
+        return month_start + relativedelta(months=1, days=-1)
+    return month_start - relativedelta(days=1)
+
+
 class UpcomingService:
-    """Derive per-merchant expected charges for the current month (L1/L3/L4).
+    """Derive per-merchant expected charges for a month (L1/L3/L4).
 
     Read-only over ``ISpendingSummary``; dual-backend safe (consumes only the
-    storage-agnostic protocol). 1-hour in-memory cache keyed by ``(year_month,)``.
+    storage-agnostic protocol). 1-hour in-memory cache keyed by
+    ``(year_month, evaluation date)`` so the current month's statuses never
+    outlive the day they were computed on.
     """
 
     def __init__(
@@ -209,17 +228,24 @@ class UpcomingService:
     ) -> None:
         self._summary = spending_summary
         self._aliases = merchant_alias_service
-        self._cache: dict[tuple[str], UpcomingResult] = {}
-        self._cache_time: dict[tuple[str], float] = {}
+        self._cache: dict[tuple[str, date], UpcomingResult] = {}
+        self._cache_time: dict[tuple[str, date], float] = {}
 
     def get_upcoming(self, year_month: str) -> UpcomingResult:
         """Expected charges + recurring-merchant set for ``year_month`` (cached 1h)."""
-        key = (year_month,)
+        month_start = date(int(year_month[:4]), int(year_month[5:7]), 1)
+        as_of = _evaluation_date(month_start, forecast_today())
+        key = (year_month, as_of)
         now = time.time()
         cached = self._cache.get(key)
         if cached is not None and (now - self._cache_time.get(key, 0)) < _CACHE_TTL_SECONDS:
             return cached
-        result = self._compute(year_month)
+        result = self._compute(year_month, as_of)
+        # Drop this month's entries from earlier evaluation dates (yesterday's
+        # current-month result) so the cache doesn't grow one entry per day.
+        for stale in [k for k in self._cache if k[0] == year_month and k != key]:
+            del self._cache[stale]
+            self._cache_time.pop(stale, None)
         self._cache[key] = result
         self._cache_time[key] = now
         return result
@@ -232,7 +258,7 @@ class UpcomingService:
     # Core computation
     # ------------------------------------------------------------------
 
-    def _compute(self, year_month: str) -> UpcomingResult:
+    def _compute(self, year_month: str, as_of: date) -> UpcomingResult:
         target = date(int(year_month[:4]), int(year_month[5:7]), 1)
         # 14 keys, oldest first: 13 complete months + the current month (last).
         window_keys = [
@@ -282,7 +308,7 @@ class UpcomingService:
 
         recurring_merchants = {p.merchant for p in profiles}
         charges = self._match(
-            profiles, items_by_month[current_key], items_by_month[prev_key], target, prev_key, aliases
+            profiles, items_by_month[current_key], items_by_month[prev_key], target, prev_key, aliases, as_of
         )
         return UpcomingResult(charges=charges, recurring_merchants=recurring_merchants)
 
@@ -423,8 +449,11 @@ class UpcomingService:
         target: date,
         prev_key: str,
         aliases: Mapping[str, str],
+        as_of: date,
     ) -> list[ExpectedCharge]:
-        today = forecast_today()
+        # Day-of-month the status machine compares expected days against; 0
+        # when evaluating before the month starts (a future month).
+        as_of_day = as_of.day if (as_of.year, as_of.month) == (target.year, target.month) else 0
         days_in_month = calendar.monthrange(target.year, target.month)[1]
         current_month_num = target.month
 
@@ -480,7 +509,7 @@ class UpcomingService:
                 )
                 continue
 
-            status = self._status_for_unmatched(profile, expected_day, today.day)
+            status = self._status_for_unmatched(profile, expected_day, as_of_day)
             charges.append(
                 ExpectedCharge(
                     merchant=profile.merchant,
@@ -512,13 +541,13 @@ class UpcomingService:
         return min(eligible, key=lambda item: (abs((_day_of(item) or 0) - expected_day), _date_str(item)))
 
     @staticmethod
-    def _status_for_unmatched(profile: _Profile, expected_day: int, today_day: int) -> str:
-        if expected_day > today_day:
+    def _status_for_unmatched(profile: _Profile, expected_day: int, as_of_day: int) -> str:
+        if expected_day > as_of_day:
             return "upcoming"
         if profile.channel == "statement":
             # Statement-observed: happened in reality, awaiting import. Never alarming.
             return "assumed"
         # Email/mixed: still within grace renders as upcoming; past grace is a quiet note.
-        if today_day - expected_day > UNRECORDED_GRACE_DAYS:
+        if as_of_day - expected_day > UNRECORDED_GRACE_DAYS:
             return "unrecorded"
         return "upcoming"
