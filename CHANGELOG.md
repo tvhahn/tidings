@@ -40,6 +40,9 @@ This project follows [Semantic Versioning](https://semver.org/).
   your browser, and the footer theme control is a quiet three-icon row. The
   social-share card is now an illustrated scene — an olive sapling and a
   notebook in morning light — instead of a text-only card.
+- Month views, search, insights briefings and backup restores read far less of
+  the database on self-hosted installs: month queries now use an index, a
+  briefing reads each month once, and a restore writes in one transaction.
 
 ### Fixed
 
@@ -51,11 +54,44 @@ This project follows [Semantic Versioning](https://semver.org/).
 - Self-hosted image: a hard refresh or direct link to a dashboard route
   (`/transactions`, `/summary`, …) now serves the app instead of a 404. API
   paths keep their JSON 404.
+- The dashboard summary now loads for a month that follows a month with no
+  spending. The API returns `delta_percent: null` when there is no previous
+  month to compare against, instead of a value browsers could not parse.
+- Deleting, ignoring, restoring or reviewing a transaction now updates the row
+  on the Transactions page right away instead of after the next refresh.
+- Statement review no longer pre-selects a duplicate for import when a row
+  near the start or end of the statement period matches an alert from the
+  neighbouring month; it is flagged for review instead.
+- Full backups now include budgets for every year you have set, not only the
+  current year and the three before it.
+- Upcoming charges and daily summaries for past or future months judge each
+  charge against that month instead of today's date.
+- A dismissed category suggestion now stays dismissed until a newer correction
+  arrives, whatever your timezone.
+- On the AWS deployment, a dismissed or recovered email in Needs review no
+  longer reappears when the same email is delivered again.
 
 ### Security
 
 - Docker builds no longer copy the host's `__pycache__` directories into the
   image (the compiled files embedded absolute paths from the build machine).
+- The IMAP poller now verifies the mail server's TLS certificate and hostname
+  before sending the app password. Self-hosted mail servers with a private CA
+  can set `IMAP_CA_FILE`. If the poller ever ran on an untrusted network,
+  rotate the IMAP app password.
+- Sign-in hardening: after 5 failed password attempts from one address within
+  15 minutes, password checks return 429 until the window passes, and
+  passwords are capped at 1024 characters. A session cookie is never accepted
+  while the signing secret is missing, and agent tokens can no longer turn on
+  `auth_bypass_for_dev`; only a signed-in browser session can.
+- CSV exports (search, backup and tax) prefix text cells that start with a
+  spreadsheet formula character, so merchant or email text can't run as a
+  formula. Backup restore removes the prefix again.
+- Uploads are size-checked while they stream instead of after being read into
+  memory, receipt downloads and deletes refuse paths outside the attachments
+  folder, and an S3 restore skips attachment entries that point elsewhere.
+- Dependency updates clear all open `pip-audit` advisories, including one in a
+  library the daily-summary provider no longer needs.
 
 ## [0.1.0] — 2026-07-21
 

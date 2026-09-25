@@ -14,11 +14,11 @@ for any of them to get a plan with `improve plan <finding>`.
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
-| [001](001-summary-delta-percent-valid-json.md) | Make `/summary` and `/insights/context` return valid JSON when the previous month has no spending | P1 | S | — | TODO |
-| [002](002-imap-verify-tls.md) | Verify the IMAP server's TLS certificate before sending the mailbox password | P1 | S | — | TODO |
-| [003](003-auth-fail-closed-and-bypass-guard.md) | Reject empty-secret session cookies, and stop bearer tokens from enabling the dev auth bypass | P1 | S | — | TODO |
-| [004](004-sqlite-month-query-use-index.md) | Make SQLite month queries use the `date_file_name` index | P2 | S | — | TODO |
-| [005](005-parse-failure-rerecord-parity.md) | Make DynamoDB parse-failure re-records keep review status, matching SQLite | P2 | S | — | TODO |
+| [001](001-summary-delta-percent-valid-json.md) | Make `/summary` and `/insights/context` return valid JSON when the previous month has no spending | P1 | S | — | DONE |
+| [002](002-imap-verify-tls.md) | Verify the IMAP server's TLS certificate before sending the mailbox password | P1 | S | — | DONE |
+| [003](003-auth-fail-closed-and-bypass-guard.md) | Reject empty-secret session cookies, and stop bearer tokens from enabling the dev auth bypass | P1 | S | — | DONE |
+| [004](004-sqlite-month-query-use-index.md) | Make SQLite month queries use the `date_file_name` index | P2 | S | — | DONE |
+| [005](005-parse-failure-rerecord-parity.md) | Make DynamoDB parse-failure re-records keep review status, matching SQLite | P2 | S | — | DONE |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with a one-line reason) | REJECTED (with a one-line rationale)
 
@@ -120,3 +120,24 @@ the planning session reproduced it or read the exact lines.
 - **`pip-audit` advisories** (anyio, soupsieve, tornado and others): none are high or critical in reachable runtime code. They are routine upgrades, not findings.
 - **Floats for money, sync services via `run_sync`, auth open until a password is set**: these are documented design decisions, not findings.
 - **`twilio` as a required dependency**: it is imported lazily, so making it optional saves little.
+
+## Execution record (2026-09-25)
+
+All five plans and every unplanned finding above were implemented on
+`claude/sweet-volta-5yawaj`, except these, which the maintainer deferred:
+
+- **SEC-04** (loopback-only default publish): deferred, needs a product decision.
+- **CORR-02** (backup restore identity): deferred, needs a product decision.
+- **SEC-07** (ingest sender verification): deferred by the maintainer.
+- **DEP-03, production image only**: CI, `.nvmrc` and `engines` moved to Node 22. The
+  `Dockerfile.prod` build stage stays pinned to the `node:20-slim` digest until
+  someone with registry access resolves a `node:22-slim` digest (see
+  `docs/guides/supply-chain-security.md`).
+- **Direction options**: not started.
+
+Findings discovered while implementing and fixed in the same pass: the config
+read-modify-write race (lost updates between `mark_used` and other config writes,
+and concurrent `session_version` bumps), and a SQLite/DynamoDB divergence in
+`IgnoreRuleServiceLocal` (stale create raised `IntegrityError` instead of
+`VersionConflictError`). The same stale-create divergence likely exists in the
+Override, MerchantAlias, Category and CategoryIcon SQLite services and is not yet fixed.
