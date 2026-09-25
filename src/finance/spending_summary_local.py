@@ -12,6 +12,11 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# GLOB (case-sensitive) lets SQLite turn the month prefix into an index range on
+# idx_transactions_date_file_name; LIKE is case-insensitive and forces a full SCAN.
+# The prefix is 'YYYY.MM' — digits and a dot, no GLOB metacharacters.
+_QUERY_MONTH_SQL = "SELECT * FROM transactions WHERE date_file_name GLOB ?"
+
 
 class SpendingSummaryLocal(SpendingSummaryBase):
     """Query and aggregate monthly transaction data from SQLite."""
@@ -34,10 +39,7 @@ class SpendingSummaryLocal(SpendingSummaryBase):
         prefix = year_month.replace("-", ".")
         conn = get_connection(self._db_path)
         try:
-            rows = conn.execute(
-                "SELECT * FROM transactions WHERE date_file_name LIKE ?",
-                (f"{prefix}%",),
-            ).fetchall()
+            rows = conn.execute(_QUERY_MONTH_SQL, (f"{prefix}*",)).fetchall()
             # sqlite boundary: row_to_item builds the stored PascalCase shape.
             return cast("list[TransactionItem]", [row_to_item(row) for row in rows])
         finally:

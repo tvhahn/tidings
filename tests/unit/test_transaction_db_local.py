@@ -453,6 +453,35 @@ class TestGetLatestDateFileName:
         assert after > before
 
 
+class TestQueryPlans:
+    """Month filters must hit an index range — a LIKE prefix silently degrades to a scan."""
+
+    def _plan(self, sql: str, params: tuple[Any, ...]) -> str:
+        import sqlite3
+
+        from src.finance import local_db
+
+        conn = sqlite3.connect(":memory:")
+        conn.executescript(local_db._SCHEMA_SQL)
+        rows = conn.execute("EXPLAIN QUERY PLAN " + sql, params).fetchall()
+        return " | ".join(str(r[-1]) for r in rows)
+
+    def test_query_month_partition_uses_prefix_in_index_range(self) -> None:
+        from src.finance.transaction_db_local import _QUERY_MONTH_PARTITION_SQL
+
+        plan = self._plan(_QUERY_MONTH_PARTITION_SQL, (FORWARDED_TO, "2026.02*"))
+        assert "SCAN transactions" not in plan
+        # The month prefix (not just forwarded_to equality) bounds the index range.
+        assert "date_file_name>" in plan
+
+    def test_latest_in_month_uses_date_index(self) -> None:
+        from src.finance.transaction_db_local import _LATEST_IN_MONTH_SQL
+
+        plan = self._plan(_LATEST_IN_MONTH_SQL, ("2026.02*",))
+        assert "SCAN transactions" not in plan
+        assert "USING INDEX" in plan or "USING COVERING INDEX" in plan
+
+
 class TestTimezoneRespected:
     """`date_file_name` prefix is local to the configured app timezone."""
 

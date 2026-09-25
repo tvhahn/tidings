@@ -23,6 +23,16 @@ logger = logging.getLogger(__name__)
 
 _DEDICATED_AUDIT_KEYS = {"reviewed_at", "source", "matched_rule", "confidence", "previous_category"}
 
+# Month-scoped filters use GLOB, not LIKE: GLOB is case-sensitive, so SQLite can
+# rewrite the 'YYYY.MM*' prefix into an index range on date_file_name. LIKE is
+# case-insensitive and cannot use the BINARY-collated indexes, forcing a scan.
+# The prefix is digits and a dot — no GLOB metacharacters.
+_QUERY_MONTH_PARTITION_SQL = """SELECT forwarded_to, date_file_name, amount, category, company,
+          transaction_type, deleted_at, ignored
+   FROM transactions
+   WHERE forwarded_to = ? AND date_file_name GLOB ?"""
+_LATEST_IN_MONTH_SQL = "SELECT MAX(date_file_name) AS latest FROM transactions WHERE date_file_name GLOB ?"
+
 
 def _split_audit(
     audit: dict[str, Any] | None,
@@ -671,20 +681,16 @@ class TransactionsDBLocal(TransactionsDBBase):
     def query_month_partition(self, forwarded_to: str, year_month: str) -> "list[TransactionItem]":
         """Return transactions for one user/month as PascalCase dicts.
 
-        Uses LIKE prefix matching on date_file_name (e.g. '2026.04%') to mirror
-        DynamoDB's begins_with condition on the DateFileName sort key. The
-        composite index idx_transactions_date_prefix covers this query.
+        Uses GLOB prefix matching on date_file_name (e.g. '2026.04*') to mirror
+        DynamoDB's begins_with condition on the DateFileName sort key. GLOB is
+        case-sensitive, so SQLite bounds the (forwarded_to, date_file_name)
+        index range by the month prefix too; a case-insensitive LIKE would only
+        use the forwarded_to equality and scan the whole partition.
         """
         prefix = year_month.replace("-", ".")
         conn = self._connect()
         try:
-            rows = conn.execute(
-                """SELECT forwarded_to, date_file_name, amount, category, company,
-                          transaction_type, deleted_at, ignored
-                   FROM transactions
-                   WHERE forwarded_to = ? AND date_file_name LIKE ?""",
-                (forwarded_to, f"{prefix}%"),
-            ).fetchall()
+            rows = conn.execute(_QUERY_MONTH_PARTITION_SQL, (forwarded_to, f"{prefix}*")).fetchall()
             # sqlite boundary: row_to_item builds the stored PascalCase shape.
             return cast("list[TransactionItem]", [row_to_item(row) for row in rows])
         finally:
@@ -706,10 +712,7 @@ class TransactionsDBLocal(TransactionsDBBase):
         try:
             if year_month:
                 prefix = year_month.replace("-", ".")
-                row = conn.execute(
-                    "SELECT MAX(date_file_name) AS latest FROM transactions WHERE date_file_name LIKE ?",
-                    (f"{prefix}%",),
-                ).fetchone()
+                row = conn.execute(_LATEST_IN_MONTH_SQL, (f"{prefix}*",)).fetchone()
             else:
                 row = conn.execute("SELECT MAX(date_file_name) AS latest FROM transactions").fetchone()
             return row["latest"] if row and row["latest"] else None

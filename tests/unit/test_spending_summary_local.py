@@ -82,6 +82,35 @@ class TestQueryMonth:
         items = summary.query_month("2026-02", projection="Company", expression_names={"#c": "Company"})
         assert len(items) == 1
 
+    def test_month_boundaries_are_exact(self, db: Any, summary: SpendingSummaryLocal) -> None:
+        _add_purchase(db, "Jan 31", 1.0, "groceries", date_str="01/31/2026 23:30 PST", file_suffix="a")
+        _add_purchase(db, "Feb 1", 2.0, "groceries", date_str="02/01/2026 00:10 PST", file_suffix="b")
+        _add_purchase(db, "Feb 28", 3.0, "groceries", date_str="02/28/2026 23:50 PST", file_suffix="c")
+        _add_purchase(db, "Mar 1", 4.0, "groceries", date_str="03/01/2026 00:05 PST", file_suffix="d")
+        items = summary.query_month("2026-02")
+        assert sorted(i["Company"] for i in items) == ["Feb 1", "Feb 28"]
+
+
+class TestQueryPlans:
+    """Month filters must hit an index — a LIKE prefix silently degrades to SCAN."""
+
+    def _plan(self, sql: str, params: tuple[Any, ...]) -> str:
+        import sqlite3
+
+        from src.finance import local_db
+
+        conn = sqlite3.connect(":memory:")
+        conn.executescript(local_db._SCHEMA_SQL)
+        rows = conn.execute("EXPLAIN QUERY PLAN " + sql, params).fetchall()
+        return " | ".join(str(r[-1]) for r in rows)
+
+    def test_query_month_uses_date_index(self) -> None:
+        from src.finance.spending_summary_local import _QUERY_MONTH_SQL
+
+        plan = self._plan(_QUERY_MONTH_SQL, ("2026.02*",))
+        assert "SCAN transactions" not in plan
+        assert "USING INDEX" in plan or "USING COVERING INDEX" in plan
+
 
 class TestAggregate:
     def test_sums_purchases(self, db: Any, summary: SpendingSummaryLocal) -> None:
