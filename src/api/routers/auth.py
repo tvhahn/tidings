@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import math
 import os
-from typing import TYPE_CHECKING, Any, Final
+from typing import TYPE_CHECKING, Any, Final, cast
 
 from fastapi import APIRouter, Request, Response
 from pydantic import BaseModel, Field
@@ -38,7 +38,7 @@ from pydantic import BaseModel, Field
 from src.api import dependencies
 from src.api.errors import ApiException
 from src.api.login_throttle import login_throttle
-from src.finance.app_config import get_config, get_session_signing_secret, update_config
+from src.finance.app_config import config_write_lock, get_config, get_session_signing_secret, update_config
 from src.finance.auth_session import (
     COOKIE_MAX_AGE_SECONDS,
     COOKIE_NAME,
@@ -50,6 +50,8 @@ from src.finance.auth_session import (
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+
+    from src.finance.app_config import AppConfig
 
 router = APIRouter(prefix="/auth", tags=["webapp-auth"])
 
@@ -115,6 +117,22 @@ async def _verify_caller_password(request: Request, stored_hash: str, candidate:
     return ok
 
 
+def _bump_session_version(extra: AppConfig | None = None) -> int:
+    """Increment ``session_version`` (plus any ``extra`` keys) and return the new value.
+
+    The current version is re-read under the config write lock, so two
+    concurrent bumps (or a bump racing another config write) can't collapse
+    into one and leave an old cookie valid.
+    """
+    try:
+        with config_write_lock():
+            new_version = int(get_config().get("session_version", 0) or 0) + 1
+            update_config(cast("AppConfig", {**(extra or {}), "session_version": new_version}))
+    except OSError as e:
+        raise ApiException(500, "CONFIG_WRITE_FAILED", "could not write data/config.json") from e
+    return new_version
+
+
 def _is_secure_request(request: Request) -> bool:
     """Decide the `Secure` cookie flag.
 
@@ -165,11 +183,7 @@ async def set_password(body: _SetPasswordIn, request: Request, response: Respons
         raise ApiException(401, "UNAUTHORIZED", "current password is required and must match")
 
     new_hash = await dependencies.run_password_op(hash_password, body.password)
-    new_version = int(cfg.get("session_version", 0) or 0) + 1
-    try:
-        update_config({"app_password_hash": new_hash, "session_version": new_version})
-    except OSError as e:
-        raise ApiException(500, "CONFIG_WRITE_FAILED", "could not write data/config.json") from e
+    new_version = _bump_session_version({"app_password_hash": new_hash})
     _set_session_cookie(request, response, version=new_version)
     return _AuthResponse(status="ok")
 
@@ -226,10 +240,6 @@ async def sign_out_all(
         if not provided or not await _verify_caller_password(request, current_hash, provided):
             raise ApiException(401, "UNAUTHORIZED", "a valid session or the current password is required")
 
-    new_version = int(cfg.get("session_version", 0) or 0) + 1
-    try:
-        update_config({"session_version": new_version})
-    except OSError as e:
-        raise ApiException(500, "CONFIG_WRITE_FAILED", "could not write data/config.json") from e
+    new_version = _bump_session_version()
     _set_session_cookie(request, response, version=new_version)
     return _AuthResponse(status="ok")

@@ -399,3 +399,31 @@ class TestHealthAuthRequired:
         resp = client.get("/api/v1/health")
         assert_ok(resp)
         assert resp.json()["auth_required"] is True
+
+
+class TestSessionVersionBumpConcurrency:
+    """Concurrent version bumps must never collapse into one (lost update)."""
+
+    def test_concurrent_bumps_each_increment(self, isolated_config: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        import threading
+        import time
+
+        from src.api.routers import auth as auth_router
+
+        original = app_config._save_config
+
+        def _slow(config: app_config.AppConfig) -> None:
+            time.sleep(0.01)  # widen the read-modify-write window
+            original(config)
+
+        monkeypatch.setattr(app_config, "_save_config", _slow)
+        app_config.update_config({"session_version": 0})
+
+        threads = [threading.Thread(target=auth_router._bump_session_version) for _ in range(8)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        app_config.invalidate_config_cache()
+        assert app_config.get_config().get("session_version") == 8
