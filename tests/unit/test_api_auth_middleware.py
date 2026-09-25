@@ -295,6 +295,18 @@ class TestCookieSession:
         resp = client.get("/api/v1/categories")
         assert_problem(resp, 401)
 
+    def test_cookie_signed_with_empty_secret_is_rejected_when_secret_missing(
+        self, isolated_config: Path, api_client_factory
+    ) -> None:
+        # Password set but no signing secret persisted (hand-rotated or
+        # restored config): a cookie forged with an empty key must not pass.
+        _seed_password()
+        assert app_config.get_config().get("session_signing_secret") is None
+        client = api_client_factory(create_app())
+        client.cookies.set(COOKIE_NAME, issue_session(version=0, secret=""))
+        resp = client.get("/api/v1/categories")
+        assert_problem(resp, 401)
+
 
 # ---------------------------------------------------------------------------
 # Phase 4: TOFU bootstrap mode
@@ -364,6 +376,78 @@ class TestDevBypass:
             headers={"Authorization": "Bearer fin_garbage"},
         )
         assert_problem(resp, 401)
+
+
+class TestAuthBypassToggleGuard:
+    """Only the operator (browser session, or TOFU before a password exists)
+    may turn `auth_bypass_for_dev` on. A bearer token enabling it would open
+    the API to every anonymous caller and outlive the token's revocation."""
+
+    @pytest.fixture(autouse=True)
+    def _no_mark_used(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # A bearer request fires `mark_used` off-thread, which rewrites the
+        # whole config from its own snapshot and can land after the PUT —
+        # these tests read the flag back, so keep that write out of the race.
+        monkeypatch.setattr("src.api.auth._maybe_mark_used", lambda _token_id: None)
+
+    def test_read_write_token_cannot_enable_bypass(self, isolated_config: Path, api_client_factory) -> None:
+        _seed_password()
+        _, raw = agent_tokens.add_token(label="rw", scope="read+write")
+        client = api_client_factory(create_app())
+        resp = client.put(
+            "/api/v1/config",
+            json={"auth_bypass_for_dev": True},
+            headers={"Authorization": f"Bearer {raw}"},
+        )
+        assert_problem(resp, 403, "FORBIDDEN")
+        app_config.invalidate_config_cache()
+        assert not app_config.get_config().get("auth_bypass_for_dev")
+
+    def test_read_write_token_can_disable_bypass(self, isolated_config: Path, api_client_factory) -> None:
+        _seed_password()
+        app_config.update_config({"auth_bypass_for_dev": True})
+        _, raw = agent_tokens.add_token(label="rw", scope="read+write")
+        client = api_client_factory(create_app())
+        resp = client.put(
+            "/api/v1/config",
+            json={"auth_bypass_for_dev": False},
+            headers={"Authorization": f"Bearer {raw}"},
+        )
+        assert_ok(resp)
+        app_config.invalidate_config_cache()
+        assert app_config.get_config().get("auth_bypass_for_dev") is False
+
+    def test_session_can_enable_bypass(self, isolated_config: Path, api_client_factory) -> None:
+        _seed_password()
+        secret = app_config.get_session_signing_secret()
+        version = int(app_config.get_config().get("session_version", 0) or 0)
+        cookie = issue_session(version=version, secret=secret)
+        client = api_client_factory(create_app())
+        client.cookies.set(COOKIE_NAME, cookie)
+        resp = client.put("/api/v1/config", json={"auth_bypass_for_dev": True})
+        assert_ok(resp)
+        app_config.invalidate_config_cache()
+        assert app_config.get_config().get("auth_bypass_for_dev") is True
+
+    def test_tofu_can_enable_bypass(self, isolated_config: Path, api_client_factory) -> None:
+        client = api_client_factory(create_app())
+        resp = client.put("/api/v1/config", json={"auth_bypass_for_dev": True})
+        assert_ok(resp)
+        app_config.invalidate_config_cache()
+        assert app_config.get_config().get("auth_bypass_for_dev") is True
+
+    def test_token_put_without_bypass_field_unaffected(self, isolated_config: Path, api_client_factory) -> None:
+        _seed_password()
+        _, raw = agent_tokens.add_token(label="rw", scope="read+write")
+        client = api_client_factory(create_app())
+        resp = client.put(
+            "/api/v1/config",
+            json={"timezone": "America/Toronto"},
+            headers={"Authorization": f"Bearer {raw}"},
+        )
+        assert_ok(resp)
+        app_config.invalidate_config_cache()
+        assert app_config.get_config().get("timezone") == "America/Toronto"
 
 
 # ---------------------------------------------------------------------------

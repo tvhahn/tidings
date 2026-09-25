@@ -42,7 +42,7 @@ changes in the changelog.
 | `app_password_hash` | string \| null | absent | Argon2id hash of the dashboard password. Absent means TOFU mode: the API allows unauthenticated access and the dashboard nags you to set a password. Set it from Settings → Password. To reset a forgotten password, stop the app and remove this key from `data/config.json` — the dashboard returns to TOFU mode. |
 | `session_version` | int | `0` | Bumped by "sign out everywhere" — invalidates every existing session cookie without rotating the secret. |
 | `session_signing_secret` | 64-char hex | auto-generated on first use | HMAC key for session cookies. Treat it like a password; rotate only if it leaks (rotation signs everyone out). |
-| `auth_bypass_for_dev` | bool | `false` | Dev-only escape hatch: skips cookie auth on `/api/v1/*` even when a password is set (bearer enforcement still applies). Never enable on an instance that binds beyond localhost — anyone on the network gets full read/write access. |
+| `auth_bypass_for_dev` | bool | `false` | Dev-only escape hatch: skips cookie auth on `/api/v1/*` even when a password is set (bearer enforcement still applies). Never enable on an instance that binds beyond localhost — anyone on the network gets full read/write access. Only a signed-in browser session can turn it on. Agent tokens get a 403. |
 | `passwordless_acknowledged` | bool | `false` | Opt-in to stay passwordless: hides the dashboard's "No password set" banner while in TOFU mode. Auth behavior is unchanged — this only silences the reminder. Toggle it from Settings → Access, or from the banner itself. Ignored (and the banner absent) once a password is set. |
 
 ## What does *not* live here

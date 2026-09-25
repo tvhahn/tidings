@@ -8,7 +8,7 @@ import pytest
 
 from src.api.main import create_app
 from src.finance import app_config
-from src.finance.auth_session import COOKIE_NAME, hash_password
+from src.finance.auth_session import COOKIE_NAME, hash_password, issue_session
 from tests.asserts import assert_ok, assert_problem
 
 if TYPE_CHECKING:
@@ -239,6 +239,18 @@ class TestSignOutAll:
         client.post("/api/v1/auth/login", json={"password": "old-password"})
         resp = client.post("/api/v1/auth/sign-out-all")
         assert_ok(resp)
+
+    def test_empty_secret_cookie_rejected_when_secret_missing(
+        self,
+        isolated_config: Path,
+        client: TestClient,
+    ) -> None:
+        """Password set, no signing secret persisted → an empty-key cookie is not a session."""
+        app_config.update_config({"app_password_hash": hash_password("old-password")})
+        assert app_config.get_config().get("session_signing_secret") is None
+        client.cookies.set(COOKIE_NAME, issue_session(version=0, secret=""))
+        resp = client.post("/api/v1/auth/sign-out-all")
+        assert_problem(resp, 401, "UNAUTHORIZED")
 
     def test_tofu_no_hash_allowed(self, client: TestClient) -> None:
         """No password set → sign-out-all allows through (bootstrap behavior)."""
