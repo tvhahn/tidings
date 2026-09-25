@@ -292,6 +292,19 @@ class TestPreview:
         )
         assert_problem(resp, 422)
 
+    def test_preview_rejects_oversize_upload_413(
+        self, isolated_sqlite: dict[str, Any], client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import src.api.routers.data as data_router
+
+        monkeypatch.setattr(data_router, "_MAX_UPLOAD_BYTES", 16)
+        resp = client.post(
+            "/api/v1/data/import/preview",
+            files={"file": ("big.csv", b"x" * 17, "text/csv")},
+        )
+        assert_problem(resp, 413)
+        assert resp.json()["error"] == "File exceeds 50 MB upload limit"
+
     def test_preview_rejects_empty_upload(self, isolated_sqlite: dict[str, Any], client: TestClient) -> None:
         resp = client.post(
             "/api/v1/data/import/preview",

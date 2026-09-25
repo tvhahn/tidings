@@ -54,10 +54,11 @@ from src.api.routers.statement_helpers import (
     was_category_edited as _was_category_edited,
 )
 from src.api.serializers import load_statement_detail
+from src.api.utils import read_upload_limited
 from src.finance.embedding_cache import EmbeddingCache
 from src.finance.openai_client import OpenAIClient
 from src.finance.protocols import ISpendingSummary, ITransactionsDB
-from src.finance.statement_parser import validate_pdf
+from src.finance.statement_parser import MAX_PDF_SIZE, validate_pdf
 from src.finance.statement_store import StatementStore
 
 logger = logging.getLogger(__name__)
@@ -83,8 +84,13 @@ async def upload_statement(
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=422, detail="Only PDF files are accepted")
 
-    # Read file bytes
-    pdf_bytes = await file.read()
+    # Read file bytes in chunks, refusing an oversized upload before buffering
+    # all of it (same 422 + message validate_pdf gives for a too-large PDF).
+    pdf_bytes = await read_upload_limited(
+        file,
+        MAX_PDF_SIZE,
+        lambda size: HTTPException(status_code=422, detail=f"File too large ({size} bytes, max {MAX_PDF_SIZE})"),
+    )
 
     # Validate PDF
     error = validate_pdf(pdf_bytes)

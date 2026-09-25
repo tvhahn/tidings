@@ -247,6 +247,15 @@ class TestUploadEml:
         assert_problem(resp, 422)
         assert resp.json()["error"] == "File must be a .eml file"
 
+    def test_oversize_rejected_413(self, api_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        import src.api.routers.ingestion as ingestion_router
+
+        monkeypatch.setattr(ingestion_router, "_MAX_UPLOAD_BYTES", 16)
+        _override_services(MagicMock(), MagicMock())
+        resp = api_client.post("/api/v1/transactions/upload-eml", files=_eml_file(content=b"x" * 17))
+        assert_problem(resp, 413)
+        assert resp.json()["error"] == "File exceeds 50 MB upload limit"
+
     def test_empty_file_rejected(self, api_client: TestClient) -> None:
         _override_services(MagicMock(), MagicMock())
         resp = api_client.post(

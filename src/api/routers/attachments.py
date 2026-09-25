@@ -40,7 +40,7 @@ from src.api.models import (
     ReceiptCandidate,
     ReceiptCandidatesResponse,
 )
-from src.api.utils import parse_tx_id, sanitize_filename
+from src.api.utils import parse_tx_id, read_upload_limited, sanitize_filename
 from src.finance import app_config
 from src.finance.app_timezone import get_app_timezone
 from src.finance.attachment_store import ATTACHMENTS_RAW_DIR, AttachmentStore, attachment_id_for
@@ -81,9 +81,11 @@ def _convert_heif_to_jpeg(data: bytes) -> bytes:
         return buffer.getvalue()
 
 
-def _validate_and_read(file: UploadFile, raw: bytes) -> tuple[bytes, str]:
+async def _validate_and_read(file: UploadFile) -> tuple[bytes, str]:
     """Validate the upload against the L4 allowlist; return (stored_bytes, content_type).
 
+    The type checks run before any bytes are read, and the body is read in
+    chunks so an oversized upload is refused without buffering all of it.
     HEIC/HEIF are converted to JPEG here, so the returned bytes/type are always
     what lands on disk and in the row.
     """
@@ -103,11 +105,11 @@ def _validate_and_read(file: UploadFile, raw: bytes) -> tuple[bytes, str]:
             status_code=400,
             detail="The file's type does not match its extension.",
         )
-    if len(raw) > MAX_PDF_SIZE:
-        raise HTTPException(
-            status_code=400,
-            detail="The file is larger than the 10 MB limit.",
-        )
+    raw = await read_upload_limited(
+        file,
+        MAX_PDF_SIZE,
+        lambda _size: HTTPException(status_code=400, detail="The file is larger than the 10 MB limit."),
+    )
     if ext in _HEIF_EXTS:
         try:
             stored = _convert_heif_to_jpeg(raw)
@@ -116,6 +118,11 @@ def _validate_and_read(file: UploadFile, raw: bytes) -> tuple[bytes, str]:
             raise HTTPException(status_code=400, detail="That HEIC image could not be read.") from exc
         return stored, "image/jpeg"
     return raw, expected_type
+
+
+def _is_contained(path: Path) -> bool:
+    """True when ``path`` resolves inside the attachments root."""
+    return path.resolve().is_relative_to(ATTACHMENTS_RAW_DIR.resolve())
 
 
 def _to_response(row: dict[str, Any]) -> AttachmentResponse:
@@ -169,8 +176,7 @@ async def upload_attachment(
     if tx_id:
         forwarded_to, date_file_name = parse_tx_id(tx_id)
 
-    raw = await file.read()
-    stored_bytes, content_type = _validate_and_read(file, raw)
+    stored_bytes, content_type = await _validate_and_read(file)
 
     original_filename = file.filename or "receipt"
     sha256 = hashlib.sha256(stored_bytes).hexdigest()
@@ -244,7 +250,9 @@ async def download_attachment_file(
     if row is None:
         raise HTTPException(status_code=404, detail="Attachment not found.")
     path = Path(row["file_path"])
-    if not path.is_file():
+    # Path traversal guard (mirrors the statement PDF download): only serve
+    # files under the attachments root, whatever the stored path claims.
+    if not _is_contained(path) or not path.is_file():
         raise HTTPException(status_code=404, detail="Attachment file not found on disk.")
     return FileResponse(
         str(path),
@@ -293,6 +301,10 @@ async def delete_attachment(
     if row is None:
         raise HTTPException(status_code=404, detail="Attachment not found.")
     path = Path(row["file_path"])
+    if not _is_contained(path):
+        # The row is gone; never unlink a file outside the attachments root.
+        logger.warning("Refusing to remove attachment file outside %s: %s", ATTACHMENTS_RAW_DIR, path)
+        return AttachmentDeleteResponse(id=attachment_id, status="deleted")
     try:
         path.unlink(missing_ok=True)
     except OSError as exc:  # pragma: no cover - defensive

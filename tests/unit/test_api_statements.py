@@ -52,6 +52,17 @@ class TestUploadEndpoint:
         )
         assert_problem(response, 422)
 
+    def test_upload_oversize_rejected_with_size_message(self, api_client, monkeypatch: pytest.MonkeyPatch) -> None:
+        import src.api.routers.statements as statements_router
+
+        monkeypatch.setattr(statements_router, "MAX_PDF_SIZE", 16)
+        response = api_client.post(
+            "/api/v1/statements/upload",
+            files={"file": ("big.pdf", io.BytesIO(b"%PDF-" + b"x" * 20), "application/pdf")},
+        )
+        assert_problem(response, 422)
+        assert response.json()["error"] == "File too large (25 bytes, max 16)"
+
     def test_upload_invalid_pdf_magic_bytes(self, api_client):
         response = api_client.post(
             "/api/v1/statements/upload",

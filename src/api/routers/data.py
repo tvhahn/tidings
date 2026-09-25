@@ -43,6 +43,7 @@ from src.api.models import (
     ImportResult,
     S3BackupStatusResponse,
 )
+from src.api.utils import read_upload_limited
 from src.finance import app_config, backup_export, backup_import, s3_backup_shared, staging_store
 from src.finance.decimal_utils import decimal_to_float
 from src.finance.demo_clock import app_today
@@ -261,11 +262,13 @@ async def preview_import(
     if not file.filename:
         raise HTTPException(status_code=422, detail="Missing filename")
 
-    payload = await file.read()
+    payload = await read_upload_limited(
+        file,
+        _MAX_UPLOAD_BYTES,
+        lambda _size: HTTPException(status_code=413, detail="File exceeds 50 MB upload limit"),
+    )
     if not payload:
         raise HTTPException(status_code=422, detail="Empty upload")
-    if len(payload) > _MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=413, detail="File exceeds 50 MB upload limit")
 
     try:
         parsed = await run_sync(
