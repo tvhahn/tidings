@@ -1,14 +1,8 @@
-.PHONY: clean data lint requirements sync_data_to_s3 sync_data_from_s3 dev-api dev-frontend dev dev-attach dev-restart dev-demo dev-marketing dev-preview dev-docs build-frontend serve test test-ci test-fast openapi verify verify-graph frontend-typecheck demo-build verify-backend verify-frontend verify-frontend-slop verify-e2e screenshots docs-screenshots marketing-screenshots verify-docs verify-openapi verify-demo-api verify-canon check-changelog prod-smoke audit agent-token agent-token-show agent-token-revoke sync-pii-patterns pii-collision-check
+.PHONY: clean dev-api dev-frontend dev dev-attach dev-restart dev-demo dev-marketing dev-preview dev-docs build-frontend serve test test-ci test-fast openapi verify verify-graph frontend-typecheck demo-build verify-backend verify-frontend verify-frontend-slop verify-e2e screenshots docs-screenshots marketing-screenshots verify-docs verify-openapi verify-demo-api verify-canon check-changelog prod-smoke audit agent-token agent-token-show agent-token-revoke sync-pii-patterns pii-collision-check
 
 #################################################################################
 # GLOBALS                                                                       #
 #################################################################################
-
-PROJECT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
-BUCKET = [OPTIONAL] your-bucket-for-syncing-data (do not include 's3://')
-PROFILE = default
-PROJECT_NAME = expense_reporting
-PYTHON_INTERPRETER = python
 
 ifeq (,$(shell which uv))
 HAS_UV=False
