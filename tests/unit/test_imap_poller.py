@@ -5,6 +5,7 @@ to verify the poller's orchestration logic, mirroring test_lambda_handler.py pat
 """
 
 import imaplib
+import ssl
 import threading
 from pathlib import Path
 from typing import Any
@@ -14,6 +15,7 @@ import pytest
 
 from src.finance.imap_poller import (
     ImapPoller,
+    _build_ssl_context,
     get_imap_last_poll,
     get_uidvalidity,
     load_poller_state,
@@ -688,6 +690,31 @@ class TestConnectionManagement:
         poller.connect()
 
         mock_conn.login.assert_called_once_with("user@test.com", "password")
+
+    @patch("src.finance.imap_poller.imaplib.IMAP4_SSL")
+    def test_connect_passes_verifying_ssl_context(self, mock_imap_cls: MagicMock) -> None:
+        mock_imap_cls.return_value = MagicMock(name="conn")
+        poller = self._make_poller()
+
+        poller.connect()
+
+        ctx = mock_imap_cls.call_args.kwargs["ssl_context"]
+        assert ctx.verify_mode == ssl.CERT_REQUIRED
+        assert ctx.check_hostname is True
+
+    @patch("src.finance.imap_poller.ssl.create_default_context")
+    def test_build_ssl_context_with_ca_file_loads_it(self, mock_create: MagicMock) -> None:
+        mock_create.name = "create_default_context"
+
+        _build_ssl_context("/app/data/imap-ca.pem")
+
+        mock_create.assert_called_once_with(cafile="/app/data/imap-ca.pem")
+
+    def test_build_ssl_context_default_uses_system_trust(self) -> None:
+        ctx = _build_ssl_context()
+
+        assert ctx.verify_mode == ssl.CERT_REQUIRED
+        assert ctx.check_hostname is True
 
     @patch("src.finance.imap_poller.imaplib.IMAP4_SSL")
     def test_connect_probes_with_noop_when_already_connected(self, mock_imap_cls: MagicMock) -> None:
