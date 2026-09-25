@@ -10,6 +10,8 @@ on:
       - "scripts/demo/generate_demo_api_manifest.ts"
       - "scripts/demo/generate_demo_openapi.py"
       - "scripts/demo/check_demo_api.py"
+      - "openapi.json"
+      - "src/api/**"
       - ".github/workflows/demo-smoke.yml"
   push:
     branches: [main]
@@ -21,6 +23,8 @@ on:
       - "scripts/demo/generate_demo_api_manifest.ts"
       - "scripts/demo/generate_demo_openapi.py"
       - "scripts/demo/check_demo_api.py"
+      - "openapi.json"
+      - "src/api/**"
       - ".github/workflows/demo-smoke.yml"
 
 jobs:

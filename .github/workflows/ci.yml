@@ -81,6 +81,46 @@ jobs:
       - name: Fail on drift
         run: git diff --exit-code openapi.json
 
+  # Runs the two `make verify` gates no other job covered, through the same make
+  # targets so the recipes stay single-sourced. verify-demo-api regenerates
+  # frontend/public/demo-api/ from openapi.json (pnpm + uv), fails on drift, then
+  # runs the structural check; check-changelog lints CHANGELOG.md.
+  demo-api-and-changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --no-group notebooks
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Changelog format lint
+        run: make check-changelog
+
+      - name: Demo API artifacts (regenerate, fail on drift, structural gate)
+        run: make verify-demo-api
+
   frontend-codegen-check:
     runs-on: ubuntu-latest
     defaults:
