@@ -471,6 +471,42 @@ class TestCategoryAnomalies:
             for banned in ("alert", "warning", "critical", "danger", "spike", "surge", "!"):
                 assert banned.lower() not in a["reason"].lower()
 
+    _SPIKE_HISTORY = {
+        "2026-01": {"groceries": Decimal(280)},
+        "2026-02": {"groceries": Decimal(310)},
+        "2026-03": {"groceries": Decimal(290)},
+        "2026-04": {"groceries": Decimal(305)},
+        "2026-05": {"groceries": Decimal(295)},
+        "2026-06": {"groceries": Decimal(320)},
+        "2026-07": {"groceries": Decimal(600)},
+    }
+
+    def test_precomputed_summaries_match_and_skip_queries(self):
+        svc = _make_service()
+        ss = self._ss_with_history(self._SPIKE_HISTORY)
+        expected = svc.get_category_anomalies(ss, "2026-07", months=6)
+        precomputed = {ym: ss.get_summary(ym) for ym in self._SPIKE_HISTORY}
+
+        fresh = self._ss_with_history(self._SPIKE_HISTORY)
+        fresh.get_summary.name = "get_summary"
+        got = svc.get_category_anomalies(fresh, "2026-07", months=6, summaries_by_month=precomputed)
+        assert got == expected
+        assert got[0]["category"] == "groceries"
+        fresh.get_summary.assert_not_called()
+
+    def test_precomputed_summaries_fall_back_for_missing_months(self):
+        svc = _make_service()
+        ss = self._ss_with_history(self._SPIKE_HISTORY)
+        expected = svc.get_category_anomalies(ss, "2026-07", months=6)
+        # Only the target month is precomputed; the 6 baseline months are fetched.
+        partial = {"2026-07": ss.get_summary("2026-07")}
+
+        fresh = self._ss_with_history(self._SPIKE_HISTORY)
+        fresh.get_summary.name = "get_summary"
+        got = svc.get_category_anomalies(fresh, "2026-07", months=6, summaries_by_month=partial)
+        assert got == expected
+        assert [c.args[0] for c in fresh.get_summary.call_args_list] == [f"2026-{m:02d}" for m in range(1, 7)]
+
 
 class TestProportionalCommentHandling:
     """annotated_amounts re-tests each spike against the un-annotated remainder."""

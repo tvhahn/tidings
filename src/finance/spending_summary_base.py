@@ -81,20 +81,28 @@ class SpendingSummaryBase(ABC):
         prev_date = current_date - relativedelta(months=1)
         prev_month = prev_date.strftime("%Y-%m")
 
-        current = self.get_summary(year_month)
-        previous = self.get_summary(prev_month)
+        return compare_summaries(self.get_summary(year_month), self.get_summary(prev_month))
 
-        delta_amount = current["total_spending"] - previous["total_spending"]
-        if previous["total_spending"] > 0:
-            delta_percent: float | None = float(delta_amount / previous["total_spending"] * 100)
-        elif current["total_spending"] > 0:
-            delta_percent = None  # no baseline: a percent change is undefined
-        else:
-            delta_percent = 0.0
 
-        return {
-            "current": current,
-            "previous": previous,
-            "delta_amount": delta_amount,
-            "delta_percent": delta_percent,
-        }
+def compare_summaries(current: dict[str, Any], previous: dict[str, Any]) -> dict[str, Any]:
+    """Month-over-month comparison of two ``get_summary`` results.
+
+    The shape ``get_summary_with_comparison`` returns; exposed so callers that
+    already hold both month summaries (insights context) needn't re-query them.
+    ``delta_percent`` is ``None`` when the previous month has no spending to
+    compare against, and ``0.0`` when both months are empty.
+    """
+    delta_amount = current["total_spending"] - previous["total_spending"]
+    if previous["total_spending"] > 0:
+        delta_percent: float | None = float(delta_amount / previous["total_spending"] * 100)
+    elif current["total_spending"] > 0:
+        delta_percent = None  # no baseline: a percent change is undefined
+    else:
+        delta_percent = 0.0
+
+    return {
+        "current": current,
+        "previous": previous,
+        "delta_amount": delta_amount,
+        "delta_percent": delta_percent,
+    }

@@ -514,3 +514,45 @@ class TestGatherContextToFile:
         assert result["month"] == "2026-01"
         # Every Decimal was stripped upstream — re-serializing must not raise.
         assert json.dumps(result)
+
+
+class TestGatherContextQueryBudget:
+    """Each month is summarised at most once, and raw-read at most once, per build."""
+
+    def test_month_queries_are_not_repeated(self, tmp_path: Path) -> None:
+        from src.finance.budget_service_local import BudgetServiceLocal
+        from src.finance.spending_summary_base import _SUMMARY_PROJECTION
+        from src.finance.spending_summary_local import SpendingSummaryLocal
+
+        db_path = tmp_path / "finance.db"
+        ss = SpendingSummaryLocal(db_path=db_path)
+        bs = BudgetServiceLocal(db_path=db_path)
+        # Historical averages are anchored to *today*, not the target month, and
+        # cached by the service — out of scope for this per-target budget.
+        bs.get_historical_averages = MagicMock(return_value={"categories": {}}, name="get_historical_averages")
+
+        summary_calls: list[str] = []
+        raw_calls: list[str] = []
+        real_query_month = ss.query_month
+
+        def spy(ym: str, projection: str | None = None, expression_names: Any = None) -> Any:
+            (summary_calls if projection == _SUMMARY_PROJECTION else raw_calls).append(ym)
+            return real_query_month(ym, projection, expression_names)
+
+        ss.query_month = spy  # type: ignore[method-assign]
+
+        with (
+            patch("src.finance.insights_context.latest_briefing_for_month", return_value=None),
+            patch("src.finance.insights_context.get_config", return_value={}),
+        ):
+            asyncio.run(gather_context("2026-05", spending_summary=ss, budget_service=bs))
+
+        lookback = [f"{y}-{m:02d}" for y, m in [(2024, m) for m in range(6, 13)] + [(2025, m) for m in range(1, 13)]]
+        lookback += [f"2026-{m:02d}" for m in range(1, 6)]
+        assert len(lookback) == 24
+        # The comparison, trend, YTD and anomaly baseline all share one summary
+        # per lookback month — none re-queries a month.
+        assert sorted(summary_calls) == lookback
+        # Raw rows: the target month plus the prior 12, once each.
+        assert sorted(raw_calls) == lookback[-13:]
+        assert len(set(summary_calls) | set(raw_calls)) == 24

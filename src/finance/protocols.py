@@ -146,6 +146,7 @@ class IBudgetService(Protocol):
         year_month: str,
         months: int = ...,
         annotated_amounts: dict[str, float] | None = ...,
+        summaries_by_month: Mapping[str, Mapping[str, Any]] | None = ...,
     ) -> list[dict[str, Any]]: ...
     def invalidate_cache(self) -> None: ...
     def infer_category_type(

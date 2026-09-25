@@ -10,6 +10,7 @@ import statistics
 import threading
 import time
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -267,6 +268,7 @@ class BudgetServiceBase(ABC):
         year_month: str,
         months: int = 6,
         annotated_amounts: dict[str, float] | None = None,
+        summaries_by_month: Mapping[str, Mapping[str, Any]] | None = None,
     ) -> list[dict[str, Any]]:
         """Detect quiet anomalies in the target month against a prior baseline.
 
@@ -292,8 +294,18 @@ class BudgetServiceBase(ABC):
             ``reason`` is calmly extended (e.g. ``"… ($96 of $893 annotated)"``).
         Annotation only explains *elevated* spending, so it is not applied to
         below-baseline or unexpected-zero anomalies.
+
+        ``summaries_by_month`` (``YYYY-MM`` → ``get_summary`` result) lets a
+        caller that already holds these month summaries skip re-querying them;
+        any month missing from it is fetched via ``spending_summary`` as usual.
         """
         annotated_amounts = annotated_amounts or {}
+        precomputed = summaries_by_month or {}
+
+        def summary_for(ym: str) -> Mapping[str, Any]:
+            cached = precomputed.get(ym)
+            return cached if cached is not None else spending_summary.get_summary(ym)
+
         parts = year_month.split("-")
         target_date = date(int(parts[0]), int(parts[1]), 1)
         baseline_keys = [(target_date - relativedelta(months=i)).strftime("%Y-%m") for i in range(months, 0, -1)]
@@ -301,14 +313,14 @@ class BudgetServiceBase(ABC):
         per_month: list[dict[str, float]] = []
         all_cats: set[str] = set()
         for ym in baseline_keys:
-            summary = spending_summary.get_summary(ym)
+            summary = summary_for(ym)
             month_cats = {cat: float(info["amount"]) for cat, info in summary.get("by_category", {}).items()}
             per_month.append(month_cats)
             all_cats.update(month_cats.keys())
 
         baseline_data: dict[str, list[float]] = {cat: [m.get(cat, 0.0) for m in per_month] for cat in all_cats}
 
-        target_summary = spending_summary.get_summary(year_month)
+        target_summary = summary_for(year_month)
         target_cats = {cat: float(info["amount"]) for cat, info in target_summary.get("by_category", {}).items()}
 
         anomalies: list[dict[str, Any]] = []
