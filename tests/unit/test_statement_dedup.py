@@ -162,7 +162,8 @@ class TestRbcPdfFixturePrivate:
     """Coarse integration test against a real RBC statement."""
 
     @pytest.fixture(scope="class")
-    def real_pdf_bytes(self) -> bytes:
+    @classmethod
+    def real_pdf_bytes(cls) -> bytes:
         if not PRIVATE_RBC_PDF.exists():
             pytest.skip(f"Private fixture not present at {PRIVATE_RBC_PDF}")
         return PRIVATE_RBC_PDF.read_bytes()
@@ -186,7 +187,8 @@ class TestSimpliiPdfFixturePrivate:
     """Coarse integration test against a real Simplii statement."""
 
     @pytest.fixture(scope="class")
-    def real_pdf_bytes(self) -> bytes:
+    @classmethod
+    def real_pdf_bytes(cls) -> bytes:
         if not PRIVATE_SIMPLII_PDF.exists():
             pytest.skip(f"Private fixture not present at {PRIVATE_SIMPLII_PDF}")
         return PRIVATE_SIMPLII_PDF.read_bytes()

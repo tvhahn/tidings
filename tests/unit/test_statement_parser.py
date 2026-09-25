@@ -220,7 +220,8 @@ def _assert_txn_shape(txn: dict[str, Any]) -> None:
 
 class TestRBCCommittedFixture:
     @pytest.fixture(scope="class")
-    def parsed(self) -> Any:
+    @classmethod
+    def parsed(cls) -> Any:
         return RBCChequingParser().parse(_RBC_STATEMENT_PDF.read_bytes())
 
     def test_select_parser_autodetects_rbc(self) -> None:
@@ -251,7 +252,8 @@ class TestRBCCommittedFixture:
 
 class TestSimpliiCommittedFixture:
     @pytest.fixture(scope="class")
-    def parsed(self) -> Any:
+    @classmethod
+    def parsed(cls) -> Any:
         return SimpliiChequingParser().parse(_SIMPLII_STATEMENT_PDF.read_bytes())
 
     def test_select_parser_autodetects_simplii(self) -> None:
@@ -289,11 +291,13 @@ class TestRBCChequingParser:
     KEY = "rbc_chequing"
 
     @pytest.fixture(scope="class")
-    def entry(self) -> dict[str, Any]:
-        return _expected_entry(self.KEY)
+    @classmethod
+    def entry(cls) -> dict[str, Any]:
+        return _expected_entry(cls.KEY)
 
     @pytest.fixture(scope="class")
-    def parsed(self, entry: dict[str, Any]) -> Any:
+    @classmethod
+    def parsed(cls, entry: dict[str, Any]) -> Any:
         pdf = _SAMPLE_STATEMENTS_DIR / entry["pdf"]
         return RBCChequingParser().parse(pdf.read_bytes())
 
@@ -827,11 +831,13 @@ class TestSimpliiChequingParserDec:
     KEY = "simplii_dec"
 
     @pytest.fixture(scope="class")
-    def entry(self) -> dict[str, Any]:
-        return _expected_entry(self.KEY)
+    @classmethod
+    def entry(cls) -> dict[str, Any]:
+        return _expected_entry(cls.KEY)
 
     @pytest.fixture(scope="class")
-    def parsed(self, entry: dict[str, Any]) -> Any:
+    @classmethod
+    def parsed(cls, entry: dict[str, Any]) -> Any:
         pdf = _SAMPLE_STATEMENTS_DIR / entry["pdf"]
         return SimpliiChequingParser().parse(pdf.read_bytes())
 
@@ -874,11 +880,13 @@ class TestSimpliiChequingParserJan:
     KEY = "simplii_jan"
 
     @pytest.fixture(scope="class")
-    def entry(self) -> dict[str, Any]:
-        return _expected_entry(self.KEY)
+    @classmethod
+    def entry(cls) -> dict[str, Any]:
+        return _expected_entry(cls.KEY)
 
     @pytest.fixture(scope="class")
-    def parsed(self, entry: dict[str, Any]) -> Any:
+    @classmethod
+    def parsed(cls, entry: dict[str, Any]) -> Any:
         pdf = _SAMPLE_STATEMENTS_DIR / entry["pdf"]
         return SimpliiChequingParser().parse(pdf.read_bytes())
 
