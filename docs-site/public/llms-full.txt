@@ -557,6 +557,13 @@ or `IMAP_POLL_INTERVAL`, the poller falls back to `imap.gmail.com`, `993`,
 `INBOX`, and `60` respectively. `IMAP_USER` and `IMAP_PASSWORD` are
 required — the process exits immediately if either is missing.
 
+The poller verifies the mail server's TLS certificate and hostname before it
+sends the app password. Gmail and other public providers need no setup. If
+you run your own mail server with a private CA, set `IMAP_CA_FILE` to the
+path of a PEM bundle that is visible inside the container, for example a file
+placed in the `finance_data` volume under `/app/data/`. The poller exits at
+startup if that path is not a file.
+
 **Never commit `.env`.** It's already in `.gitignore`; keep it that way.
 
 ## 7. Start the stack
@@ -1466,7 +1473,7 @@ changes in the changelog.
 | `app_password_hash` | string \| null | absent | Argon2id hash of the dashboard password. Absent means TOFU mode: the API allows unauthenticated access and the dashboard nags you to set a password. Set it from Settings → Password. To reset a forgotten password, stop the app and remove this key from `data/config.json` — the dashboard returns to TOFU mode. |
 | `session_version` | int | `0` | Bumped by "sign out everywhere" — invalidates every existing session cookie without rotating the secret. |
 | `session_signing_secret` | 64-char hex | auto-generated on first use | HMAC key for session cookies. Treat it like a password; rotate only if it leaks (rotation signs everyone out). |
-| `auth_bypass_for_dev` | bool | `false` | Dev-only escape hatch: skips cookie auth on `/api/v1/*` even when a password is set (bearer enforcement still applies). Never enable on an instance that binds beyond localhost — anyone on the network gets full read/write access. |
+| `auth_bypass_for_dev` | bool | `false` | Dev-only escape hatch: skips cookie auth on `/api/v1/*` even when a password is set (bearer enforcement still applies). Never enable on an instance that binds beyond localhost — anyone on the network gets full read/write access. Only a signed-in browser session can turn it on. Agent tokens get a 403. |
 | `passwordless_acknowledged` | bool | `false` | Opt-in to stay passwordless: hides the dashboard's "No password set" banner while in TOFU mode. Auth behavior is unchanged — this only silences the reminder. Toggle it from Settings → Access, or from the banner itself. Ignored (and the banner absent) once a password is set. |
 
 ## What does *not* live here
@@ -3292,7 +3299,7 @@ The Spending Journal is a day-grouped transaction timeline that surfaces the per
 2. **Daily context gathering** — `src/finance/daily_summary_context.py:gather_daily_contexts()` takes the day-grouped list and builds a compact context dict per day: `day_of_week`, `day_total`, `transaction_count`, top merchants, `mtd_total`, top MTD categories, and budget ceiling. These dicts feed the AI prompt.
 
 3. **Multi-provider summary generation** — `src/finance/summary_provider.py` exposes four implementations of a `SummaryProvider` ABC:
-   - `OpenAISummaryProvider` — uses `instructor` + OpenAI for structured per-day output (one API call per day).
+   - `OpenAISummaryProvider` — uses the OpenAI SDK's native structured outputs for per-day output (one API call per day, one retry if the response fails to parse).
    - `ClaudeCLISummaryProvider` — spawns the Claude Code subprocess with a single batched prompt containing all days, then parses the response back into per-day summaries.
    - `CodexCLISummaryProvider` — spawns the OpenAI Codex CLI subprocess with the same single-batched-prompt approach.
    - `GeminiCLISummaryProvider` — spawns the Google Gemini CLI subprocess with the same single-batched-prompt approach.
@@ -3782,7 +3789,7 @@ Once those three are in place, every request from a non-loopback origin must car
 
 ## How auth interacts with the bundled dashboard
 
-The dashboard has its own cookie-session channel, separate from bearer tokens. With no password set (`app_password_hash` absent from `data/config.json`), the app runs in TOFU mode: the dashboard works unauthenticated and prompts you to set a password under Settings → Password. Once a password is set, the dashboard authenticates via `POST /api/v1/auth/login` and rides a signed session cookie; bearer tokens remain the channel for agents and scripts. If you expose the API beyond loopback, set a password first — TOFU mode plus a reachable port is an open dashboard.
+The dashboard has its own cookie-session channel, separate from bearer tokens. With no password set (`app_password_hash` absent from `data/config.json`), the app runs in TOFU mode: the dashboard works unauthenticated and prompts you to set a password under Settings → Password. Once a password is set, the dashboard authenticates via `POST /api/v1/auth/login` and rides a signed session cookie; bearer tokens remain the channel for agents and scripts. After 5 wrong passwords from one address within 15 minutes (or 50 from all addresses together), login, set-password and sign-out-all answer `429` with a `Retry-After` header until the window passes; a signed-in browser keeps working. If you expose the API beyond loopback, set a password first — TOFU mode plus a reachable port is an open dashboard.
 
 ## Verification
 
