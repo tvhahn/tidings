@@ -26,6 +26,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from src.finance.app_timezone import TZ_SUFFIX_RE
+from src.finance.csv_safety import csv_unguard_text
 from src.finance.transaction_hash import generate_transaction_hash
 from src.finance.user_mapping import LOCAL_FORWARDED_TO_SUFFIX
 
@@ -274,7 +275,9 @@ def _normalize_row(raw: dict[str, str], *, default_forwarded_to: str) -> tuple[d
     """
     date = (raw.get("Date") or "").strip()
     amount_str = (raw.get("Amount") or "").strip()
-    company = (raw.get("Company") or "").strip()
+    # Free-text columns carry the export's formula guard; reverse it so a
+    # backup restores the original text byte-for-byte.
+    company = csv_unguard_text((raw.get("Company") or "").strip())
 
     if not date or not company or not amount_str:
         return {}, "Missing required column (Date, Amount, or Company)"
@@ -307,7 +310,7 @@ def _normalize_row(raw: dict[str, str], *, default_forwarded_to: str) -> tuple[d
         "category": (raw.get("Category") or "miscellaneous").strip(),
         "institution": (raw.get("Institution") or "").strip(),
         "transaction_type": (raw.get("Type") or "").strip(),
-        "name": (raw.get("Name") or "").strip() or None,
+        "name": csv_unguard_text((raw.get("Name") or "").strip()) or None,
     }
 
     # Optional identity / round-trip columns
@@ -325,7 +328,7 @@ def _normalize_row(raw: dict[str, str], *, default_forwarded_to: str) -> tuple[d
         ("Body", "body"),
         ("Comment", "comment"),
     ]:
-        value = (raw.get(src_col) or "").strip()
+        value = csv_unguard_text((raw.get(src_col) or "").strip())
         if value:
             row[dst_key] = value
 
