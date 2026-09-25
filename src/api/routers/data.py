@@ -101,10 +101,10 @@ def _gather_config(
     alias_item = alias_svc.get_aliases()
     aliases = alias_item.get("Data") if alias_item else None
 
-    # Budgets are per-year. Only export years that actually have data.
-    current_year = app_today().year
+    # Budgets are per-year and can be stored for any year, so export every year
+    # the store actually holds rather than a window around today.
     budgets: dict[str, Any] = {}
-    for year in range(current_year - 3, current_year + 1):
+    for year in budget_svc.list_budget_years():
         targets = budget_svc.get_targets(year)
         groups = budget_svc.get_groups(year)
         if targets or groups:

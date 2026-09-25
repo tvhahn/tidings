@@ -5,11 +5,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import boto3
+from boto3.dynamodb.conditions import Key
 
 from src.finance.aws_region import get_aws_region
 from src.finance.budget_service_base import (
+    BUDGET_KEY_PREFIX,
     DEFAULT_GROUPS,
     BudgetServiceBase,
+    budget_years_from_keys,
 )
 
 # Re-exported under the historical private name for callers/tests that import it here.
@@ -74,6 +77,22 @@ class BudgetService(BudgetServiceBase):
         if not item:
             return None
         return item
+
+    def list_budget_years(self) -> list[int]:
+        """Sorted distinct years with stored targets or groups (paginated key-only query)."""
+        keys: list[str] = []
+        kwargs: dict[str, Any] = {
+            "KeyConditionExpression": Key("PK").eq(self.USER_PK) & Key("SK").begins_with(BUDGET_KEY_PREFIX),
+            "ProjectionExpression": "SK",
+        }
+        while True:
+            response = self.table.query(**kwargs)
+            keys.extend(str(item["SK"]) for item in response.get("Items", []))
+            last_key = response.get("LastEvaluatedKey")
+            if not last_key:
+                break
+            kwargs["ExclusiveStartKey"] = last_key
+        return budget_years_from_keys(keys)
 
     def _store_targets(self, year: int, data: dict[str, Any], expected_version: int | None) -> int:
         """Persist targets to DynamoDB with optimistic locking."""

@@ -180,6 +180,26 @@ class TestExport:
         assert_ok(resp)
         assert 'filename="finance-backup-2026-12-31.zip"' in resp.headers["content-disposition"]
 
+    def test_exports_every_stored_budget_year(
+        self, isolated_sqlite: dict[str, Any], client: TestClient, freeze_clock
+    ) -> None:
+        # Years well outside the old [today-3, today] window must still export.
+        freeze_clock(demo_clock, at=datetime(2026, 6, 15, 12, 0, tzinfo=ZoneInfo("America/Los_Angeles")))
+        bud = isolated_sqlite["bud"]
+        bud.put_targets(2020, {"spending_ceiling": 900, "categories": {}}, None)
+        bud.put_groups(2026, {"groups": [{"name": "Food", "categories": ["groceries"]}]}, None)
+        bud.put_targets(2031, {"spending_ceiling": 1500, "categories": {}}, None)
+
+        resp = client.post("/api/v1/data/export")
+        assert_ok(resp)
+        zf = zipfile.ZipFile(io.BytesIO(resp.content))
+        budgets = json.loads(zf.read("config/budgets.json"))
+        assert sorted(budgets) == ["2020", "2026", "2031"]
+        assert budgets["2020"]["targets"]["spending_ceiling"] == 900
+        assert budgets["2020"]["groups"] is None
+        assert budgets["2026"]["targets"] is None
+        assert budgets["2031"]["targets"]["spending_ceiling"] == 1500
+
     def test_no_parse_failures_omits_file(self, isolated_sqlite: dict[str, Any], client: TestClient) -> None:
         _seed(isolated_sqlite)
         resp = client.post("/api/v1/data/export")
@@ -311,6 +331,37 @@ class TestCommit:
         assert result["skipped"] == 0
         assert db.scan_all_transactions()
         assert result["config_applied"] is True
+
+    def test_round_trip_restores_budgets_for_any_year(
+        self, isolated_sqlite: dict[str, Any], client: TestClient, tmp_path: Path
+    ) -> None:
+        bud = isolated_sqlite["bud"]
+        bud.put_targets(2020, {"spending_ceiling": 900, "categories": {}}, None)
+        bud.put_groups(2034, {"groups": [{"name": "Food", "categories": ["groceries"]}]}, None)
+        exp = client.post("/api/v1/data/export")
+        assert_ok(exp)
+
+        # Restore into a fresh store.
+        fresh = BudgetServiceLocal(db_path=tmp_path / "fresh.db", user_id="default")
+        app.dependency_overrides[get_budget_service] = lambda: fresh
+        prev = client.post(
+            "/api/v1/data/import/preview",
+            files={"file": ("backup.zip", exp.content, "application/zip")},
+        )
+        assert_ok(prev)
+        commit = client.post(
+            "/api/v1/data/import/commit",
+            json={"token": prev.json()["token"], "strategy": "skip", "apply_config": True},
+        )
+        assert_ok(commit)
+
+        assert fresh.list_budget_years() == [2020, 2034]
+        targets = fresh.get_targets(2020)
+        groups = fresh.get_groups(2034)
+        assert targets is not None
+        assert targets["Data"]["spending_ceiling"] == 900
+        assert groups is not None
+        assert groups["Data"]["groups"][0]["name"] == "Food"
 
     def test_expired_token_returns_410(self, isolated_sqlite: dict[str, Any], client: TestClient) -> None:
         resp = client.post(

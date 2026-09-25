@@ -10,7 +10,7 @@ import statistics
 import threading
 import time
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -26,6 +26,22 @@ logger = logging.getLogger(__name__)
 
 _CONFIG_DIR = Path(__file__).resolve().parent / "config"
 _PERSONAL_DIR = Path(__file__).resolve().parents[2] / "data" / "config"
+
+# Sort-key prefix shared by every budget item; both backends key targets and
+# groups as ``BUDGET#targets#<year>`` / ``BUDGET#groups#<year>``.
+BUDGET_KEY_PREFIX = "BUDGET#"
+_BUDGET_KEY_KINDS = frozenset({"targets", "groups"})
+
+
+def budget_years_from_keys(keys: Iterable[str]) -> list[int]:
+    """Sorted distinct years from ``BUDGET#targets|groups#<year>`` sort keys; others ignored."""
+    years: set[int] = set()
+    for key in keys:
+        parts = key.split("#")
+        if len(parts) == 3 and parts[0] == "BUDGET" and parts[1] in _BUDGET_KEY_KINDS and parts[2].isdigit():
+            years.add(int(parts[2]))
+    return sorted(years)
+
 
 DEFAULT_GROUPS = [
     {
@@ -131,6 +147,10 @@ class BudgetServiceBase(ABC):
     @abstractmethod
     def get_groups(self, year: int) -> dict[str, Any] | None:
         """Get category groups for a year. Returns None if not configured."""
+
+    @abstractmethod
+    def list_budget_years(self) -> list[int]:
+        """Sorted distinct years that have stored targets or groups."""
 
     # ------------------------------------------------------------------
     # Abstract: storage-specific writes (implemented per backend)

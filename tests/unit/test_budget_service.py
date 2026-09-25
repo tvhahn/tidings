@@ -130,6 +130,19 @@ class TestGetTargets:
 # ---------------------------------------------------------------------------
 
 
+class TestListBudgetYearsPagination:
+    def test_follows_last_evaluated_key(self) -> None:
+        svc = _make_service()
+        svc.table.query.side_effect = [
+            {"Items": [{"SK": "BUDGET#groups#2019"}], "LastEvaluatedKey": {"PK": "USER#default", "SK": "x"}},
+            {"Items": [{"SK": "BUDGET#targets#2035"}]},
+        ]
+
+        assert svc.list_budget_years() == [2019, 2035]
+        assert svc.table.query.call_count == 2
+        assert svc.table.query.call_args_list[1].kwargs["ExclusiveStartKey"] == {"PK": "USER#default", "SK": "x"}
+
+
 class TestPutTargets:
     def test_writes_with_version(self):
         svc = _make_service()
