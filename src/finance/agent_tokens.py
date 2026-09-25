@@ -17,7 +17,7 @@ import secrets
 from datetime import UTC, datetime
 from typing import Literal, TypedDict, cast
 
-from src.finance.app_config import AppConfig, get_config, update_config
+from src.finance.app_config import AppConfig, config_write_lock, get_config, update_config
 
 TokenScope = Literal["read", "read+write"]
 TOKEN_PREFIX = "fin_"  # noqa: S105 — token *prefix* literal, not a secret; entropy comes from secrets.token_urlsafe
@@ -83,20 +83,22 @@ def add_token(*, label: str, scope: TokenScope = DEFAULT_SCOPE) -> tuple[AgentTo
         "created_at": _now_iso(),
         "last_used_at": None,
     }
-    tokens = list_tokens()
-    tokens.append(record)
-    _save_tokens(tokens)
+    with config_write_lock():
+        tokens = list_tokens()
+        tokens.append(record)
+        _save_tokens(tokens)
     return record, raw
 
 
 def revoke_token(token_id: str) -> bool:
     """Delete a token by id. Returns True if a row was removed."""
-    tokens = list_tokens()
-    remaining = [t for t in tokens if t["id"] != token_id]
-    if len(remaining) == len(tokens):
-        return False
-    _save_tokens(remaining)
-    return True
+    with config_write_lock():
+        tokens = list_tokens()
+        remaining = [t for t in tokens if t["id"] != token_id]
+        if len(remaining) == len(tokens):
+            return False
+        _save_tokens(remaining)
+        return True
 
 
 def find_token_by_raw(raw: str) -> AgentTokenRecord | None:
@@ -111,10 +113,16 @@ def find_token_by_raw(raw: str) -> AgentTokenRecord | None:
 
 
 def mark_used(token_id: str) -> None:
-    """Stamp `last_used_at` for a token. No-op if the id is unknown."""
-    tokens = list_tokens()
-    for t in tokens:
-        if t["id"] == token_id:
-            t["last_used_at"] = _now_iso()
-            _save_tokens(tokens)
-            return
+    """Stamp `last_used_at` for a token. No-op if the id is unknown.
+
+    Runs off-thread from the bearer middleware, so the list → stamp → save
+    sequence holds the config write lock; otherwise it could rewrite the token
+    list from a stale snapshot and drop a concurrent add/revoke.
+    """
+    with config_write_lock():
+        tokens = list_tokens()
+        for t in tokens:
+            if t["id"] == token_id:
+                t["last_used_at"] = _now_iso()
+                _save_tokens(tokens)
+                return

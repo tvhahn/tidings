@@ -9,11 +9,12 @@ import os
 import secrets
 import shutil
 import tempfile
+import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypedDict, cast
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Iterator, Mapping
 
     from src.finance.agent_tokens import AgentTokenRecord
 
@@ -140,6 +141,29 @@ _DEFAULTS = {
 }
 
 _cache: AppConfig | None = None
+
+# Serializes every read-modify-write of the config file + ``_cache`` within
+# this process. Re-entrant so a holder (e.g. ``agent_tokens`` spanning its own
+# list → modify → save) can call ``get_config`` / ``update_config`` inside it.
+# Background writers such as the bearer middleware's fire-and-forget
+# ``mark_used`` would otherwise rewrite the whole file from a stale snapshot
+# and silently revert a concurrent update. Cross-process writers (the API and
+# the IMAP-poller container share ``data/config.json``) are NOT covered: the
+# atomic rename in ``_save_config`` keeps the file whole, but the last writer
+# still wins.
+_config_lock = threading.RLock()
+
+
+@contextlib.contextmanager
+def config_write_lock() -> Iterator[None]:
+    """Hold the in-process config lock across a caller's read-modify-write.
+
+    Wrap any sequence that reads a config value, derives a new one from it, and
+    writes it back via ``update_config`` so no other thread's update lands in
+    between and gets overwritten.
+    """
+    with _config_lock:
+        yield
 
 
 def _has_aws_credentials() -> bool:
@@ -303,6 +327,17 @@ def _auto_detect_defaults() -> AppConfig:
 
 def get_config() -> AppConfig:
     """Read config from file, auto-detecting defaults on first run."""
+    cached = _cache
+    if cached is not None:
+        return cast("AppConfig", dict(cached))
+    # Slow path under the lock: a cold read racing an ``update_config`` must
+    # not repopulate the cache with the pre-update file contents.
+    with _config_lock:
+        return _load_config()
+
+
+def _load_config() -> AppConfig:
+    """Populate ``_cache`` from disk (or first-run defaults). Caller holds the lock."""
     global _cache
     if _cache is not None:
         return cast("AppConfig", dict(_cache))
@@ -356,16 +391,22 @@ def get_config() -> AppConfig:
 
 
 def update_config(updates: AppConfig) -> AppConfig:
-    """Update config with provided fields, persist to file, update cache."""
+    """Update config with provided fields, persist to file, update cache.
+
+    The whole read → merge → save → cache sequence runs under the in-process
+    config lock, so concurrent callers updating different keys never drop each
+    other's changes (see ``_config_lock`` for the cross-process caveat).
+    """
     global _cache
-    config = get_config()
-    # TypedDict.update accepts another TypedDict of the same shape; `updates`
-    # is `AppConfig` (all keys optional) so only provided fields are merged.
-    config.update(updates)
-    # _save_config raises on failure — the cache must never hold state the disk doesn't.
-    _save_config(config)
-    _cache = config
-    return cast("AppConfig", dict(_cache))
+    with _config_lock:
+        config = get_config()
+        # TypedDict.update accepts another TypedDict of the same shape; `updates`
+        # is `AppConfig` (all keys optional) so only provided fields are merged.
+        config.update(updates)
+        # _save_config raises on failure — the cache must never hold state the disk doesn't.
+        _save_config(config)
+        _cache = config
+        return cast("AppConfig", dict(_cache))
 
 
 def _save_config(config: AppConfig) -> None:
@@ -394,7 +435,8 @@ def _save_config(config: AppConfig) -> None:
 def invalidate_config_cache() -> None:
     """Clear the in-memory config cache (for testing)."""
     global _cache
-    _cache = None
+    with _config_lock:
+        _cache = None
 
 
 def get_session_signing_secret() -> str:
@@ -404,12 +446,15 @@ def get_session_signing_secret() -> str:
     `session_version` is the in-band way to invalidate cookies without
     regenerating the secret; the secret only needs to rotate if it leaks.
     """
-    cfg = get_config()
-    secret = cfg.get("session_signing_secret")
-    if not secret:
-        secret = secrets.token_hex(32)
-        update_config(cast("AppConfig", {"session_signing_secret": secret}))
-    return secret
+    # Locked so two first requests can't each mint (and one persist) a
+    # different secret.
+    with _config_lock:
+        cfg = get_config()
+        secret = cfg.get("session_signing_secret")
+        if not secret:
+            secret = secrets.token_hex(32)
+            update_config(cast("AppConfig", {"session_signing_secret": secret}))
+        return secret
 
 
 def get_config_with_features() -> AppConfigWithFeatures:

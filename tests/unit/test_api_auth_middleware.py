@@ -383,13 +383,6 @@ class TestAuthBypassToggleGuard:
     may turn `auth_bypass_for_dev` on. A bearer token enabling it would open
     the API to every anonymous caller and outlive the token's revocation."""
 
-    @pytest.fixture(autouse=True)
-    def _no_mark_used(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        # A bearer request fires `mark_used` off-thread, which rewrites the
-        # whole config from its own snapshot and can land after the PUT —
-        # these tests read the flag back, so keep that write out of the race.
-        monkeypatch.setattr("src.api.auth._maybe_mark_used", lambda _token_id: None)
-
     def test_read_write_token_cannot_enable_bypass(self, isolated_config: Path, api_client_factory) -> None:
         _seed_password()
         _, raw = agent_tokens.add_token(label="rw", scope="read+write")
