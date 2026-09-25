@@ -166,6 +166,26 @@ def _isolate_activity_ledger(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
 
 
 # ---------------------------------------------------------------------------
+# Failed-password limiter isolation (applies to every test)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _reset_login_throttle() -> Iterator[None]:
+    """Clear the process-wide failed-password limiter around every test.
+
+    Every TestClient request comes from the same peer ("testclient"), so
+    wrong-password tests would otherwise accumulate failures and 429 an
+    unrelated auth test later in the same worker.
+    """
+    from src.api.login_throttle import login_throttle
+
+    login_throttle.clear()
+    yield
+    login_throttle.clear()
+
+
+# ---------------------------------------------------------------------------
 # Shared API test fixtures
 # ---------------------------------------------------------------------------
 

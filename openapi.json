@@ -10104,6 +10104,7 @@
       "_LoginIn": {
         "properties": {
           "password": {
+            "maxLength": 1024,
             "minLength": 1,
             "title": "Password",
             "type": "string"
@@ -10120,6 +10121,7 @@
           "current_password": {
             "anyOf": [
               {
+                "maxLength": 1024,
                 "type": "string"
               },
               {
@@ -10129,6 +10131,7 @@
             "title": "Current Password"
           },
           "password": {
+            "maxLength": 1024,
             "minLength": 8,
             "title": "Password",
             "type": "string"
@@ -10145,6 +10148,7 @@
           "current_password": {
             "anyOf": [
               {
+                "maxLength": 1024,
                 "type": "string"
               },
               {

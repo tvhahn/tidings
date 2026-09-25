@@ -269,7 +269,7 @@ Once those three are in place, every request from a non-loopback origin must car
 
 ## How auth interacts with the bundled dashboard
 
-The dashboard has its own cookie-session channel, separate from bearer tokens. With no password set (`app_password_hash` absent from `data/config.json`), the app runs in TOFU mode: the dashboard works unauthenticated and prompts you to set a password under Settings → Password. Once a password is set, the dashboard authenticates via `POST /api/v1/auth/login` and rides a signed session cookie; bearer tokens remain the channel for agents and scripts. If you expose the API beyond loopback, set a password first — TOFU mode plus a reachable port is an open dashboard.
+The dashboard has its own cookie-session channel, separate from bearer tokens. With no password set (`app_password_hash` absent from `data/config.json`), the app runs in TOFU mode: the dashboard works unauthenticated and prompts you to set a password under Settings → Password. Once a password is set, the dashboard authenticates via `POST /api/v1/auth/login` and rides a signed session cookie; bearer tokens remain the channel for agents and scripts. After 5 wrong passwords from one address within 15 minutes (or 50 from all addresses together), login, set-password and sign-out-all answer `429` with a `Retry-After` header until the window passes; a signed-in browser keeps working. If you expose the API beyond loopback, set a password first — TOFU mode plus a reachable port is an open dashboard.
 
 ## Verification
 

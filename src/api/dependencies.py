@@ -73,6 +73,10 @@ if _openai_api_key:
     _openai_client = OpenAIClient(model="text-embedding-3-small", api_key=_openai_api_key)
 
 _executor = ThreadPoolExecutor(max_workers=12)
+# argon2 hash/verify is deliberately slow and allocates ~64 MiB per call. A
+# dedicated two-worker pool bounds that cost, so a burst of password attempts
+# queues here instead of starving the shared service pool above.
+_password_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="password")
 
 
 def reinitialize_services() -> None:
@@ -105,6 +109,12 @@ async def run_sync[T](func: Callable[..., T], *args: Any, **kwargs: Any) -> T:
     """Run a synchronous function in a thread pool executor."""
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(_executor, lambda: func(*args, **kwargs))
+
+
+async def run_password_op[T](func: Callable[..., T], *args: Any) -> T:
+    """Run a password hash/verify on the dedicated two-worker pool."""
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(_password_executor, func, *args)
 
 
 def ensure_not_demo(detail: str) -> None:

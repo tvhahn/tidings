@@ -82,10 +82,12 @@ class ApiException(HTTPException):
         code: str,
         message: str,
         details: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> None:
         super().__init__(
             status_code=status_code,
             detail={"__api_error__": True, "code": code, "message": message, "details": details},
+            headers=headers,
         )
         self.code = code
         self.message = message

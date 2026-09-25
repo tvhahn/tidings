@@ -19,10 +19,16 @@ Cookie attributes: `httpOnly`, `SameSite=Strict`, `path=/`, `Max-Age=30d`.
 `Secure` is conditional — auto-detected from the request scheme so
 `http://localhost` dev stays usable while TLS-fronted production gets
 `Secure=True`. Override via `AUTH_COOKIE_SECURE=true|false|auto`.
+
+Every password verification goes through `_verify_caller_password`, which
+applies the failed-attempt limiter in `src/api/login_throttle.py` (429 with
+`Retry-After` once a client, or all clients together, run out of attempts).
+argon2 work runs on the dedicated two-worker pool (`run_password_op`).
 """
 
 from __future__ import annotations
 
+import math
 import os
 from typing import TYPE_CHECKING, Any, Final
 
@@ -31,6 +37,7 @@ from pydantic import BaseModel, Field
 
 from src.api import dependencies
 from src.api.errors import ApiException
+from src.api.login_throttle import login_throttle
 from src.finance.app_config import get_config, get_session_signing_secret, update_config
 from src.finance.auth_session import (
     COOKIE_MAX_AGE_SECONDS,
@@ -49,18 +56,22 @@ router = APIRouter(prefix="/auth", tags=["webapp-auth"])
 
 _COOKIE_SECURE_MODE: Final[str] = os.environ.get("AUTH_COOKIE_SECURE", "auto").strip().lower()
 
+# Upper bound on any caller-supplied password: argon2 cost grows with input
+# length, and no real password comes close.
+_MAX_PASSWORD_LENGTH: Final[int] = 1024
+
 
 class _SetPasswordIn(BaseModel):
-    password: str = Field(min_length=8)
-    current_password: str | None = None
+    password: str = Field(min_length=8, max_length=_MAX_PASSWORD_LENGTH)
+    current_password: str | None = Field(default=None, max_length=_MAX_PASSWORD_LENGTH)
 
 
 class _LoginIn(BaseModel):
-    password: str = Field(min_length=1)
+    password: str = Field(min_length=1, max_length=_MAX_PASSWORD_LENGTH)
 
 
 class _SignOutAllIn(BaseModel):
-    current_password: str | None = None
+    current_password: str | None = Field(default=None, max_length=_MAX_PASSWORD_LENGTH)
 
 
 class _AuthResponse(BaseModel):
@@ -76,6 +87,32 @@ def _has_valid_session(request: Request, cfg: Mapping[str, Any]) -> bool:
     version = int(cfg.get("session_version", 0) or 0)
     payload = verify_session(cookie_value, secret)
     return payload is not None and payload["v"] == version
+
+
+async def _verify_caller_password(request: Request, stored_hash: str, candidate: str) -> bool:
+    """Verify a caller-supplied password under the failed-attempt limiter.
+
+    Keyed on the socket peer, never ``X-Forwarded-For``. A throttled caller
+    gets 429 before any argon2 work runs; a failure counts against the
+    caller, a success clears the caller's count.
+    """
+    client = request.client.host if request.client else "unknown"
+    retry_after = login_throttle.retry_after(client)
+    if retry_after is not None:
+        minutes = math.ceil(retry_after / 60)
+        unit = "minute" if minutes == 1 else "minutes"
+        raise ApiException(
+            429,
+            "RATE_LIMITED",
+            f"too many failed password attempts; try again in {minutes} {unit}",
+            headers={"Retry-After": str(retry_after)},
+        )
+    ok = await dependencies.run_password_op(verify_password, stored_hash, candidate)
+    if ok:
+        login_throttle.record_success(client)
+    else:
+        login_throttle.record_failure(client)
+    return ok
 
 
 def _is_secure_request(request: Request) -> bool:
@@ -123,12 +160,11 @@ async def set_password(body: _SetPasswordIn, request: Request, response: Respons
     # they know the existing password. /auth/* is middleware-public for
     # TOFU bootstrap, so the handler does the auth check itself.
     if current_hash is not None and (
-        not body.current_password
-        or not await dependencies.run_sync(verify_password, current_hash, body.current_password)
+        not body.current_password or not await _verify_caller_password(request, current_hash, body.current_password)
     ):
         raise ApiException(401, "UNAUTHORIZED", "current password is required and must match")
 
-    new_hash = await dependencies.run_sync(hash_password, body.password)
+    new_hash = await dependencies.run_password_op(hash_password, body.password)
     new_version = int(cfg.get("session_version", 0) or 0) + 1
     try:
         update_config({"app_password_hash": new_hash, "session_version": new_version})
@@ -149,7 +185,7 @@ async def login(body: _LoginIn, request: Request, response: Response) -> _AuthRe
     stored_hash = cfg.get("app_password_hash")
     if stored_hash is None:
         raise ApiException(401, "UNAUTHORIZED", "invalid password")
-    if not await dependencies.run_sync(verify_password, stored_hash, body.password):
+    if not await _verify_caller_password(request, stored_hash, body.password):
         raise ApiException(401, "UNAUTHORIZED", "invalid password")
     version = int(cfg.get("session_version", 0) or 0)
     _set_session_cookie(request, response, version=version)
@@ -187,7 +223,7 @@ async def sign_out_all(
     # set-password above.
     if current_hash is not None and not _has_valid_session(request, cfg):
         provided = body.current_password if body else None
-        if not provided or not await dependencies.run_sync(verify_password, current_hash, provided):
+        if not provided or not await _verify_caller_password(request, current_hash, provided):
             raise ApiException(401, "UNAUTHORIZED", "a valid session or the current password is required")
 
     new_version = int(cfg.get("session_version", 0) or 0) + 1
