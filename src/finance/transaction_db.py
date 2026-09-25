@@ -614,6 +614,36 @@ class TransactionsDB(TransactionsDBBase):
             logger.exception("Hash lookup failed")
             raise
 
+    def get_hash_index(self, forwarded_to: str) -> dict[str, str]:
+        """Return ``{TransactionHash: DateFileName}`` for one partition in a single paginated query.
+
+        Bulk callers use this instead of one ``find_date_file_name_by_hash``
+        partition query per row. Items arrive in DateFileName order, so the
+        lowest DateFileName wins for a shared hash — the same row the per-row
+        lookup's first match returns.
+        """
+        try:
+            table = self.dyn_resource.Table("Transactions")
+            kwargs: dict[str, Any] = {
+                "KeyConditionExpression": Key("ForwardedTo").eq(forwarded_to),
+                "ProjectionExpression": "DateFileName, TransactionHash",
+            }
+            index: dict[str, str] = {}
+            while True:
+                response = table.query(**kwargs)
+                for item in response.get("Items", []):
+                    transaction_hash = item.get("TransactionHash")
+                    if transaction_hash:
+                        # Both are String attributes; narrow the boto3 scalar union.
+                        index.setdefault(cast("str", transaction_hash), cast("str", item["DateFileName"]))
+                last_key = response.get("LastEvaluatedKey")
+                if not last_key:
+                    return index
+                kwargs["ExclusiveStartKey"] = last_key
+        except ClientError:
+            logger.exception("Hash index load failed")
+            raise
+
     def _insert_imported(
         self,
         row: dict[str, Any],

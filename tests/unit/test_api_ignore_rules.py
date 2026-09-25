@@ -127,7 +127,7 @@ class TestApplyIgnoreRules:
         assert body["total_matched"] == 2
         assert body["total_updated"] == 1
         assert body["results"][0] == {"pattern": "MAPLETRADE INC.", "matched": 2, "updated": 1}
-        db.set_ignored.assert_called_once_with("u", "a", True)
+        db.set_ignored_many.assert_called_once_with([("u", "a")], True)
 
     @patch("src.api.routers.ignore_rules.get_ignore_context", return_value=(["MAPLETRADE INC."], {}))
     def test_unknown_pattern_is_404(self, _mock_ctx: MagicMock, api_client) -> None:

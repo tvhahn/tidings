@@ -739,6 +739,91 @@ class TestTransactionsDBContract:
         assert len(limited) == 1
         assert limited[0]["Category"].lower() == "transport"
 
+    def test_get_hash_index_maps_partition_hashes(self, db: Any) -> None:
+        from src.finance.transaction_hash import generate_transaction_hash
+
+        a = _seed_txn(company="A", file_name="a.eml")
+        b = _seed_txn(company="B", date="03/01/2026 09:00 PST", file_name="b.eml")
+        dfn_a = db.add_transaction(dict(a))
+        dfn_b = db.add_transaction(dict(b))
+        db.add_transaction(_seed_txn(forwarded_to="other@example.com", company="C", file_name="c.eml"))
+
+        index = db.get_hash_index("user@example.com")
+        assert index == {generate_transaction_hash(a): dfn_a, generate_transaction_hash(b): dfn_b}
+        assert db.get_hash_index("nobody@example.com") == {}
+
+    def test_get_hash_index_lowest_date_file_name_wins(self, db: Any) -> None:
+        from src.finance.transaction_hash import generate_transaction_hash
+
+        # Two stored rows sharing one hash (legacy duplicates): force-insert both.
+        row = _seed_txn()
+        late = db._insert_imported(dict(row, file_name="z_late.eml"), None)
+        early = db._insert_imported(dict(row, file_name="a_early.eml"), None)
+        assert early < late
+        assert db.get_hash_index("user@example.com") == {generate_transaction_hash(row): early}
+
+    def test_bulk_import_dedups_in_batch_and_reads_index_once(self, db: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+        db.add_transaction(_seed_txn(company="Existing", file_name="existing.eml"))
+        index_loads: list[str] = []
+        real_index = db.get_hash_index
+
+        def counting_index(forwarded_to: str) -> dict[str, str]:
+            index_loads.append(forwarded_to)
+            return real_index(forwarded_to)
+
+        def no_per_row_lookup(*_a: Any, **_kw: Any) -> None:
+            raise AssertionError("bulk import must not look up hashes row by row")
+
+        monkeypatch.setattr(db, "get_hash_index", counting_index)
+        monkeypatch.setattr(db, "find_date_file_name_by_hash", no_per_row_lookup)
+
+        new = _seed_txn(company="New", date="02/20/2026 10:30 PST", file_name="new.eml")
+        rows = [
+            _seed_txn(company="Existing", file_name="existing.eml"),  # already stored
+            dict(new),
+            dict(new),  # in-batch duplicate of the row above
+            _seed_txn(forwarded_to="other@example.com", company="Elsewhere", file_name="o.eml"),
+        ]
+        counts = db.bulk_add_transactions(rows, strategy="skip")
+        assert counts == {"inserted": 2, "updated": 0, "skipped": 2, "invalid": 0, "errors": 0}
+        assert sorted(index_loads) == ["other@example.com", "user@example.com"]
+
+    def test_bulk_keep_both_walks_occurrences_within_batch(self, db: Any) -> None:
+        row = _seed_txn(file_name="dup.eml")
+        db.add_transaction(dict(row))
+        counts = db.bulk_add_transactions([dict(row), dict(row)], strategy="keep_both")
+        assert counts["inserted"] == 2
+        names = sorted(db.get_hash_index("user@example.com").values())
+        assert len(names) == 3
+        assert [n.rsplit("_", 1)[-1] for n in names] == ["dup.eml", "dup.eml.occ1", "dup.eml.occ2"]
+
+    def test_bulk_overwrite_replaces_then_overwrites_again(self, db: Any) -> None:
+        from src.finance.transaction_hash import generate_transaction_hash
+
+        row = _seed_txn(file_name="dup.eml")
+        db.add_transaction(dict(row))
+        counts = db.bulk_add_transactions(
+            [dict(row, comment="first"), dict(row, comment="second")], strategy="overwrite"
+        )
+        assert counts["updated"] == 2
+        index = db.get_hash_index("user@example.com")
+        assert list(index) == [generate_transaction_hash(row)]
+        item = db.get_item("user@example.com", index[generate_transaction_hash(row)])
+        assert item is not None
+        assert item["Comment"] == "second"
+
+    def test_set_ignored_many_flips_every_key(self, db: Any) -> None:
+        dfn_a = db.add_transaction(_seed_txn(company="A", file_name="a.eml"))
+        dfn_b = db.add_transaction(_seed_txn(company="B", file_name="b.eml"))
+        dfn_c = db.add_transaction(_seed_txn(company="C", file_name="c.eml"))
+        keys = [("user@example.com", dfn_a), ("user@example.com", dfn_b)]
+        assert db.set_ignored_many(keys, True) == 2
+        assert bool(db.get_item("user@example.com", dfn_a).get("Ignored")) is True
+        assert bool(db.get_item("user@example.com", dfn_b).get("Ignored")) is True
+        assert bool(db.get_item("user@example.com", dfn_c).get("Ignored")) is False
+        assert db.set_ignored_many(keys[:1], False) == 1
+        assert bool(db.get_item("user@example.com", dfn_a).get("Ignored")) is False
+
 
 # ---------------------------------------------------------------------------
 # bulk_add_transactions error semantics (AUDIT Q2 / L7)

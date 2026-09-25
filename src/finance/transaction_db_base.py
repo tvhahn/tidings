@@ -8,6 +8,7 @@ time; a missing implementation raises TypeError when the class is instantiated.
 import hashlib
 import logging
 from abc import ABC, abstractmethod
+from contextlib import contextmanager
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -15,6 +16,8 @@ from src.finance.app_timezone import get_app_timezone
 from src.finance.transaction_hash import bump_hash_occurrence, generate_transaction_hash
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator, Sequence
+
     from src.finance.protocols import TransactionItem
 
 logger = logging.getLogger(__name__)
@@ -186,6 +189,16 @@ class TransactionsDBBase(ABC):
             count += 1
         return count
 
+    def set_ignored_many(self, keys: "Sequence[tuple[str, str]]", ignored: bool) -> int:
+        """Set or clear Ignored on each ``(forwarded_to, date_file_name)`` key. Returns the count.
+
+        Delegates to :meth:`set_ignored` per row (DynamoDB has no multi-item
+        update); SQLite overrides it to write every row in one transaction.
+        """
+        for forwarded_to, date_file_name in keys:
+            self.set_ignored(forwarded_to, date_file_name, ignored)
+        return len(keys)
+
     def bulk_add_transactions(
         self,
         rows: list[dict[str, Any]],
@@ -213,56 +226,96 @@ class TransactionsDBBase(ABC):
         ``invalid`` counts rows rejected for bad data (missing required fields);
         ``errors`` counts rows that failed on an infrastructure exception (a
         write or dedup lookup raised) — the batch keeps going either way.
+
+        Duplicate detection reads each ForwardedTo partition's hash index once
+        (:meth:`get_hash_index`) instead of one storage lookup per row, and
+        keeps it current as rows are written so in-batch duplicates are still
+        caught. The writes run inside :meth:`_bulk_write_session`.
         """
         counts = {"inserted": 0, "updated": 0, "skipped": 0, "invalid": 0, "errors": 0}
-        for row in rows:
-            try:
-                # Synthesize a file_name when the source CSV omitted it (plain
-                # Search-tab CSV has no ForwardedTo/FileName columns).
-                if not row.get("file_name"):
-                    h8 = generate_transaction_hash(row)[:8]
-                    row["file_name"] = f"imported_{h8}.eml"
+        hash_indexes: dict[str, dict[str, str]] = {}
 
-                if self._validate_required_fields(row, ["forwarded_to", "file_name", "date"]):
-                    counts["invalid"] += 1
-                    continue
-                if row.get("amount") is None or not row.get("company"):
-                    counts["invalid"] += 1
-                    continue
+        def index_for(forwarded_to: str) -> dict[str, str]:
+            # Lazy per partition; a failed load raises into that row's
+            # ``errors`` bucket and is retried by the next row.
+            if forwarded_to not in hash_indexes:
+                hash_indexes[forwarded_to] = self.get_hash_index(forwarded_to)
+            return hash_indexes[forwarded_to]
 
-                base_hash = generate_transaction_hash(row)
-                existing_dfn = self.find_date_file_name_by_hash(row["forwarded_to"], base_hash)
-                audit = row.get("_category_audit")
+        with self._bulk_write_session():
+            for row in rows:
+                try:
+                    # Synthesize a file_name when the source CSV omitted it (plain
+                    # Search-tab CSV has no ForwardedTo/FileName columns).
+                    if not row.get("file_name"):
+                        h8 = generate_transaction_hash(row)[:8]
+                        row["file_name"] = f"imported_{h8}.eml"
 
-                if existing_dfn:
-                    if strategy == "skip":
-                        counts["skipped"] += 1
+                    if self._validate_required_fields(row, ["forwarded_to", "file_name", "date"]):
+                        counts["invalid"] += 1
                         continue
-                    if strategy == "overwrite":
-                        self.permanently_delete(row["forwarded_to"], existing_dfn)
-                        # _insert_imported now raises on infrastructure failure,
-                        # so a returned value here always means a successful write.
-                        self._insert_imported(row, audit, occurrence=0)
-                        counts["updated"] += 1
-                        continue
-                    if strategy == "keep_both":
-                        occurrence = 1
-                        # Walk up until we find an unused occurrence slot.
-                        while self.find_date_file_name_by_hash(
-                            row["forwarded_to"], bump_hash_occurrence(base_hash, occurrence)
-                        ):
-                            occurrence += 1
-                        self._insert_imported(row, audit, occurrence=occurrence)
-                        counts["inserted"] += 1
+                    if row.get("amount") is None or not row.get("company"):
+                        counts["invalid"] += 1
                         continue
 
-                self._insert_imported(row, audit, occurrence=0)
-                counts["inserted"] += 1
-            except Exception:
-                logger.exception("Import row failed (infrastructure error, not row data)")
-                counts["errors"] += 1
+                    base_hash = generate_transaction_hash(row)
+                    index = index_for(row["forwarded_to"])
+                    existing_dfn = index.get(base_hash)
+                    audit = row.get("_category_audit")
+
+                    if existing_dfn:
+                        if strategy == "skip":
+                            counts["skipped"] += 1
+                            continue
+                        if strategy == "overwrite":
+                            self.permanently_delete(row["forwarded_to"], existing_dfn)
+                            del index[base_hash]
+                            # _insert_imported raises on infrastructure failure,
+                            # so a returned value here always means a successful write.
+                            dfn = self._insert_imported(row, audit, occurrence=0)
+                            if dfn:
+                                index[base_hash] = dfn
+                            counts["updated"] += 1
+                            continue
+                        if strategy == "keep_both":
+                            occurrence = 1
+                            # Walk up until we find an unused occurrence slot.
+                            while bump_hash_occurrence(base_hash, occurrence) in index:
+                                occurrence += 1
+                            dfn = self._insert_imported(row, audit, occurrence=occurrence)
+                            if dfn:
+                                index[bump_hash_occurrence(base_hash, occurrence)] = dfn
+                            counts["inserted"] += 1
+                            continue
+
+                    dfn = self._insert_imported(row, audit, occurrence=0)
+                    if dfn:
+                        index[base_hash] = dfn
+                    counts["inserted"] += 1
+                except Exception:
+                    logger.exception("Import row failed (infrastructure error, not row data)")
+                    counts["errors"] += 1
 
         return counts
+
+    @contextmanager
+    def _bulk_write_session(self) -> "Iterator[None]":
+        """Group :meth:`bulk_add_transactions`' writes. Default: no grouping.
+
+        SQLite overrides this to run the whole import on one connection and
+        one transaction; DynamoDB has no multi-item transaction to share.
+        """
+        yield
+
+    @abstractmethod
+    def get_hash_index(self, forwarded_to: str) -> dict[str, str]:
+        """Return ``{TransactionHash: DateFileName}`` for every row in one partition.
+
+        The bulk counterpart of :meth:`find_date_file_name_by_hash`: one read of
+        the partition's hashes, for callers that dedup many rows at once. When
+        several rows share a hash, the lowest DateFileName wins. Rows without a
+        stored hash are omitted.
+        """
 
     @abstractmethod
     def find_date_file_name_by_hash(self, forwarded_to: str, transaction_hash: str) -> str | None:

@@ -453,6 +453,61 @@ class TestGetLatestDateFileName:
         assert after > before
 
 
+class TestBulkImportSession:
+    """bulk_add_transactions runs on one SQLite connection and one transaction."""
+
+    def _count_connects(self, db: TransactionsDBLocal, monkeypatch: pytest.MonkeyPatch) -> list[int]:
+        opened: list[int] = []
+        real_connect = db._connect
+
+        def counting_connect() -> Any:
+            opened.append(1)
+            return real_connect()
+
+        monkeypatch.setattr(db, "_connect", counting_connect)
+        return opened
+
+    def test_whole_import_uses_one_connection(self, db: TransactionsDBLocal, monkeypatch: pytest.MonkeyPatch) -> None:
+        db.add_transaction(_base_txn(file_name="existing.eml"))
+        opened = self._count_connects(db, monkeypatch)
+        rows = [_base_txn(file_name="existing.eml", comment="replaced")] + [
+            _base_txn(company=f"Store {i}", file_name=f"s{i}.eml") for i in range(5)
+        ]
+        counts = db.bulk_add_transactions(rows, strategy="overwrite")
+        assert counts == {"inserted": 5, "updated": 1, "skipped": 0, "invalid": 0, "errors": 0}
+        # Index load, the overwrite's delete, and all six inserts share one connection.
+        assert len(opened) == 1
+
+    def test_failed_row_does_not_discard_the_batch(self, db: TransactionsDBLocal) -> None:
+        # Same composite key, different hash → the second insert hits the PK and
+        # errors; the rows around it still commit with the batch.
+        rows = [
+            _base_txn(company="A", file_name="a.eml"),
+            _base_txn(company="B", file_name="a.eml"),
+            _base_txn(company="C", file_name="c.eml"),
+        ]
+        counts = db.bulk_add_transactions(rows, strategy="skip")
+        assert counts == {"inserted": 2, "updated": 0, "skipped": 0, "invalid": 0, "errors": 1}
+        assert len(db.scan_all_transactions()) == 2
+
+    def test_session_connection_is_released_after_import(self, db: TransactionsDBLocal) -> None:
+        db.bulk_add_transactions([_base_txn()], strategy="skip")
+        assert getattr(db._bulk, "conn", None) is None
+        # Plain writes after the session commit on their own connection again.
+        dfn = db.add_transaction(_base_txn(company="After", file_name="after.eml"))
+        assert db.permanently_delete(FORWARDED_TO, dfn) is not None
+        assert db.get_item(FORWARDED_TO, dfn) is None
+
+    def test_set_ignored_many_uses_one_connection(
+        self, db: TransactionsDBLocal, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        dfns = [db.add_transaction(_base_txn(company=f"S{i}", file_name=f"s{i}.eml")) for i in range(4)]
+        opened = self._count_connects(db, monkeypatch)
+        assert db.set_ignored_many([(FORWARDED_TO, d) for d in dfns], True) == 4
+        assert len(opened) == 1
+        assert all(db.get_item(FORWARDED_TO, d)["Ignored"] is True for d in dfns)
+
+
 class TestQueryPlans:
     """Month filters must hit an index range — a LIKE prefix silently degrades to a scan."""
 

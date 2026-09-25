@@ -3,6 +3,9 @@
 import json
 import logging
 import sqlite3
+import threading
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -67,9 +70,52 @@ class TransactionsDBLocal(TransactionsDBBase):
     def __init__(self, db_path: Path | None = None):
         self._db_path = db_path or DEFAULT_DB_PATH
         ensure_schema(self._db_path)
+        # Per-thread: the connection an in-progress bulk import shares across
+        # its writes. Instances are shared by concurrent request threads, so
+        # this must never leak into another thread's calls.
+        self._bulk = threading.local()
 
     def _connect(self) -> sqlite3.Connection:
         return get_connection(self._db_path)
+
+    @contextmanager
+    def _session_conn(self) -> Iterator[sqlite3.Connection]:
+        """Yield this thread's bulk-session connection, or a fresh one committed on success.
+
+        Inside :meth:`_bulk_write_session` every write shares one connection and
+        the session commits once at the end. Outside it this is the usual
+        open → work → commit → close cycle.
+        """
+        shared: sqlite3.Connection | None = getattr(self._bulk, "conn", None)
+        if shared is not None:
+            yield shared
+            return
+        conn = self._connect()
+        try:
+            yield conn
+            conn.commit()
+        finally:
+            conn.close()
+
+    @contextmanager
+    def _bulk_write_session(self) -> Iterator[None]:
+        """Run a bulk import on one connection and one transaction.
+
+        Rows that fail individually are still counted and skipped by the
+        caller (SQLite rolls back just the failing statement); everything
+        written commits together when the batch finishes.
+        """
+        conn = self._connect()
+        self._bulk.conn = conn
+        try:
+            yield
+            conn.commit()
+        except BaseException:
+            conn.rollback()
+            raise
+        finally:
+            self._bulk.conn = None
+            conn.close()
 
     # ------------------------------------------------------------------
     # Write operations
@@ -182,6 +228,20 @@ class TransactionsDBLocal(TransactionsDBBase):
         finally:
             conn.close()
 
+    def get_hash_index(self, forwarded_to: str) -> dict[str, str]:
+        """Return ``{transaction_hash: date_file_name}`` for one partition (lowest name wins)."""
+        with self._session_conn() as conn:
+            rows = conn.execute(
+                """SELECT transaction_hash, date_file_name FROM transactions
+                   WHERE forwarded_to = ? AND transaction_hash IS NOT NULL
+                   ORDER BY date_file_name""",
+                (forwarded_to,),
+            ).fetchall()
+        index: dict[str, str] = {}
+        for row in rows:
+            index.setdefault(row["transaction_hash"], row["date_file_name"])
+        return index
+
     def _insert_imported(
         self,
         row: dict[str, Any],
@@ -214,8 +274,7 @@ class TransactionsDBLocal(TransactionsDBBase):
         amount = float(row["amount"]) if row.get("amount") is not None else None
         reviewed_at, source, matched_rule, confidence, prev_cat, audit_json = _split_audit(category_audit)
 
-        conn = self._connect()
-        try:
+        with self._session_conn() as conn:
             conn.execute(
                 """INSERT INTO transactions (
                     forwarded_to, date_file_name, transaction_hash, user_id,
@@ -259,10 +318,7 @@ class TransactionsDBLocal(TransactionsDBBase):
                     row.get("statement_source"),
                 ),
             )
-            conn.commit()
-            return date_file_name
-        finally:
-            conn.close()
+        return date_file_name
 
     def add_statement_transaction(
         self, txn_data: dict[str, Any], audit_source: str = "statement_import"
@@ -581,6 +637,15 @@ class TransactionsDBLocal(TransactionsDBBase):
         finally:
             conn.close()
 
+    def set_ignored_many(self, keys: Sequence[tuple[str, str]], ignored: bool) -> int:
+        """Set or clear Ignored on many rows in one transaction. Returns the number of keys."""
+        with self._session_conn() as conn:
+            conn.executemany(
+                "UPDATE transactions SET ignored = ? WHERE forwarded_to = ? AND date_file_name = ?",
+                [(1 if ignored else 0, forwarded_to, date_file_name) for forwarded_to, date_file_name in keys],
+            )
+        return len(keys)
+
     def set_deleted(self, forwarded_to: str, date_file_name: str, deleted: bool) -> bool | str | None:
         """Set or clear DeletedAt. Returns previous value."""
         conn = self._connect()
@@ -609,8 +674,8 @@ class TransactionsDBLocal(TransactionsDBBase):
 
     def permanently_delete(self, forwarded_to: str, date_file_name: str) -> "TransactionItem | None":
         """Permanently delete a transaction. Returns the deleted item or None."""
-        conn = self._connect()
-        try:
+        # Shares the bulk-import connection when called from an overwrite import.
+        with self._session_conn() as conn:
             row = conn.execute(
                 "SELECT * FROM transactions WHERE forwarded_to = ? AND date_file_name = ?",
                 (forwarded_to, date_file_name),
@@ -623,10 +688,7 @@ class TransactionsDBLocal(TransactionsDBBase):
                 "DELETE FROM transactions WHERE forwarded_to = ? AND date_file_name = ?",
                 (forwarded_to, date_file_name),
             )
-            conn.commit()
-            return item
-        finally:
-            conn.close()
+        return item
 
     def set_comment(self, forwarded_to: str, date_file_name: str, comment: str | None) -> str | None:
         """Set or clear a comment. Returns previous value."""

@@ -121,10 +121,11 @@ def _apply_rules_sync(
     Runs in the thread pool (one ``run_sync`` dispatch) so the sequential
     per-row work never blocks the event loop. Each matched row is attributed to
     the single rule the tiered resolver reports, so counts never double-count a
-    row covered by two patterns.
+    row covered by two patterns. The flips are written in one batch.
     """
     matched: dict[str, int] = defaultdict(int)
     updated: dict[str, int] = defaultdict(int)
+    to_ignore: list[tuple[str, str]] = []
     for item in db.scan_all_transactions():
         if item.get("DeletedAt"):
             continue
@@ -136,8 +137,10 @@ def _apply_rules_sync(
             continue
         matched[hit.matched_rule] += 1
         if not item.get("Ignored"):
-            db.set_ignored(item["ForwardedTo"], item["DateFileName"], True)
+            to_ignore.append((item["ForwardedTo"], item["DateFileName"]))
             updated[hit.matched_rule] += 1
+    if to_ignore:
+        db.set_ignored_many(to_ignore, True)
     return dict(matched), dict(updated)
 
 
