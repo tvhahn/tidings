@@ -2,6 +2,9 @@
   "name": "docs-site",
   "type": "module",
   "version": "0.0.1",
+  "engines": {
+    "node": ">=22.12"
+  },
   "scripts": {
     "predev": "node scripts/sync-content.mjs && node scripts/sync-tokens.mjs && node scripts/copy-openapi.mjs && node scripts/copy-install.mjs && node scripts/generate-llms-txt.mjs",
     "dev": "astro dev",
