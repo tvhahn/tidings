@@ -41,6 +41,28 @@ export function mockFetchError(
   );
 }
 
+/**
+ * A route responder that stays pending until `release()` is called. Pass
+ * `responder` in a `mockFetchJSON` route map to observe optimistic cache state
+ * while the mutation's request is still in flight.
+ */
+export function pendingResponse(body: unknown = {}): {
+  responder: RouteResponder;
+  release: () => void;
+} {
+  let release: () => void = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  return {
+    responder: async () => {
+      await gate;
+      return body;
+    },
+    release: () => release(),
+  };
+}
+
 function findResponder(routes: RouteMap, url: string): unknown | RouteResponder | undefined {
   if (url in routes) return routes[url];
   const pathOnly = url.split("?")[0] ?? url;

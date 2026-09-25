@@ -1,6 +1,12 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { updateTransactionFields } from "@/lib/api";
+import {
+  mapRow,
+  optimisticallyUpdateCombined,
+  restoreCombinedTransactions,
+  setCombinedTransactions,
+} from "@/lib/optimisticTransactions";
 import { invalidateTransactionDependents, mutations, queryKeys } from "@/lib/queryConfigs";
 import type {
   TransactionListResponse,
@@ -15,6 +21,17 @@ export function useUpdateTransactionFields() {
     ...mutations.updateTransactionFields(qc),
 
     onMutate: async ({ forwardedTo, dateFileName, fields }) => {
+      const previousCombined = await optimisticallyUpdateCombined(
+        qc,
+        mapRow({ forwardedTo, dateFileName }, (t) => ({
+          ...t,
+          ...(fields.company !== undefined && { company: fields.company }),
+          ...(fields.amount !== undefined && { amount: fields.amount }),
+          ...(fields.transaction_type !== undefined && {
+            transaction_type: fields.transaction_type,
+          }),
+        }))
+      );
       await qc.cancelQueries({ queryKey: queryKeys.prefix("transactions") });
       await qc.cancelQueries({ queryKey: queryKeys.prefix("transaction-search") });
 
@@ -57,10 +74,11 @@ export function useUpdateTransactionFields() {
         updater
       );
 
-      return { previousTransactions, previousSearch };
+      return { previousCombined, previousTransactions, previousSearch };
     },
 
     onError: (_err, _vars, context) => {
+      restoreCombinedTransactions(qc, context?.previousCombined);
       if (context?.previousTransactions) {
         for (const [queryKey, data] of context.previousTransactions) {
           qc.setQueryData(queryKey, data);
@@ -100,6 +118,10 @@ export function useUpdateTransactionFields() {
         qc.setQueriesData<SearchResponse>(
           { queryKey: queryKeys.prefix("transaction-search") },
           categoryUpdater
+        );
+        setCombinedTransactions(
+          qc,
+          mapRow({ forwardedTo, dateFileName }, (t) => ({ ...t, category: data.category }))
         );
       }
 

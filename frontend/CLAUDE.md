@@ -47,7 +47,10 @@ factory takes `QueryClient` and returns the full option object including the
 (see `useUpdateBudget.ts`). Optimistic, transaction-touching hooks spread the factory
 and override only the cache callbacks (`onMutate` snapshot, `onError` rollback,
 `onSuccess` toast/undo) while the factory's `onSettled` still owns invalidation — see
-`useSoftDelete.ts` for the canonical snapshot/rollback shape.
+`useSoftDelete.ts` for the canonical snapshot/rollback shape. The Transactions page
+renders the `transactions-combined` cache, which `prefix("transactions")` does not
+match, so every such hook also routes its change through `src/lib/optimisticTransactions.ts`
+(`optimisticallyUpdateCombined` in `onMutate`, `restoreCombinedTransactions` in `onError`).
 
 ### Cache invalidation
 

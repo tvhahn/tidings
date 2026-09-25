@@ -1,5 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import {
+  mapRow,
+  optimisticallyUpdateCombined,
+  restoreCombinedTransactions,
+} from "@/lib/optimisticTransactions";
 import { mutations, queryKeys } from "@/lib/queryConfigs";
 import type { JournalResponse, TransactionListResponse, SearchResponse } from "@/types/api";
 
@@ -10,6 +15,10 @@ export function useUpdateComment() {
     ...mutations.updateComment(qc),
 
     onMutate: async ({ forwardedTo, dateFileName, comment }) => {
+      const previousCombined = await optimisticallyUpdateCombined(
+        qc,
+        mapRow({ forwardedTo, dateFileName }, (t) => ({ ...t, comment }))
+      );
       await qc.cancelQueries({ queryKey: queryKeys.prefix("transactions") });
       await qc.cancelQueries({ queryKey: queryKeys.prefix("transaction-search") });
       await qc.cancelQueries({ queryKey: queryKeys.prefix("journal") });
@@ -63,10 +72,11 @@ export function useUpdateComment() {
         };
       });
 
-      return { previousTransactions, previousSearch, previousJournal };
+      return { previousCombined, previousTransactions, previousSearch, previousJournal };
     },
 
     onError: (_err, _vars, context) => {
+      restoreCombinedTransactions(qc, context?.previousCombined);
       if (context?.previousTransactions) {
         for (const [queryKey, data] of context.previousTransactions) {
           qc.setQueryData(queryKey, data);

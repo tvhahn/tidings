@@ -5,6 +5,7 @@ import type {
   BudgetGroupConfig,
   BudgetStatusResponse,
   CategoryIconsResponse,
+  CombinedTransactionsResponse,
   GroupsResponse,
   MonthSummary,
   OverrideEntry,
@@ -33,6 +34,23 @@ export function makeTxn(overrides: Partial<Transaction> = {}): Transaction {
     comment: null,
     deleted_at: null,
     ...overrides,
+  };
+}
+
+/**
+ * A `["transactions-combined", month]` payload with each bucket's `count`
+ * derived from its rows, mirroring the server's `_split_items`.
+ */
+export function makeCombined(
+  buckets: { transactions?: Transaction[]; attention?: Transaction[]; trash?: Transaction[] } = {},
+  month = "2026-02"
+): CombinedTransactionsResponse {
+  const bucket = (rows: Transaction[] = []) => ({ month, count: rows.length, transactions: rows });
+  return {
+    month,
+    transactions: bucket(buckets.transactions),
+    attention: bucket(buckets.attention),
+    trash: bucket(buckets.trash),
   };
 }
 

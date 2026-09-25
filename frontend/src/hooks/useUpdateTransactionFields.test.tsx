@@ -3,9 +3,10 @@ import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useUpdateTransactionFields } from "@/hooks/useUpdateTransactionFields";
 import { txIdFromComposite } from "@/lib/api";
-import { mockFetchError, mockFetchJSON } from "@/test/api-mock";
-import { makeTxn } from "@/test/factories";
+import { mockFetchError, mockFetchJSON, pendingResponse } from "@/test/api-mock";
+import { makeCombined, makeTxn } from "@/test/factories";
 import { renderHookWithProviders } from "@/test/render";
+import type { CombinedTransactionsResponse as Combined } from "@/types/api";
 
 vi.mock("sonner", () => {
   const mockToast = Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() });
@@ -112,6 +113,54 @@ describe("useUpdateTransactionFields", () => {
     expect(flat.transactions[0]?.category).toBe("dining");
     const search = queryClient.getQueryData(["transaction-search", { q: "x" }]) as SearchList;
     expect(search.transactions[0]?.category).toBe("dining");
+  });
+
+  it("optimistically applies the fields in the combined cache and the server category on success", async () => {
+    const pending = pendingResponse({ ...OK_RESPONSE, category: "dining" });
+    mockFetchJSON({ [FIELDS_URL]: pending.responder });
+    const { result, queryClient } = renderHookWithProviders(() => useUpdateTransactionFields());
+    const txn = makeTxn({ forwarded_to: FWD, date_file_name: DFN, company: "Old Co", amount: 10 });
+    queryClient.setQueryData(
+      ["transactions-combined", "2026-02"],
+      makeCombined({ transactions: [txn] })
+    );
+
+    result.current.mutate({
+      forwardedTo: FWD,
+      dateFileName: DFN,
+      fields: { company: "New Co", amount: 99 },
+    });
+
+    await waitFor(() => {
+      const combined = queryClient.getQueryData(["transactions-combined", "2026-02"]) as Combined;
+      expect(combined.transactions.transactions[0]?.company).toBe("New Co");
+    });
+    let combined = queryClient.getQueryData(["transactions-combined", "2026-02"]) as Combined;
+    expect(combined.transactions.transactions[0]?.amount).toBe(99);
+    expect(combined.transactions.transactions[0]?.category).toBe("groceries");
+
+    pending.release();
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    combined = queryClient.getQueryData(["transactions-combined", "2026-02"]) as Combined;
+    expect(combined.transactions.transactions[0]?.category).toBe("dining");
+  });
+
+  it("restores the exact combined snapshot on failure", async () => {
+    mockFetchError();
+    const { result, queryClient } = renderHookWithProviders(() => useUpdateTransactionFields());
+    const txn = makeTxn({ forwarded_to: FWD, date_file_name: DFN, company: "Old Co", amount: 10 });
+    const snapshot = makeCombined({ transactions: [txn] });
+    queryClient.setQueryData(["transactions-combined", "2026-02"], snapshot);
+
+    await expect(
+      result.current.mutateAsync({
+        forwardedTo: FWD,
+        dateFileName: DFN,
+        fields: { company: "New Co" },
+      })
+    ).rejects.toBeTruthy();
+
+    expect(queryClient.getQueryData(["transactions-combined", "2026-02"])).toEqual(snapshot);
   });
 
   it("rolls back and toasts on failure", async () => {

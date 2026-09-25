@@ -3,9 +3,10 @@ import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useSoftDelete } from "@/hooks/useSoftDelete";
 import { txIdFromComposite } from "@/lib/api";
-import { mockFetchError, mockFetchJSON } from "@/test/api-mock";
-import { makeTxn } from "@/test/factories";
+import { mockFetchError, mockFetchJSON, pendingResponse } from "@/test/api-mock";
+import { makeCombined, makeTxn } from "@/test/factories";
 import { renderHookWithProviders } from "@/test/render";
+import type { CombinedTransactionsResponse as Combined } from "@/types/api";
 
 // Capture sonner toast calls without rendering the portal-based Toaster.
 vi.mock("sonner", () => {
@@ -87,6 +88,49 @@ describe("useSoftDelete", () => {
     // Both caches deep-equal their pre-mutation snapshots — not just "a row is back".
     expect(queryClient.getQueryData(["transactions", "2026-02"])).toEqual(txnSnapshot);
     expect(queryClient.getQueryData(["transaction-search", { q: "y" }])).toEqual(searchSnapshot);
+  });
+
+  it("optimistically moves the row to trash in the combined cache the page renders", async () => {
+    const pending = pendingResponse();
+    mockFetchJSON({ [DELETE_URL]: pending.responder });
+    const { result, queryClient } = renderHookWithProviders(() => useSoftDelete());
+    const txn = makeTxn({ forwarded_to: FWD, date_file_name: DFN });
+    const other = makeTxn({ forwarded_to: "other", date_file_name: "d0" });
+    queryClient.setQueryData(
+      ["transactions-combined", "2026-02"],
+      makeCombined({ transactions: [txn, other], attention: [txn] })
+    );
+
+    result.current.mutate({ forwardedTo: FWD, dateFileName: DFN });
+
+    // Before the server answers, the visible row has already moved.
+    await waitFor(() => {
+      const combined = queryClient.getQueryData(["transactions-combined", "2026-02"]) as Combined;
+      expect(combined.transactions.transactions.map((t) => t.forwarded_to)).toEqual(["other"]);
+    });
+    const combined = queryClient.getQueryData(["transactions-combined", "2026-02"]) as Combined;
+    expect(combined.transactions.count).toBe(1);
+    expect(combined.attention.count).toBe(0);
+    expect(combined.trash.count).toBe(1);
+    expect(combined.trash.transactions[0]?.forwarded_to).toBe(FWD);
+    expect(combined.trash.transactions[0]?.deleted_at).toEqual(expect.any(String));
+
+    pending.release();
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+  });
+
+  it("restores the exact combined snapshot on failure", async () => {
+    mockFetchError();
+    const { result, queryClient } = renderHookWithProviders(() => useSoftDelete());
+    const txn = makeTxn({ forwarded_to: FWD, date_file_name: DFN });
+    const snapshot = makeCombined({ transactions: [txn], attention: [txn] });
+    queryClient.setQueryData(["transactions-combined", "2026-02"], snapshot);
+
+    await expect(
+      result.current.mutateAsync({ forwardedTo: FWD, dateFileName: DFN })
+    ).rejects.toBeTruthy();
+
+    expect(queryClient.getQueryData(["transactions-combined", "2026-02"])).toEqual(snapshot);
   });
 
   it("offers an Undo action that invalidates on success", async () => {

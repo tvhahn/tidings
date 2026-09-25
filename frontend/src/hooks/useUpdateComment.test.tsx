@@ -3,9 +3,10 @@ import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useUpdateComment } from "@/hooks/useUpdateComment";
 import { txIdFromComposite } from "@/lib/api";
-import { mockFetchError, mockFetchJSON } from "@/test/api-mock";
-import { makeTxn } from "@/test/factories";
+import { mockFetchError, mockFetchJSON, pendingResponse } from "@/test/api-mock";
+import { makeCombined, makeTxn } from "@/test/factories";
 import { renderHookWithProviders } from "@/test/render";
+import type { CombinedTransactionsResponse as Combined } from "@/types/api";
 
 vi.mock("sonner", () => {
   const mockToast = Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() });
@@ -59,6 +60,43 @@ describe("useUpdateComment", () => {
     const txns = queryClient.getQueryData(["transactions", "2026-02"]) as TxnList;
     expect(txns.transactions[0]?.comment).toBeNull(); // restored
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Failed to save note"));
+  });
+
+  it("optimistically writes the comment into the combined cache the page renders", async () => {
+    const pending = pendingResponse();
+    mockFetchJSON({ [COMMENT_URL]: pending.responder });
+    const { result, queryClient } = renderHookWithProviders(() => useUpdateComment());
+    const txn = makeTxn({ forwarded_to: FWD, date_file_name: DFN, comment: null });
+    queryClient.setQueryData(
+      ["transactions-combined", "2026-02"],
+      makeCombined({ transactions: [txn], attention: [txn] })
+    );
+
+    result.current.mutate({ forwardedTo: FWD, dateFileName: DFN, comment: "hi there" });
+
+    await waitFor(() => {
+      const combined = queryClient.getQueryData(["transactions-combined", "2026-02"]) as Combined;
+      expect(combined.transactions.transactions[0]?.comment).toBe("hi there");
+    });
+    const combined = queryClient.getQueryData(["transactions-combined", "2026-02"]) as Combined;
+    expect(combined.attention.transactions[0]?.comment).toBe("hi there");
+
+    pending.release();
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+  });
+
+  it("restores the exact combined snapshot on failure", async () => {
+    mockFetchError();
+    const { result, queryClient } = renderHookWithProviders(() => useUpdateComment());
+    const txn = makeTxn({ forwarded_to: FWD, date_file_name: DFN, comment: null });
+    const snapshot = makeCombined({ transactions: [txn] });
+    queryClient.setQueryData(["transactions-combined", "2026-02"], snapshot);
+
+    await expect(
+      result.current.mutateAsync({ forwardedTo: FWD, dateFileName: DFN, comment: "hi" })
+    ).rejects.toBeTruthy();
+
+    expect(queryClient.getQueryData(["transactions-combined", "2026-02"])).toEqual(snapshot);
   });
 
   it("toasts 'Note cleared' when the comment is emptied", async () => {
