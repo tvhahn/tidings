@@ -1,18 +1,36 @@
 """Tests for the statement reconciler three-tier matching engine."""
 
+from typing import Any
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from src.finance.statement_reconciler import reconcile
 from tests.factories import make_db_item as _make_db_item
 from tests.factories import make_stmt_txn as _make_stmt_txn
 
 
+def _summary_with(*items: dict[str, Any]) -> MagicMock:
+    """Spending-summary mock whose ``query_month`` returns only that month's items.
+
+    ``make_db_item`` dates are ``MM/DD/YYYY ...``; the reconciler fetches a
+    padded month range, so a flat ``return_value`` would repeat every item once
+    per fetched month.
+    """
+    summary = MagicMock(name="summary")
+
+    def _query_month(month: str) -> list[dict[str, Any]]:
+        return [it for it in items if f"{it['Date'][6:10]}-{it['Date'][0:2]}" == month]
+
+    summary.query_month.side_effect = _query_month
+    return summary
+
+
 @patch("src.finance.statement_reconciler.get_category_overrides", return_value={})
 class TestTier1ExactMatch:
     def test_exact_match(self, mock_overrides: MagicMock) -> None:
         db_item = _make_db_item("2026-01-15", 50.0, "GROCERY STORE", "purchase")
-        summary = MagicMock()
-        summary.query_month.return_value = [db_item]
+        summary = _summary_with(db_item)
 
         txns = [_make_stmt_txn("2026-01-15", 50.0, "withdrawal")]
         result = reconcile(
@@ -30,8 +48,7 @@ class TestTier1ExactMatch:
 
     def test_company_differs_flag(self, mock_overrides: MagicMock) -> None:
         db_item = _make_db_item("2026-01-15", 50.0, "WESTLANDUTILITYCO", "purchase")
-        summary = MagicMock()
-        summary.query_month.return_value = [db_item]
+        summary = _summary_with(db_item)
 
         txns = [_make_stmt_txn("2026-01-15", 50.0, "withdrawal")]
         result = reconcile(
@@ -47,8 +64,7 @@ class TestTier1ExactMatch:
 
     def test_company_matches_no_flag(self, mock_overrides: MagicMock) -> None:
         db_item = _make_db_item("2026-01-15", 50.0, "grocery store", "purchase")
-        summary = MagicMock()
-        summary.query_month.return_value = [db_item]
+        summary = _summary_with(db_item)
 
         txns = [_make_stmt_txn("2026-01-15", 50.0, "withdrawal")]
         result = reconcile(
@@ -66,8 +82,7 @@ class TestTier1ExactMatch:
 class TestTier2FuzzyMatch:
     def test_date_off_by_1_day(self, mock_overrides: MagicMock) -> None:
         db_item = _make_db_item("2026-01-16", 50.0, "STORE", "purchase")
-        summary = MagicMock()
-        summary.query_month.return_value = [db_item]
+        summary = _summary_with(db_item)
 
         txns = [_make_stmt_txn("2026-01-15", 50.0, "withdrawal")]
         result = reconcile(
@@ -83,8 +98,7 @@ class TestTier2FuzzyMatch:
 
     def test_date_off_by_2_days(self, mock_overrides: MagicMock) -> None:
         db_item = _make_db_item("2026-01-17", 50.0, "STORE", "purchase")
-        summary = MagicMock()
-        summary.query_month.return_value = [db_item]
+        summary = _summary_with(db_item)
 
         txns = [_make_stmt_txn("2026-01-15", 50.0, "withdrawal")]
         result = reconcile(
@@ -102,8 +116,7 @@ class TestTier2FuzzyMatch:
 @patch("src.finance.statement_reconciler.get_category_overrides", return_value={})
 class TestTier3NewTransaction:
     def test_no_match_creates_new(self, mock_overrides: MagicMock) -> None:
-        summary = MagicMock()
-        summary.query_month.return_value = []
+        summary = _summary_with()
 
         txns = [_make_stmt_txn("2026-01-15", 4.0, "withdrawal", "Monthlyfee")]
         result = reconcile(
@@ -124,8 +137,7 @@ class TestTier3NewTransaction:
             "src.finance.statement_reconciler.get_category_overrides",
             return_value={"Monthlyfee": "service charges/fees"},
         ):
-            summary = MagicMock()
-            summary.query_month.return_value = []
+            summary = _summary_with()
 
             txns = [_make_stmt_txn("2026-01-15", 4.0, "withdrawal")]
             result = reconcile(
@@ -190,8 +202,7 @@ class TestAmbiguousEnrichmentFields:
     def test_single_candidate_carries_description(self, mock_overrides: MagicMock) -> None:
         """Ambiguous with one candidate should carry cleaned/raw description."""
         db_item = _make_db_item("2026-01-16", 33.60, "—", "purchase")
-        summary = MagicMock()
-        summary.query_month.return_value = [db_item]
+        summary = _summary_with(db_item)
 
         txns = [_make_stmt_txn("2026-01-15", 33.60, "withdrawal")]
         result = reconcile(
@@ -214,8 +225,7 @@ class TestAmbiguousEnrichmentFields:
             return_value={"BillPayment NorthMobile": "communication/cell"},
         ):
             db_item = _make_db_item("2026-01-16", 33.60, "—", "purchase")
-            summary = MagicMock()
-            summary.query_month.return_value = [db_item]
+            summary = _summary_with(db_item)
 
             txns = [_make_stmt_txn("2026-01-15", 33.60, "withdrawal")]
             result = reconcile(
@@ -232,8 +242,7 @@ class TestAmbiguousEnrichmentFields:
         """Multiple same-amount matches still carry description fields."""
         db_item1 = _make_db_item("2026-01-15", 50.0, "STORE A", "purchase", date_file_name="2026.01.15_10.00_a.eml")
         db_item2 = _make_db_item("2026-01-15", 50.0, "STORE B", "purchase", date_file_name="2026.01.15_14.00_b.eml")
-        summary = MagicMock()
-        summary.query_month.return_value = [db_item1, db_item2]
+        summary = _summary_with(db_item1, db_item2)
 
         txns = [_make_stmt_txn("2026-01-15", 50.0, "withdrawal")]
         result = reconcile(
@@ -258,8 +267,7 @@ class TestMatchedSuggestedCategory:
             return_value={"BillPayment WestlandUtilityCo": "utilities"},
         ):
             db_item = _make_db_item("2026-01-15", 98.75, "WESTLANDUTILITYCO", "purchase")
-            summary = MagicMock()
-            summary.query_month.return_value = [db_item]
+            summary = _summary_with(db_item)
 
             txns = [_make_stmt_txn("2026-01-15", 98.75, "withdrawal")]
             result = reconcile(
@@ -275,8 +283,7 @@ class TestMatchedSuggestedCategory:
     def test_company_same_keeps_db_category(self, mock_overrides: MagicMock) -> None:
         db_item = _make_db_item("2026-01-15", 50.0, "grocery store", "purchase")
         db_item["Category"] = "groceries"
-        summary = MagicMock()
-        summary.query_month.return_value = [db_item]
+        summary = _summary_with(db_item)
 
         txns = [_make_stmt_txn("2026-01-15", 50.0, "withdrawal")]
         result = reconcile(
@@ -295,8 +302,7 @@ class TestMatchedSuggestedCategory:
 class TestTypeMapping:
     def test_withdrawal_matches_purchase(self, mock_overrides: MagicMock) -> None:
         db_item = _make_db_item("2026-01-15", 50.0, "STORE", "purchase")
-        summary = MagicMock()
-        summary.query_month.return_value = [db_item]
+        summary = _summary_with(db_item)
 
         txns = [_make_stmt_txn("2026-01-15", 50.0, "withdrawal")]
         result = reconcile(
@@ -310,8 +316,7 @@ class TestTypeMapping:
 
     def test_withdrawal_matches_preauth(self, mock_overrides: MagicMock) -> None:
         db_item = _make_db_item("2026-01-15", 50.0, "STORE", "preauth")
-        summary = MagicMock()
-        summary.query_month.return_value = [db_item]
+        summary = _summary_with(db_item)
 
         txns = [_make_stmt_txn("2026-01-15", 50.0, "withdrawal")]
         result = reconcile(
@@ -325,8 +330,7 @@ class TestTypeMapping:
 
     def test_deposit_matches_etransfer(self, mock_overrides: MagicMock) -> None:
         db_item = _make_db_item("2026-01-15", 100.0, "JOHN DOE", "e-transfer")
-        summary = MagicMock()
-        summary.query_month.return_value = [db_item]
+        summary = _summary_with(db_item)
 
         txns = [_make_stmt_txn("2026-01-15", 100.0, "deposit")]
         result = reconcile(
@@ -341,8 +345,7 @@ class TestTypeMapping:
     def test_withdrawal_does_not_match_etransfer(self, mock_overrides: MagicMock) -> None:
         """Withdrawal ≠ e-transfer should become a suspected duplicate, not new."""
         db_item = _make_db_item("2026-01-15", 50.0, "SOMEONE", "e-transfer")
-        summary = MagicMock()
-        summary.query_month.return_value = [db_item]
+        summary = _summary_with(db_item)
 
         txns = [_make_stmt_txn("2026-01-15", 50.0, "withdrawal")]
         result = reconcile(
@@ -361,8 +364,7 @@ class TestSameDayDuplicates:
     def test_multiple_same_amount_same_day_ambiguous(self, mock_overrides: MagicMock) -> None:
         db_item1 = _make_db_item("2026-01-15", 50.0, "STORE A", "purchase", date_file_name="2026.01.15_10.00_a.eml")
         db_item2 = _make_db_item("2026-01-15", 50.0, "STORE B", "purchase", date_file_name="2026.01.15_14.00_b.eml")
-        summary = MagicMock()
-        summary.query_month.return_value = [db_item1, db_item2]
+        summary = _summary_with(db_item1, db_item2)
 
         txns = [_make_stmt_txn("2026-01-15", 50.0, "withdrawal")]
         result = reconcile(
@@ -395,14 +397,65 @@ class TestCrossMonth:
         assert "2025-12" in called_months
         assert "2026-01" in called_months
 
+    def test_fetch_window_padded_by_fuzzy_tolerance(self, mock_overrides: MagicMock) -> None:
+        summary = _summary_with()
+        reconcile(
+            [_make_stmt_txn("2026-02-15", 10.0, "withdrawal")],
+            ["Test"],
+            ["Test"],
+            {"period_start": "2026-02-01", "period_end": "2026-02-28"},
+            summary,
+        )
+        called_months = sorted(call[0][0] for call in summary.query_month.call_args_list)
+        assert called_months == ["2026-01", "2026-02", "2026-03"]
+
+    def test_fetch_window_not_padded_past_tolerance(self, mock_overrides: MagicMock) -> None:
+        # 3 days in from each month edge — beyond the ±2-day tolerance.
+        summary = _summary_with()
+        reconcile(
+            [_make_stmt_txn("2026-02-15", 10.0, "withdrawal")],
+            ["Test"],
+            ["Test"],
+            {"period_start": "2026-02-03", "period_end": "2026-02-26"},
+            summary,
+        )
+        called_months = sorted(call[0][0] for call in summary.query_month.call_args_list)
+        assert called_months == ["2026-02"]
+
+    @pytest.mark.parametrize(
+        ("stmt_date", "alert_date", "period"),
+        [
+            # Statement row on the 1st, alert on the previous month's last day.
+            ("2026-02-01", "2026-01-31", ("2026-02-01", "2026-02-28")),
+            # Statement row on the last day, alert two days into the next month.
+            ("2026-02-28", "2026-03-02", ("2026-02-01", "2026-02-28")),
+        ],
+    )
+    def test_alert_just_outside_period_is_fuzzy_matched_not_new(
+        self, mock_overrides: MagicMock, stmt_date: str, alert_date: str, period: tuple[str, str]
+    ) -> None:
+        alert = _make_db_item(alert_date, 42.0, "STORE", "purchase")
+        summary = _summary_with(alert)
+
+        result = reconcile(
+            [_make_stmt_txn(stmt_date, 42.0, "withdrawal")],
+            ["Store"],
+            ["Store"],
+            {"period_start": period[0], "period_end": period[1]},
+            summary,
+        )
+
+        assert result.new == []
+        assert len(result.ambiguous) == 1
+        assert result.ambiguous[0].candidates == [alert]
+
 
 @patch("src.finance.statement_reconciler.get_category_overrides", return_value={})
 class TestUsedKeyTracking:
     def test_prevents_double_matching(self, mock_overrides: MagicMock) -> None:
         """One DB item should only match one statement transaction."""
         db_item = _make_db_item("2026-01-15", 50.0, "STORE", "purchase")
-        summary = MagicMock()
-        summary.query_month.return_value = [db_item]
+        summary = _summary_with(db_item)
 
         txns = [
             _make_stmt_txn("2026-01-15", 50.0, "withdrawal"),
@@ -426,8 +479,7 @@ class TestSuspectedDuplicates:
     def test_suspected_duplicate_has_db_item_details(self, mock_overrides: MagicMock) -> None:
         """Suspected duplicate should carry the matched DB item with correct fields."""
         db_item = _make_db_item("2026-01-15", 50.0, "SOMEONE", "e-transfer")
-        summary = MagicMock()
-        summary.query_month.return_value = [db_item]
+        summary = _summary_with(db_item)
 
         txns = [_make_stmt_txn("2026-01-15", 50.0, "withdrawal")]
         result = reconcile(
@@ -449,8 +501,7 @@ class TestSuspectedDuplicates:
     def test_suspected_duplicate_reason_shows_types(self, mock_overrides: MagicMock) -> None:
         """Reason string should include both the statement and DB types."""
         db_item = _make_db_item("2026-01-15", 50.0, "SOMEONE", "e-transfer")
-        summary = MagicMock()
-        summary.query_month.return_value = [db_item]
+        summary = _summary_with(db_item)
 
         txns = [_make_stmt_txn("2026-01-15", 50.0, "withdrawal")]
         result = reconcile(
@@ -468,8 +519,7 @@ class TestSuspectedDuplicates:
     def test_fuzzy_date_suspected_duplicate(self, mock_overrides: MagicMock) -> None:
         """Cross-type match with ±1 day offset should still be a suspected duplicate."""
         db_item = _make_db_item("2026-01-16", 50.0, "SOMEONE", "e-transfer")
-        summary = MagicMock()
-        summary.query_month.return_value = [db_item]
+        summary = _summary_with(db_item)
 
         txns = [_make_stmt_txn("2026-01-15", 50.0, "withdrawal")]
         result = reconcile(
@@ -486,8 +536,7 @@ class TestSuspectedDuplicates:
     def test_no_suspected_duplicate_when_types_compatible(self, mock_overrides: MagicMock) -> None:
         """Compatible types should match normally at Tier 1, not as suspected duplicate."""
         db_item = _make_db_item("2026-01-15", 50.0, "STORE", "purchase")
-        summary = MagicMock()
-        summary.query_month.return_value = [db_item]
+        summary = _summary_with(db_item)
 
         txns = [_make_stmt_txn("2026-01-15", 50.0, "withdrawal")]
         result = reconcile(
@@ -512,8 +561,7 @@ class TestSuspectedDuplicates:
             "e-transfer",
             date_file_name="2026.01.15_14.00_b.eml",
         )
-        summary = MagicMock()
-        summary.query_month.return_value = [db_purchase, db_etransfer]
+        summary = _summary_with(db_purchase, db_etransfer)
 
         txns = [
             _make_stmt_txn("2026-01-15", 50.0, "withdrawal"),
@@ -538,8 +586,7 @@ class TestDirectionFilter:
     def test_deposit_not_suspected_duplicate_of_withdrawal(self, mock_overrides: MagicMock) -> None:
         """Bug 2 regression: deposit $4 vs DB withdrawal $4 are opposite directions → new, not suspected dup."""
         db_item = _make_db_item("2026-01-15", 4.0, "MONTHLY FEE", "withdrawal")
-        summary = MagicMock()
-        summary.query_month.return_value = [db_item]
+        summary = _summary_with(db_item)
 
         txns = [_make_stmt_txn("2026-01-15", 4.0, "deposit", "MonthlyFeeRebate")]
         result = reconcile(
@@ -556,8 +603,7 @@ class TestDirectionFilter:
     def test_deposit_not_suspected_duplicate_of_purchase(self, mock_overrides: MagicMock) -> None:
         """Deposit vs purchase are opposite directions → new."""
         db_item = _make_db_item("2026-01-15", 25.0, "STORE", "purchase")
-        summary = MagicMock()
-        summary.query_month.return_value = [db_item]
+        summary = _summary_with(db_item)
 
         txns = [_make_stmt_txn("2026-01-15", 25.0, "deposit")]
         result = reconcile(
@@ -574,8 +620,7 @@ class TestDirectionFilter:
     def test_deposit_matches_etransfer_at_tier1(self, mock_overrides: MagicMock) -> None:
         """Deposit + e-transfer are type-compatible → Tier 1 match, not suspected dup."""
         db_item = _make_db_item("2026-01-15", 200.0, "JOHN DOE", "e-transfer")
-        summary = MagicMock()
-        summary.query_month.return_value = [db_item]
+        summary = _summary_with(db_item)
 
         txns = [_make_stmt_txn("2026-01-15", 200.0, "deposit")]
         result = reconcile(
@@ -592,8 +637,7 @@ class TestDirectionFilter:
     def test_withdrawal_not_suspected_duplicate_of_deposit(self, mock_overrides: MagicMock) -> None:
         """Withdrawal vs deposit are opposite directions → new."""
         db_item = _make_db_item("2026-01-15", 100.0, "PAYROLL", "deposit")
-        summary = MagicMock()
-        summary.query_month.return_value = [db_item]
+        summary = _summary_with(db_item)
 
         txns = [_make_stmt_txn("2026-01-15", 100.0, "withdrawal")]
         result = reconcile(
@@ -631,8 +675,7 @@ class TestCrossTypeBeforeFuzzy:
             "e-transfer",
             date_file_name="2026.01.14_14.00_etransfer.eml",
         )
-        summary = MagicMock()
-        summary.query_month.return_value = [db_withdrawal, db_etransfer]
+        summary = _summary_with(db_withdrawal, db_etransfer)
 
         txns = [_make_stmt_txn("2026-01-15", 1275.50, "withdrawal")]
         result = reconcile(
