@@ -19,6 +19,7 @@ for any of them to get a plan with `improve plan <finding>`.
 | [003](003-auth-fail-closed-and-bypass-guard.md) | Reject empty-secret session cookies, and stop bearer tokens from enabling the dev auth bypass | P1 | S | — | DONE |
 | [004](004-sqlite-month-query-use-index.md) | Make SQLite month queries use the `date_file_name` index | P2 | S | — | DONE |
 | [005](005-parse-failure-rerecord-parity.md) | Make DynamoDB parse-failure re-records keep review status, matching SQLite | P2 | S | — | DONE |
+| [006](006-node-22-production-image.md) | Move the production image's frontend build stage from Node 20 to Node 22 | P2 | S | — | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with a one-line reason) | REJECTED (with a one-line rationale)
 
@@ -131,8 +132,8 @@ All five plans and every unplanned finding above were implemented on
 - **SEC-07** (ingest sender verification): deferred by the maintainer.
 - **DEP-03, production image only**: CI, `.nvmrc` and `engines` moved to Node 22. The
   `Dockerfile.prod` build stage stays pinned to the `node:20-slim` digest until
-  someone with registry access resolves a `node:22-slim` digest (see
-  `docs/guides/supply-chain-security.md`).
+  someone with registry access resolves a `node:22-slim` digest. The remaining
+  step is written up as [plan 006](006-node-22-production-image.md).
 - **Direction options**: not started.
 
 Findings discovered while implementing and fixed in the same pass: the config
