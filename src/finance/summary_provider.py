@@ -7,11 +7,14 @@ import re
 import shutil
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from src.finance.ai_cli import DEFAULT_OPENAI_CHAT_MODEL, _codex_signed_in, _gemini_signed_in, run_cli_provider
+
+if TYPE_CHECKING:
+    from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +64,7 @@ Summary text here.
 
 
 class DaySummaryResult(BaseModel):
-    """Structured output for a single day summary via instructor."""
+    """Structured output for a single day summary (OpenAI structured outputs)."""
 
     summary: str = Field(description="single sentence, ≤25 words, plain text")
 
@@ -157,8 +160,16 @@ class SummaryProvider(ABC):
         """
 
 
+class _UnparsedSummaryError(ValueError):
+    """The OpenAI response carried no parsed DaySummaryResult (e.g. a refusal)."""
+
+
 class OpenAISummaryProvider(SummaryProvider):
-    """Uses instructor + OpenAI API for structured per-day output."""
+    """Uses the OpenAI SDK's native structured outputs for per-day summaries."""
+
+    # One call plus one retry when the response fails to parse into
+    # DaySummaryResult (schema mismatch or a refusal with no parsed output).
+    _MAX_PARSE_ATTEMPTS = 2
 
     def __init__(
         self,
@@ -175,33 +186,46 @@ class OpenAISummaryProvider(SummaryProvider):
         day_contexts: list[dict[str, Any]],
         on_complete: Callable[[str, str], None] | None = None,
     ) -> dict[str, str]:
-        import instructor
         from openai import OpenAI
 
-        client = instructor.from_openai(OpenAI(api_key=self.api_key))
+        client = OpenAI(api_key=self.api_key)
         results: dict[str, str] = {}
-        # reasoning_effort is a passthrough OpenAI param — only send it when set
-        # so a None keeps the model's default.
-        extra: dict[str, Any] = {"reasoning_effort": self.reasoning_effort} if self.reasoning_effort else {}
 
         for ctx in day_contexts:
             date = ctx["date"]
             prompt = self._build_prompt(ctx)
             try:
-                result = await asyncio.to_thread(
-                    client.chat.completions.create,
-                    model=self.model,
-                    response_model=DaySummaryResult,
-                    messages=[{"role": "user", "content": prompt}],
-                    **extra,
-                )
-                results[date] = result.summary
+                summary = await asyncio.to_thread(self._summarize_day, client, prompt)
+                results[date] = summary
                 if on_complete:
-                    on_complete(date, result.summary)
+                    on_complete(date, summary)
             except Exception:
                 logger.exception("OpenAI summary generation failed for %s", date)
 
         return results
+
+    def _summarize_day(self, client: "OpenAI", prompt: str) -> str:
+        """Request one day's summary, retrying once when the output fails to parse."""
+        # reasoning_effort is a passthrough OpenAI param — only send it when set
+        # so a None keeps the model's default.
+        extra: dict[str, Any] = {"reasoning_effort": self.reasoning_effort} if self.reasoning_effort else {}
+        for attempt in range(1, self._MAX_PARSE_ATTEMPTS + 1):
+            try:
+                completion = client.chat.completions.parse(
+                    model=self.model,
+                    response_format=DaySummaryResult,
+                    messages=[{"role": "user", "content": prompt}],
+                    **extra,
+                )
+                message = completion.choices[0].message
+                if message.parsed is None:
+                    raise _UnparsedSummaryError(f"OpenAI returned no parsed summary (refusal: {message.refusal!r})")
+                return message.parsed.summary
+            except (ValidationError, _UnparsedSummaryError):
+                if attempt == self._MAX_PARSE_ATTEMPTS:
+                    raise
+                logger.warning("OpenAI summary did not parse (attempt %d); retrying", attempt)
+        raise AssertionError("unreachable")  # pragma: no cover
 
     def _build_prompt(self, ctx: dict[str, Any]) -> str:
         return build_day_prompt(ctx)

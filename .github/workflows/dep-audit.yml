@@ -35,7 +35,7 @@ jobs:
         run: uv sync
 
       - name: Audit dependencies
-        run: uv run pip-audit --ignore-vuln CVE-2025-69872  # diskcache 5.6.3 — no fix available yet
+        run: uv run pip-audit
 
       # pnpm audit requires v11+: npm retired the legacy /security/audits{,/quick}
       # endpoints (410 since 2026-04) and pnpm moved to the bulk advisory endpoint

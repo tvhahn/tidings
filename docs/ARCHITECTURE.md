@@ -399,7 +399,7 @@ The Spending Journal is a day-grouped transaction timeline that surfaces the per
 2. **Daily context gathering** — `src/finance/daily_summary_context.py:gather_daily_contexts()` takes the day-grouped list and builds a compact context dict per day: `day_of_week`, `day_total`, `transaction_count`, top merchants, `mtd_total`, top MTD categories, and budget ceiling. These dicts feed the AI prompt.
 
 3. **Multi-provider summary generation** — `src/finance/summary_provider.py` exposes four implementations of a `SummaryProvider` ABC:
-   - `OpenAISummaryProvider` — uses `instructor` + OpenAI for structured per-day output (one API call per day).
+   - `OpenAISummaryProvider` — uses the OpenAI SDK's native structured outputs for per-day output (one API call per day, one retry if the response fails to parse).
    - `ClaudeCLISummaryProvider` — spawns the Claude Code subprocess with a single batched prompt containing all days, then parses the response back into per-day summaries.
    - `CodexCLISummaryProvider` — spawns the OpenAI Codex CLI subprocess with the same single-batched-prompt approach.
    - `GeminiCLISummaryProvider` — spawns the Google Gemini CLI subprocess with the same single-batched-prompt approach.

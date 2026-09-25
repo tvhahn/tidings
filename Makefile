@@ -399,7 +399,7 @@ pii-collision-check:
 ## Supply-chain audit: pip-audit + pnpm audit. (The former IOC scan script and its
 ## guide were removed in the OSS migration; Dependabot + the CI security-scan job cover that ground.)
 audit:
-	uv run pip-audit --ignore-vuln CVE-2025-69872
+	uv run pip-audit
 	cd frontend && pnpm audit --prod --audit-level high
 
 #################################################################################

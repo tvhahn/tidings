@@ -1,15 +1,18 @@
 """Tests for summary provider abstraction — OpenAI, Claude Code, OpenAI Codex."""
 
 import asyncio
+from collections.abc import Iterator
 from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic import ValidationError
 
 from src.finance.ai_cli import _extract_codex_answer
 from src.finance.summary_provider import (
     ClaudeCLISummaryProvider,
     CodexCLISummaryProvider,
+    DaySummaryResult,
     GeminiCLISummaryProvider,
     OpenAISummaryProvider,
     _parse_sections,
@@ -37,34 +40,90 @@ def _make_ctx(date: str = "2026-04-15") -> dict[str, Any]:
     }
 
 
+def _completion(summary: str | None, refusal: str | None = None) -> MagicMock:
+    """A stand-in for the SDK's ParsedChatCompletion with one choice."""
+    message = MagicMock()
+    message.parsed = DaySummaryResult(summary=summary) if summary is not None else None
+    message.refusal = refusal
+    completion = MagicMock()
+    completion.choices = [MagicMock(message=message)]
+    return completion
+
+
+def _validation_error() -> ValidationError:
+    try:
+        DaySummaryResult.model_validate_json("{}")
+    except ValidationError as exc:
+        return exc
+    raise AssertionError("expected a ValidationError")
+
+
+@pytest.fixture
+def openai_client() -> Iterator[MagicMock]:
+    """Patch the SDK constructor; yields the client the provider builds."""
+    with patch("openai.OpenAI") as mock_cls:
+        yield mock_cls.return_value
+
+
 class TestOpenAISummaryProvider:
-    @patch("src.finance.summary_provider.asyncio.to_thread")
-    def test_generates_summaries(self, mock_to_thread: MagicMock) -> None:
-        mock_result = MagicMock()
-        mock_result.summary = "A grocery-heavy day with $50 spent."
-        mock_to_thread.return_value = mock_result
+    def test_generates_summaries(self, openai_client: MagicMock) -> None:
+        openai_client.chat.completions.parse.return_value = _completion("A grocery-heavy day with $50 spent.")
 
         provider = OpenAISummaryProvider(api_key="sk-test", model="gpt-4o-mini")
         results = asyncio.run(provider.generate_summaries([_make_ctx()]))
-        assert "2026-04-15" in results
-        assert results["2026-04-15"] == "A grocery-heavy day with $50 spent."
+        assert results == {"2026-04-15": "A grocery-heavy day with $50 spent."}
 
-    @patch("src.finance.summary_provider.asyncio.to_thread")
-    def test_calls_on_complete(self, mock_to_thread: MagicMock) -> None:
-        mock_result = MagicMock()
-        mock_result.summary = "Summary text."
-        mock_to_thread.return_value = mock_result
+        kwargs = openai_client.chat.completions.parse.call_args.kwargs
+        assert kwargs["model"] == "gpt-4o-mini"
+        assert kwargs["response_format"] is DaySummaryResult
+        assert "reasoning_effort" not in kwargs
+
+    def test_passes_reasoning_effort_when_set(self, openai_client: MagicMock) -> None:
+        openai_client.chat.completions.parse.return_value = _completion("Summary text.")
+
+        provider = OpenAISummaryProvider(api_key="sk-test", reasoning_effort="low")
+        asyncio.run(provider.generate_summaries([_make_ctx()]))
+        assert openai_client.chat.completions.parse.call_args.kwargs["reasoning_effort"] == "low"
+
+    def test_calls_on_complete(self, openai_client: MagicMock) -> None:
+        openai_client.chat.completions.parse.return_value = _completion("Summary text.")
 
         completed = []
         provider = OpenAISummaryProvider(api_key="sk-test")
         asyncio.run(provider.generate_summaries([_make_ctx()], on_complete=lambda d, t: completed.append((d, t))))
         assert completed == [("2026-04-15", "Summary text.")]
 
-    @patch("src.finance.summary_provider.asyncio.to_thread", side_effect=Exception("API error"))
-    def test_handles_api_error_gracefully(self, mock_to_thread: MagicMock) -> None:
+    def test_retries_once_on_validation_error(self, openai_client: MagicMock) -> None:
+        openai_client.chat.completions.parse.side_effect = [_validation_error(), _completion("Second try.")]
+
+        provider = OpenAISummaryProvider(api_key="sk-test")
+        results = asyncio.run(provider.generate_summaries([_make_ctx()]))
+        assert results == {"2026-04-15": "Second try."}
+        assert openai_client.chat.completions.parse.call_count == 2
+
+    def test_retries_once_on_refusal(self, openai_client: MagicMock) -> None:
+        openai_client.chat.completions.parse.side_effect = [_completion(None, refusal="no"), _completion("Retry.")]
+
+        provider = OpenAISummaryProvider(api_key="sk-test")
+        results = asyncio.run(provider.generate_summaries([_make_ctx()]))
+        assert results == {"2026-04-15": "Retry."}
+
+    def test_gives_up_after_second_parse_failure(self, openai_client: MagicMock) -> None:
+        openai_client.chat.completions.parse.side_effect = [_validation_error(), _validation_error()]
+
         provider = OpenAISummaryProvider(api_key="sk-test")
         results = asyncio.run(provider.generate_summaries([_make_ctx()]))
         assert results == {}
+        assert openai_client.chat.completions.parse.call_count == 2
+
+    def test_handles_api_error_gracefully(self, openai_client: MagicMock) -> None:
+        openai_client.chat.completions.parse.side_effect = Exception("API error")
+
+        provider = OpenAISummaryProvider(api_key="sk-test")
+        results = asyncio.run(provider.generate_summaries([_make_ctx()]))
+        assert results == {}
+        # Transport/API errors are not parse failures — no retry.
+        assert openai_client.chat.completions.parse.call_count == 1
 
     def test_build_prompt_includes_key_data(self) -> None:
         provider = OpenAISummaryProvider(api_key="sk-test")
