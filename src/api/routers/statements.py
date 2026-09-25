@@ -339,6 +339,12 @@ async def import_transactions(
     # Track occurrences of identical transactions for dedup disambiguation
     import_hash_counter: dict[tuple[Any, ...], int] = {}
 
+    # The partition's hash index, loaded once on the first "import" action so
+    # each row's duplicate check is a dict lookup, not a storage query (on
+    # DynamoDB, a full-partition query per row). None → per-row checks.
+    known_hashes: dict[str, str] | None = None
+    hash_index_loaded = False
+
     for action in body.actions:
         if action.action == "update":
             # Update an existing previously-imported DB record
@@ -420,7 +426,14 @@ async def import_transactions(
             txn_data["user_id"] = user_id
 
         audit_src = "manual" if _was_category_edited(tx_lookup, action.index) else "statement_import"
-        result = await run_sync(db.add_statement_transaction, txn_data, audit_src)
+        if not hash_index_loaded:
+            hash_index_loaded = True
+            try:
+                known_hashes = await run_sync(db.get_hash_index, forwarded_to)
+            except Exception:
+                # Fail-open: fall back to the per-row duplicate check.
+                logger.warning("hash index load failed; checking duplicates per row", exc_info=True)
+        result = await run_sync(db.add_statement_transaction, txn_data, audit_src, known_hashes=known_hashes)
         if result is False:
             duplicates += 1
             import_results.append({"tx_index": action.index, "action_result": "duplicate"})

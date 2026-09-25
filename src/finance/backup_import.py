@@ -6,7 +6,7 @@ everything we intend to write. The ParsedConfig/ImportPreviewCounts/ParsedUpload
 data model crosses the preview → commit boundary as JSON.
 
 Duplicate classification (``classify_duplicates``) runs against
-:meth:`TransactionsDBBase.find_date_file_name_by_hash`, and the actual write
+:meth:`TransactionsDBBase.get_hash_index`, and the actual write
 path delegates to :meth:`TransactionsDBBase.bulk_add_transactions` for the
 three supported strategies (``skip`` / ``overwrite`` / ``keep_both``).
 
@@ -418,14 +418,19 @@ def _collect_audit(raw: dict[str, str]) -> dict[str, Any] | None:
 def classify_duplicates(db: ITransactionsDB, transactions: list[dict[str, Any]]) -> list[str]:
     """Return the subset of transaction hashes that already exist in storage.
 
-    Uses ``find_date_file_name_by_hash`` (per-backend) so it works against
-    both DynamoDB and SQLite.
+    Uses ``get_hash_index`` (per-backend) so it works against both DynamoDB and
+    SQLite, reading each ForwardedTo partition's hashes once rather than one
+    storage lookup per row.
     """
     duplicates: list[str] = []
+    indexes: dict[str, dict[str, str]] = {}
     for row in transactions:
         h = generate_transaction_hash(row)
+        forwarded_to = row["forwarded_to"]
         # Bulk import and this preview share the same duplicate-detection
         # primitive (part of the ITransactionsDB contract).
-        if db.find_date_file_name_by_hash(row["forwarded_to"], h):
+        if forwarded_to not in indexes:
+            indexes[forwarded_to] = db.get_hash_index(forwarded_to)
+        if h in indexes[forwarded_to]:
             duplicates.append(h)
     return duplicates

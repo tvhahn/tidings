@@ -824,6 +824,59 @@ class TestTransactionsDBContract:
         assert db.set_ignored_many(keys[:1], False) == 1
         assert bool(db.get_item("user@example.com", dfn_a).get("Ignored")) is False
 
+    @staticmethod
+    def _stmt_txn(**overrides: Any) -> dict[str, Any]:
+        base = {
+            "forwarded_to": "user@example.com",
+            "date": "2026-02-10",
+            "amount": 25.0,
+            "company": "Hydro",
+            "institution": "RBC",
+            "transaction_type": "withdrawal",
+            "category": "utilities",
+            "statement_source": "RBC_Chequing_2026-02",
+        }
+        base.update(overrides)
+        return base
+
+    def test_statement_import_with_known_hashes_matches_storage_check(self, db: Any) -> None:
+        existing = db.add_statement_transaction(self._stmt_txn())
+        known = db.get_hash_index("user@example.com")
+        assert list(known.values()) == [existing]
+
+        # Preloaded map: duplicate detected without a storage lookup ...
+        assert db.add_statement_transaction(self._stmt_txn(), known_hashes=known) is False
+        # ... a new row is written and joins the map ...
+        new = db.add_statement_transaction(self._stmt_txn(amount=30.0), known_hashes=known)
+        assert isinstance(new, str)
+        assert sorted(known.values()) == sorted([existing, new])
+        assert known == db.get_hash_index("user@example.com")
+        # ... so a repeat within the same import is a duplicate too.
+        assert db.add_statement_transaction(self._stmt_txn(amount=30.0), known_hashes=known) is False
+
+    def test_classify_duplicates_reads_each_partition_once(self, db: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+        from src.finance.backup_import import classify_duplicates
+        from src.finance.transaction_hash import generate_transaction_hash
+
+        stored = _seed_txn(company="Stored", file_name="stored.eml")
+        db.add_transaction(dict(stored))
+        loads: list[str] = []
+        real_index = db.get_hash_index
+
+        def counting_index(forwarded_to: str) -> dict[str, str]:
+            loads.append(forwarded_to)
+            return real_index(forwarded_to)
+
+        monkeypatch.setattr(db, "get_hash_index", counting_index)
+        rows = [
+            dict(stored),
+            _seed_txn(company="Fresh", file_name="fresh.eml"),
+            _seed_txn(company="Fresh 2", file_name="fresh2.eml"),
+            _seed_txn(forwarded_to="other@example.com", company="Stored", file_name="stored.eml"),
+        ]
+        assert classify_duplicates(db, rows) == [generate_transaction_hash(stored)]
+        assert sorted(loads) == ["other@example.com", "user@example.com"]
+
 
 # ---------------------------------------------------------------------------
 # bulk_add_transactions error semantics (AUDIT Q2 / L7)

@@ -321,9 +321,17 @@ class TransactionsDBLocal(TransactionsDBBase):
         return date_file_name
 
     def add_statement_transaction(
-        self, txn_data: dict[str, Any], audit_source: str = "statement_import"
+        self,
+        txn_data: dict[str, Any],
+        audit_source: str = "statement_import",
+        *,
+        known_hashes: dict[str, str] | None = None,
     ) -> str | bool | None:
-        """Add a statement-imported transaction. Returns DateFileName if written, False if dup, None if invalid."""
+        """Add a statement-imported transaction. Returns DateFileName if written, False if dup, None if invalid.
+
+        With ``known_hashes`` (a preloaded ``get_hash_index`` map) the duplicate
+        check reads the map instead of the table; the map gains the new row.
+        """
         stmt_required = [
             "forwarded_to",
             "date",
@@ -343,11 +351,17 @@ class TransactionsDBLocal(TransactionsDBBase):
 
         conn = self._connect()
         try:
-            row = conn.execute(
-                "SELECT 1 FROM transactions WHERE forwarded_to = ? AND transaction_hash = ?",
-                (txn_data["forwarded_to"], transaction_hash),
-            ).fetchone()
-            if row:
+            if known_hashes is not None:
+                is_duplicate = transaction_hash in known_hashes
+            else:
+                is_duplicate = (
+                    conn.execute(
+                        "SELECT 1 FROM transactions WHERE forwarded_to = ? AND transaction_hash = ?",
+                        (txn_data["forwarded_to"], transaction_hash),
+                    ).fetchone()
+                    is not None
+                )
+            if is_duplicate:
                 logger.info("Duplicate statement transaction (hash=%s). Skipping.", transaction_hash)
                 return False
 
@@ -382,6 +396,8 @@ class TransactionsDBLocal(TransactionsDBBase):
                 ),
             )
             conn.commit()
+            if known_hashes is not None:
+                known_hashes[transaction_hash] = date_file_name
             logger.info("Statement transaction added: %s", date_file_name)
             return date_file_name
         finally:

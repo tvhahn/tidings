@@ -41,11 +41,20 @@ class TransactionsDBBase(ABC):
 
     @abstractmethod
     def add_statement_transaction(
-        self, txn_data: dict[str, Any], audit_source: str = "statement_import"
+        self,
+        txn_data: dict[str, Any],
+        audit_source: str = "statement_import",
+        *,
+        known_hashes: dict[str, str] | None = None,
     ) -> str | bool | None:
         """Add a statement-imported transaction.
 
         Returns DateFileName if written, False if duplicate, None if invalid.
+
+        ``known_hashes`` is an optional :meth:`get_hash_index` map of the row's
+        partition, preloaded by a caller importing many rows: the duplicate
+        check reads it instead of querying storage, and a successful write adds
+        the new row to it so later rows in the same import see it.
         """
 
     # ------------------------------------------------------------------

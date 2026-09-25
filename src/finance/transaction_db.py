@@ -714,13 +714,20 @@ class TransactionsDB(TransactionsDBBase):
             raise
 
     def add_statement_transaction(
-        self, txn_data: dict[str, Any], audit_source: str = "statement_import"
+        self,
+        txn_data: dict[str, Any],
+        audit_source: str = "statement_import",
+        *,
+        known_hashes: dict[str, str] | None = None,
     ) -> str | bool | None:
         """Add a transaction from a statement import.
 
         Required fields: forwarded_to, date, amount, company, institution,
                          transaction_type, category, statement_source
         Optional: name, user_id
+
+        With ``known_hashes`` (a preloaded ``get_hash_index`` map) the duplicate
+        check skips the per-row partition query; the map gains the new row.
 
         Returns DateFileName if written, False if duplicate, None if validation fails.
         """
@@ -746,7 +753,11 @@ class TransactionsDB(TransactionsDBBase):
         try:
             table = self.dyn_resource.Table(table_name)
 
-            if self._transaction_exists(table, txn_data["forwarded_to"], transaction_hash):
+            if known_hashes is not None:
+                is_duplicate = transaction_hash in known_hashes
+            else:
+                is_duplicate = self._transaction_exists(table, txn_data["forwarded_to"], transaction_hash)
+            if is_duplicate:
                 logger.info("Duplicate statement transaction (hash=%s). Skipping.", transaction_hash)
                 return False
 
@@ -774,6 +785,8 @@ class TransactionsDB(TransactionsDBBase):
                 item["UserId"] = txn_data["user_id"]
 
             table.put_item(Item=item)
+            if known_hashes is not None:
+                known_hashes[transaction_hash] = date_file_name
             logger.info("Statement transaction added: %s", date_file_name)
             return date_file_name
         except ClientError:

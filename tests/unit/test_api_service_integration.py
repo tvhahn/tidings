@@ -263,6 +263,43 @@ class TestStatementImportDedup:
             t["date_file_name"] for t in after_first["transactions"]
         }
 
+    def test_import_loads_hash_index_once(self, txn_env: tuple[Any, Any], monkeypatch: pytest.MonkeyPatch) -> None:
+        client, db = txn_env
+        loads: list[str] = []
+        real_index = db.get_hash_index
+
+        def counting_index(forwarded_to: str) -> dict[str, str]:
+            loads.append(forwarded_to)
+            return real_index(forwarded_to)
+
+        monkeypatch.setattr(db, "get_hash_index", counting_index)
+        if hasattr(db, "_transaction_exists"):  # DynamoDB: the per-row partition query
+
+            def no_per_row_query(*_a: Any, **_kw: Any) -> bool:
+                raise AssertionError("statement import must not query the partition per row")
+
+            monkeypatch.setattr(db, "_transaction_exists", no_per_row_query)
+
+        body = _import_body(self._ROWS)
+        assert assert_ok(client.post("/api/v1/statements/import", json=body))["imported"] == 4
+        assert assert_ok(client.post("/api/v1/statements/import", json=body))["duplicates"] == 4
+        assert loads == [_forwarded_to(), _forwarded_to()]  # once per request
+
+    def test_import_falls_back_when_hash_index_fails(
+        self, txn_env: tuple[Any, Any], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        client, db = txn_env
+        body = _import_body(self._ROWS)
+        assert assert_ok(client.post("/api/v1/statements/import", json=body))["imported"] == 4
+
+        def broken_index(_forwarded_to: str) -> dict[str, str]:
+            raise RuntimeError("index unavailable")
+
+        monkeypatch.setattr(db, "get_hash_index", broken_index)
+        # Per-row duplicate checks still catch every row.
+        second = assert_ok(client.post("/api/v1/statements/import", json=body))
+        assert (second["imported"], second["duplicates"]) == (0, 4)
+
     def test_imported_rows_carry_statement_fields(self, txn_env: tuple[Any, Any]) -> None:
         client, _db = txn_env
         assert_ok(client.post("/api/v1/statements/import", json=_import_body(self._ROWS[:1])))
