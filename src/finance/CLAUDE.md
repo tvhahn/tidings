@@ -1,8 +1,8 @@
 # Backend agent guide (finance + storage)
 
-Backend-specific addendum to `/workspace/CLAUDE.md`. Covers the dual-backend
-storage layer, per-bank parsers, and finance domain rules that govern
-`src/finance/` and the API routers that consume these services.
+Backend-specific addendum to the root [`CLAUDE.md`](../../CLAUDE.md). Covers
+the dual-backend storage layer, per-bank parsers, and finance domain rules that
+govern `src/finance/` and the API routers that consume these services.
 
 ## Dual-backend storage
 
@@ -16,7 +16,7 @@ selected by `src/finance/app_config.py` from `data/config.json`:
 implementation. **Routers consume services only via these factories through
 `src/api/dependencies.py` — never import a service class directly.**
 
-**Service pairs — 9 services have dual implementations:**
+**Service pairs — 10 services have dual implementations:**
 
 | Service | Base/DynamoDB | SQLite | Factory |
 |---------|--------------|--------|---------|
@@ -29,6 +29,7 @@ implementation. **Routers consume services only via these factories through
 | Spending Summary | `spending_summary.py` | `spending_summary_local.py` | `create_spending_summary()` |
 | Budget | `budget_service.py` | `budget_service_local.py` | `create_budget_service()` |
 | Parse Failures | `parse_failure_store.py` | `parse_failure_store_local.py` | `create_parse_failure_store()` |
+| Activity Ledger | `activity_store.py` | `activity_store_local.py` | `create_activity_store()` |
 
 - **Config services** (Override, Category, MerchantAlias, IgnoreRule,
   CategoryIcon) share business logic via a base class (the `*ServiceBase` class
@@ -44,6 +45,10 @@ implementation. **Routers consume services only via these factories through
   per-backend storage internals still differ. **When changing one, check its
   `*_local.py` counterpart and update both if the change touches the public
   API, and change the `*_base.py` ABC when you change the shared contract.**
+- **Activity ledger** has no ABC: both classes satisfy the `IActivityStore`
+  protocol in `protocols.py`, and `activity_store_local.py` imports the shared
+  `RETENTION_DAYS` window and `utc_now_iso()` from `activity_store.py`.
+  Public-API changes still go into both.
 
 ## Parsers
 

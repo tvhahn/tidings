@@ -1,8 +1,8 @@
 # API agent guide (src/api)
 
-Backend addendum to `/workspace/CLAUDE.md` covering the FastAPI layer:
-`main.py` (app factory), `routers/` (one module per `/api/v1/*` resource),
-`models/` (Pydantic schemas, one module per resource), `dependencies.py`
+Backend addendum to the root [`CLAUDE.md`](../../CLAUDE.md) covering the
+FastAPI layer: `main.py` (app factory), `routers/` (one module per
+`/api/v1/*` resource), `models/` (Pydantic schemas, one module per resource), `dependencies.py`
 (service factories), `auth.py` (bearer middleware), `errors.py` (unified
 error shape).
 

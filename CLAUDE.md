@@ -61,7 +61,7 @@ The tree is discoverable with `ls` — only the non-obvious parts are recorded h
 - `data/` — gitignored **real** user financial data (config, SQLite DBs)
 
 ### Backend (finance + storage)
-Dual-backend storage (DynamoDB/SQLite), per-bank parsers, the 7 service-pair
+Dual-backend storage (DynamoDB/SQLite), per-bank parsers, the 10 service-pair
 implementations, and finance domain rules (amounts, timezone, DynamoDB schema)
 live in [`src/finance/CLAUDE.md`](src/finance/CLAUDE.md).
 

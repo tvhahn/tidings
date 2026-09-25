@@ -10,19 +10,17 @@ horizon as the DynamoDB TTL.
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
+# RETENTION_DAYS (the prune-on-write horizon) and the timestamp helper are
+# defined once in the DynamoDB module so both backends share one retention window.
+from src.finance.activity_store import RETENTION_DAYS, utc_now_iso
 from src.finance.local_db import DEFAULT_DB_PATH, ensure_schema, get_connection
 
 if TYPE_CHECKING:
     import sqlite3
     from pathlib import Path
-
-# Retention horizon — prune-on-write deletes entries older than this. Kept
-# identical to the DynamoDB TTL window so the two backends agree on how long a
-# revert stays possible.
-RETENTION_DAYS = 90
 
 # Ledger columns returned to callers, in declaration order.
 _ENTRY_COLUMNS = (
@@ -42,11 +40,6 @@ _ENTRY_COLUMNS = (
     "reverted_at",
     "reverted_by",
 )
-
-
-def _utc_now_iso() -> str:
-    """Timezone-aware UTC ISO-8601 timestamp."""
-    return datetime.now(UTC).isoformat()
 
 
 def _row_to_entry(row: sqlite3.Row) -> dict[str, Any]:
@@ -75,8 +68,8 @@ class ActivityStoreLocal:
         prunes entries older than ``RETENTION_DAYS``.
         """
         entry_id = entry.get("id") or uuid.uuid4().hex
-        ts = entry.get("ts") or _utc_now_iso()
-        now = _utc_now_iso()
+        ts = entry.get("ts") or utc_now_iso()
+        now = utc_now_iso()
         conn = self._connect()
         try:
             conn.execute(
@@ -178,7 +171,7 @@ class ActivityStoreLocal:
         uses it to reconstruct the item's sort key without a scan) but ignored
         here — the SQLite row is addressed directly by its primary-key ``id``.
         """
-        now = _utc_now_iso()
+        now = utc_now_iso()
         conn = self._connect()
         try:
             conn.execute(

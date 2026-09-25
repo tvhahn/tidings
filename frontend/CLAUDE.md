@@ -1,8 +1,8 @@
 # Frontend agent guide
 
-This file is a frontend-specific addendum to `/workspace/CLAUDE.md`. Read the
-root file first for project-wide context (architecture, parsers, deployment,
-brand voice). This file documents conventions specific to `frontend/src/`.
+This file is a frontend-specific addendum to the root [`CLAUDE.md`](../CLAUDE.md).
+Read the root file first for project-wide context (architecture, parsers,
+deployment, brand voice). This file documents conventions specific to `frontend/src/`.
 
 ## File layout
 

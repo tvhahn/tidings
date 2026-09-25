@@ -37,9 +37,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Retention horizon — DynamoDB TTL expires items this many days after ``ts``.
-# Kept identical to the SQLite prune window so the two backends agree on how
-# long a revert stays possible.
+# Retention horizon — DynamoDB TTL expires items this many days after ``ts``,
+# and the SQLite backend (which imports this constant) prunes on the same
+# window, so the two backends agree on how long a revert stays possible.
 RETENTION_DAYS = 90
 
 # The ledger fields returned to callers, in item and row order. ``ttl`` is
@@ -64,8 +64,8 @@ _ENTRY_FIELDS = (
 )
 
 
-def _utc_now_iso() -> str:
-    """Timezone-aware UTC ISO-8601 timestamp."""
+def utc_now_iso() -> str:
+    """Timezone-aware UTC ISO-8601 timestamp (shared with the SQLite backend)."""
     return datetime.now(UTC).isoformat()
 
 
@@ -149,7 +149,7 @@ class ActivityStore:
         """
         self._ensure_table()
         entry_id = entry.get("id") or uuid.uuid4().hex
-        ts = entry.get("ts") or _utc_now_iso()
+        ts = entry.get("ts") or utc_now_iso()
         id8 = entry_id[:8]
         item: dict[str, Any] = {
             "PK": self.USER_PK,
@@ -259,7 +259,7 @@ class ActivityStore:
                     UpdateExpression="SET reverted_at = :ra, reverted_by = :rb",
                     ConditionExpression="attribute_exists(id)",
                     ExpressionAttributeValues={
-                        ":ra": _utc_now_iso(),
+                        ":ra": utc_now_iso(),
                         ":rb": reverted_by_entry_id,
                     },
                 )
@@ -275,7 +275,7 @@ class ActivityStore:
                     Key={"PK": item["PK"], "SK": item["SK"]},
                     UpdateExpression="SET reverted_at = :ra, reverted_by = :rb",
                     ExpressionAttributeValues={
-                        ":ra": _utc_now_iso(),
+                        ":ra": utc_now_iso(),
                         ":rb": reverted_by_entry_id,
                     },
                 )
