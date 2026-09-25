@@ -76,14 +76,15 @@ deactivate
 ## Managing Dependencies
 
 Dependencies are managed using two files:
-- **`pyproject.toml`** — Source of truth. Production deps in `[project.dependencies]`, dev deps in `[dependency-groups] dev`.
+- **`pyproject.toml`** — Source of truth. Production deps in `[project.dependencies]`, dev tooling in `[dependency-groups] dev`, and the Jupyter/scipy notebook stack in `[dependency-groups] notebooks`. Both groups are listed in `[tool.uv] default-groups`, so a plain `uv sync` installs them.
 - **`uv.lock`** — Auto-generated lock file with exact pinned versions. Committed to version control.
 
 ### Installing Dependencies
 
 ```bash
-uv sync                    # Install all deps (production + dev)
-uv sync --no-group dev     # Install production deps only (e.g., in Docker)
+uv sync                          # Install all deps (production + dev + notebooks)
+uv sync --no-group notebooks     # Skip the notebook stack (what CI does)
+uv sync --no-default-groups      # Install production deps only (e.g., in Docker)
 ```
 
 ### Adding or Updating Dependencies
@@ -94,8 +95,11 @@ Use `uv add` to add a package — it edits `pyproject.toml` and updates `uv.lock
 # Production dependency (needed in Lambda)
 uv add <package>
 
-# Development dependency (testing, notebooks)
+# Development dependency (testing, linting)
 uv add --group dev <package>
+
+# Notebook-only dependency (exploration in Jupyter)
+uv add --group notebooks <package>
 ```
 
 To update a package to a newer version:

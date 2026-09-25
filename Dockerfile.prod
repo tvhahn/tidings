@@ -37,7 +37,7 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 
 # Install production dependencies only
-RUN uv sync --no-group dev --no-editable
+RUN uv sync --no-default-groups --no-editable
 
 # Copy source code. Demo seeding reads the pre-generated data/demo/seed.json
 # (src/finance/demo_loader.py); the generator script stays out of the image —

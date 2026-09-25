@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [main]
 
+# The `notebooks` dependency group (Jupyter/scipy stack) is a default group for
+# local `uv sync`, but no job needs it. `uv run` re-syncs the default groups, so
+# the `--no-group notebooks` flag on `uv sync` alone would not stick — the
+# env var keeps every later `uv run` from pulling the group back in.
+env:
+  UV_NO_GROUP: notebooks
+
 jobs:
   unit-tests:
     runs-on: ubuntu-latest
@@ -21,7 +28,7 @@ jobs:
         run: uv python install 3.12
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --no-group notebooks
 
       - name: Unit tests with coverage
         # The pytest invocation and coverage floor live in one place: `make test-ci`.
@@ -44,7 +51,7 @@ jobs:
         run: uv python install 3.12
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --no-group notebooks
 
       - name: Integration tests
         run: uv run pytest tests/integration/ -m integration -v --no-cov
@@ -66,7 +73,7 @@ jobs:
         run: uv python install 3.12
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --no-group notebooks
 
       - name: Regenerate openapi.json
         run: make openapi
@@ -229,13 +236,13 @@ jobs:
         run: uv python install 3.12
 
       - name: Lockfile freshness (uv.lock matches pyproject.toml)
-        # Every other job runs plain `uv sync`, which silently re-locks on drift —
+        # Every other job runs `uv sync` without --locked, which silently re-locks on drift —
         # so a merged pyproject change with a stale committed lock would pass CI
         # while image builds re-resolve at build time. Fail it here instead.
         run: uv lock --check
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --no-group notebooks
 
       - name: Ruff check
         run: uv run ruff check src/ tests/
@@ -277,7 +284,7 @@ jobs:
         run: uv python install 3.12
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --no-group notebooks
 
       - name: Audit dependencies
         run: uv run pip-audit

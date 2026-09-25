@@ -15,6 +15,13 @@ on:
     tags:
       - "v*"
 
+# The `notebooks` dependency group (Jupyter/scipy stack) is a default group for
+# local `uv sync`, but no job needs it. `uv run` re-syncs the default groups, so
+# the `--no-group notebooks` flag on `uv sync` alone would not stick — the
+# env var keeps every later `uv run` from pulling the group back in.
+env:
+  UV_NO_GROUP: notebooks
+
 permissions:
   contents: write
   packages: write
@@ -39,7 +46,7 @@ jobs:
         run: uv python install 3.12
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --no-group notebooks
 
       - name: Backend test suite
         run: uv run pytest tests/ -m "not integration" -q

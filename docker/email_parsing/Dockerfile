@@ -17,7 +17,7 @@ WORKDIR ${LAMBDA_TASK_ROOT}
 # touches PyPI must go through uv.lock so a typosquat or maintainer-account
 # compromise cannot land here without first changing the lockfile in a PR.
 COPY pyproject.toml uv.lock ./
-RUN uv export --frozen --no-group dev --no-emit-project --no-hashes -o /tmp/requirements.txt \
+RUN uv export --frozen --no-default-groups --no-emit-project --no-hashes -o /tmp/requirements.txt \
  && uv pip install --system --no-cache --target ${LAMBDA_TASK_ROOT} --requirement /tmp/requirements.txt \
  && rm /tmp/requirements.txt
 
