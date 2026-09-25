@@ -27,6 +27,7 @@ from src.finance.insights_context import (
     gather_context_to_file,
     latest_briefing_for_month,
 )
+from src.finance.spending_summary_base import SpendingSummaryBase
 
 
 def _txn(**over: Any) -> dict[str, Any]:
@@ -232,29 +233,25 @@ class TestBuildPace:
 class TestGatherContextTrim:
     """gather_context trims per-company detail off trend/previous and adds the new blocks."""
 
-    def _services(self) -> tuple[MagicMock, MagicMock]:
-        def summary(ym: str) -> dict[str, Any]:
-            return {
-                "year_month": ym,
-                "total_spending": Decimal(1000),
-                "spending_count": 3,
-                "by_category": {"groceries": {"amount": Decimal(1000), "count": 3}},
-                "by_company": {"Store": {"amount": Decimal(1000), "count": 3, "category": "groceries"}},
-                "deposits_by_company": {"Payroll": {"amount": Decimal(5000), "count": 1}},
-                "top_categories": [["groceries", {"amount": Decimal(1000), "count": 3}]],
-                "deposit_total": Decimal(5000),
-                "deposit_count": 1,
-            }
+    def _services(self) -> tuple[SpendingSummaryBase, MagicMock]:
+        # Every month holds the same raw rows; summaries are derived from them by
+        # the real SpendingSummaryBase (get_summary == aggregate(query_month)), so
+        # the stub is internally consistent, exactly as production data is.
+        rows = [
+            _txn(Company="Store", Amount=Decimal(300), Comment="note"),
+            _txn(Company="Payroll", Amount=Decimal(5000), TransactionType="deposit", Category="income"),
+        ]
 
-        ss = MagicMock()
-        ss.get_summary.side_effect = summary
-        ss.get_summary_with_comparison.return_value = {
-            "current": summary("2026-05"),
-            "previous": summary("2026-04"),
-            "delta_amount": 0.0,
-            "delta_percent": 0.0,
-        }
-        ss.query_month.return_value = [_txn(Amount=Decimal(300), Comment="note")]
+        class _StubSummary(SpendingSummaryBase):
+            def query_month(
+                self,
+                year_month: str,
+                projection: str | None = None,
+                expression_names: dict[str, str] | None = None,
+            ) -> Any:
+                return [dict(r) for r in rows]
+
+        ss = _StubSummary()
 
         bs = MagicMock()
         bs.get_targets.return_value = {
@@ -517,9 +514,9 @@ class TestGatherContextToFile:
 
 
 class TestGatherContextQueryBudget:
-    """Each month is summarised at most once, and raw-read at most once, per build."""
+    """Each unique month is read from storage exactly once per context build."""
 
-    def test_month_queries_are_not_repeated(self, tmp_path: Path) -> None:
+    def test_each_month_read_exactly_once(self, tmp_path: Path) -> None:
         from src.finance.budget_service_local import BudgetServiceLocal
         from src.finance.spending_summary_base import _SUMMARY_PROJECTION
         from src.finance.spending_summary_local import SpendingSummaryLocal
@@ -531,12 +528,11 @@ class TestGatherContextQueryBudget:
         # cached by the service — out of scope for this per-target budget.
         bs.get_historical_averages = MagicMock(return_value={"categories": {}}, name="get_historical_averages")
 
-        summary_calls: list[str] = []
-        raw_calls: list[str] = []
+        reads: list[tuple[str, str | None]] = []
         real_query_month = ss.query_month
 
         def spy(ym: str, projection: str | None = None, expression_names: Any = None) -> Any:
-            (summary_calls if projection == _SUMMARY_PROJECTION else raw_calls).append(ym)
+            reads.append((ym, projection))
             return real_query_month(ym, projection, expression_names)
 
         ss.query_month = spy  # type: ignore[method-assign]
@@ -550,9 +546,11 @@ class TestGatherContextQueryBudget:
         lookback = [f"{y}-{m:02d}" for y, m in [(2024, m) for m in range(6, 13)] + [(2025, m) for m in range(1, 13)]]
         lookback += [f"2026-{m:02d}" for m in range(1, 6)]
         assert len(lookback) == 24
-        # The comparison, trend, YTD and anomaly baseline all share one summary
-        # per lookback month — none re-queries a month.
-        assert sorted(summary_calls) == lookback
-        # Raw rows: the target month plus the prior 12, once each.
-        assert sorted(raw_calls) == lookback[-13:]
-        assert len(set(summary_calls) | set(raw_calls)) == 24
+        months_read = sorted(ym for ym, _ in reads)
+        # Reads == unique months: the comparison, trend, YTD, anomaly baseline,
+        # and raw-row signals all share one read per month.
+        assert months_read == lookback
+        # The target + prior 12 are read as full rows (per-transaction signals);
+        # the older 11 only need summaries, so they keep the narrow projection.
+        assert sorted(ym for ym, proj in reads if proj is None) == lookback[-13:]
+        assert sorted(ym for ym, proj in reads if proj == _SUMMARY_PROJECTION) == lookback[:11]
