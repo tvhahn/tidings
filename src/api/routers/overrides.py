@@ -3,6 +3,7 @@
 import logging
 from collections import defaultdict
 from collections.abc import Mapping
+from datetime import datetime, tzinfo
 from typing import Any
 
 from dateutil.relativedelta import relativedelta
@@ -35,6 +36,7 @@ from src.api.models import (
     SuggestionUndismissResponse,
 )
 from src.api.utils import run_with_conflict_handling
+from src.finance.app_timezone import get_app_timezone
 from src.finance.category_resolver import resolve_override
 from src.finance.category_suggest import CategorySuggester
 from src.finance.config_loader import get_override_context, invalidate_category_overrides_cache
@@ -413,6 +415,21 @@ def _query_correction_items(months: int) -> list[Mapping[str, Any]]:
     return items
 
 
+def _parse_instant(value: object, app_tz: tzinfo) -> datetime | None:
+    """Parse an ISO-8601 timestamp to an aware datetime, or None if empty/unreadable.
+
+    Naive values are read as app-local wall time (the zone ``reviewed_at``
+    stamps use), so they compare correctly against UTC-stamped dismissals.
+    """
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=app_tz)
+
+
 @router.get(
     "/overrides/suggestions",
     response_model=OverrideSuggestionsResponse,
@@ -455,6 +472,7 @@ async def get_suggestions(
             continue
         corrections[company.lower()][category.lower()].append(audit.get("reviewed_at", ""))
 
+    app_tz = get_app_timezone()
     suggestions = []
     for company_lower, cat_map in corrections.items():
         # Skip companies that already have an override
@@ -475,19 +493,23 @@ async def get_suggestions(
                 original_name = item["Company"].strip()
                 break
 
+        # Latest correction by instant, not by string: reviewed_at carries the
+        # app-local offset while dismissals are stamped in UTC, so lexical
+        # order across the two (or across a timezone change) is meaningless.
         last_corrected = ""
-        timestamps = cat_map[best_cat]
-        if timestamps:
-            last_corrected = max(t for t in timestamps if t) if any(timestamps) else ""
+        last_corrected_at: datetime | None = None
+        for ts in cat_map[best_cat]:
+            parsed = _parse_instant(ts, app_tz)
+            if parsed is not None and (last_corrected_at is None or parsed > last_corrected_at):
+                last_corrected, last_corrected_at = ts, parsed
 
         # Filter dismissed suggestions (timestamp-aware resurfacing)
         dismiss_key = f"{company_lower}|{best_cat}"
         if dismiss_key in dismissed:
-            dismissed_at = dismissed[dismiss_key]
-            # Resurface if a newer correction happened after dismissal
-            if last_corrected and last_corrected > dismissed_at:
-                pass  # Newer correction — show the suggestion
-            else:
+            dismissed_at = _parse_instant(dismissed[dismiss_key], app_tz)
+            # Resurface only if a correction happened after the dismissal; an
+            # unreadable dismissal stamp keeps the suggestion hidden.
+            if last_corrected_at is None or dismissed_at is None or last_corrected_at <= dismissed_at:
                 continue  # Still dismissed
 
         suggestions.append(
