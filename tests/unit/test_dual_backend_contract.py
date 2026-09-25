@@ -1,7 +1,7 @@
 """Behavioral contract for the dual-backend service pairs.
 
-Of the 7 dual-backend service pairs, this file covers 5 (MerchantAlias,
-Category, Override, Budget, Transactions) plus the CategoryIcon twin; the
+Of the 9 dual-backend service pairs, this file covers 7 (MerchantAlias,
+Category, Override, CategoryIcon, IgnoreRule, Budget, Transactions); the
 remaining two pairs live in sibling files — the spending-summary pair in
 ``test_spending_summary_contract.py`` and the parse-failure store in
 ``test_parse_failure_store.py``.
@@ -46,6 +46,8 @@ from src.finance.category_icon_service_local import CategoryIconServiceLocal
 from src.finance.category_service import CategoryService
 from src.finance.category_service_local import CategoryServiceLocal
 from src.finance.exceptions import VersionConflictError
+from src.finance.ignore_rule_service import IgnoreRuleService
+from src.finance.ignore_rule_service_local import IgnoreRuleServiceLocal
 from src.finance.merchant_alias_service import MerchantAliasService
 from src.finance.merchant_alias_service_local import MerchantAliasServiceLocal
 from src.finance.override_service import OverrideService
@@ -212,6 +214,120 @@ class TestCategoryIconServiceContract:
         m = service.get_icons_map()
         assert m.get("dining") == "Utensils"
         assert "food" not in m
+
+
+# ---------------------------------------------------------------------------
+# IgnoreRuleService contract
+# ---------------------------------------------------------------------------
+
+
+class TestIgnoreRuleContract:
+    @pytest.fixture(params=["dynamodb", "sqlite"])
+    def service(self, request: pytest.FixtureRequest, dyn_resource: Any, tmp_path: Path) -> Any:
+        if request.param == "dynamodb":
+            return _silence_backup(IgnoreRuleService(dyn_resource=dyn_resource))
+        return _silence_backup(IgnoreRuleServiceLocal(db_path=tmp_path / "ignore_rules.db"))
+
+    def test_unseeded_returns_none_and_empty(self, service: Any) -> None:
+        assert service.get_rules() is None
+        assert service.get_patterns() == []
+        assert service.get_dismissed() == {}
+        assert service.list_dismissed() == []
+
+    def test_add_then_list_round_trips(self, service: Any) -> None:
+        assert service.add_rule("Netflix") == 1
+        assert service.add_rule("  Spotify  ") == 2
+        assert service.get_patterns() == ["Netflix", "Spotify"]
+        item = service.get_rules()
+        assert int(item["Version"]) == 2
+        assert item["Data"] == {"Netflix": "", "Spotify": ""}
+
+    def test_add_duplicate_keeps_casing_and_bumps_version(self, service: Any) -> None:
+        service.add_rule("Netflix")
+        assert service.add_rule("NETFLIX") == 2
+        assert service.get_patterns() == ["Netflix"]
+
+    def test_add_empty_raises_value_error(self, service: Any) -> None:
+        with pytest.raises(ValueError, match="empty"):
+            service.add_rule("   ")
+
+    def test_delete_is_case_insensitive(self, service: Any) -> None:
+        service.add_rule("Netflix")
+        service.add_rule("Spotify")
+        assert service.delete_rule("netflix") == 3
+        assert service.get_patterns() == ["Spotify"]
+
+    def test_delete_missing_raises_key_error(self, service: Any) -> None:
+        with pytest.raises(KeyError):
+            service.delete_rule("never-existed")
+        service.add_rule("Netflix")
+        with pytest.raises(KeyError):
+            service.delete_rule("never-existed")
+
+    def test_put_all_rules_replaces_set(self, service: Any) -> None:
+        service.add_rule("Netflix")
+        assert service.put_all_rules(["Hulu", " ", "Disney"], expected_version=1) == 2
+        assert service.get_patterns() == ["Disney", "Hulu"]
+
+    def test_put_all_rules_stale_version_raises(self, service: Any) -> None:
+        service.add_rule("Netflix")  # -> v1
+        service.add_rule("Spotify")  # -> v2
+        with pytest.raises(VersionConflictError):
+            service.put_all_rules(["Hulu"], expected_version=1)
+        assert service.get_patterns() == ["Netflix", "Spotify"]
+
+    def test_put_all_rules_create_over_existing_raises(self, service: Any) -> None:
+        # A create (expected_version=None) racing an existing item is a version
+        # conflict on both backends — not a raw storage error.
+        service.add_rule("Netflix")
+        with pytest.raises(VersionConflictError):
+            service.put_all_rules(["Hulu"], expected_version=None)
+        assert service.get_patterns() == ["Netflix"]
+
+    def test_matches_uses_stored_patterns(self, service: Any) -> None:
+        assert service.matches("NETFLIX") is None
+        service.add_rule("Netflix")
+        hit = service.matches("NETFLIX")
+        assert hit is not None
+        assert hit.matched_rule == "Netflix"
+
+    def test_dismiss_undismiss_round_trip(self, service: Any) -> None:
+        service.add_rule("Netflix")
+        service.dismiss_suggestion("  Corner Cafe ")
+        dismissed = service.get_dismissed()
+        assert list(dismissed) == ["corner cafe"]
+        assert dismissed["corner cafe"]["merchant"] == "Corner Cafe"
+        listed = service.list_dismissed()
+        assert [d["merchant"] for d in listed] == ["Corner Cafe"]
+        assert listed[0]["dismissed_at"] == dismissed["corner cafe"]["dismissed_at"]
+        # Dismissing never disturbs the rule set, but it does bump the version.
+        assert service.get_patterns() == ["Netflix"]
+        assert int(service.get_rules()["Version"]) == 2
+
+        service.undismiss_suggestion("CORNER CAFE")
+        assert service.get_dismissed() == {}
+        assert service.list_dismissed() == []
+        assert service.get_patterns() == ["Netflix"]
+        assert int(service.get_rules()["Version"]) == 3
+
+    def test_dismiss_on_unseeded_creates_item(self, service: Any) -> None:
+        service.dismiss_suggestion("Corner Cafe")
+        assert service.get_patterns() == []
+        assert list(service.get_dismissed()) == ["corner cafe"]
+        assert int(service.get_rules()["Version"]) == 1
+
+    def test_undismiss_missing_is_noop(self, service: Any) -> None:
+        service.undismiss_suggestion("nobody")  # unseeded: no write
+        assert service.get_rules() is None
+        service.add_rule("Netflix")
+        service.undismiss_suggestion("nobody")  # seeded but absent: no write
+        assert int(service.get_rules()["Version"]) == 1
+
+    def test_rule_writes_preserve_dismissed_map(self, service: Any) -> None:
+        service.dismiss_suggestion("Corner Cafe")
+        service.add_rule("Netflix")
+        service.delete_rule("Netflix")
+        assert list(service.get_dismissed()) == ["corner cafe"]
 
 
 # ---------------------------------------------------------------------------
