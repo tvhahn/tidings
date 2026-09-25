@@ -4820,7 +4820,14 @@
           },
           "delta": {
             "additionalProperties": {
-              "type": "number"
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "title": "Delta",
             "type": "object"
@@ -8749,8 +8756,15 @@
             "type": "number"
           },
           "delta_percent": {
-            "title": "Delta Percent",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delta Percent"
           },
           "pace": {
             "anyOf": [

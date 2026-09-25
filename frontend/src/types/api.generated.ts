@@ -3808,7 +3808,7 @@ export interface components {
             };
             /** Delta */
             delta: {
-                [key: string]: number;
+                [key: string]: number | null;
             };
             /** Fixed Charges */
             fixed_charges?: components["schemas"]["FixedCharge"][];
@@ -5426,7 +5426,7 @@ export interface components {
             /** Delta Amount */
             delta_amount: number;
             /** Delta Percent */
-            delta_percent: number;
+            delta_percent: number | null;
             pace?: components["schemas"]["MonthPaceInfo"] | null;
             previous: components["schemas"]["MonthSummary"];
         };

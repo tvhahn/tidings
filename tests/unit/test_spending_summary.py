@@ -376,7 +376,7 @@ class TestComparison:
     def test_zero_previous_month(self):
         summary = self._mock_summary_with_totals(500, 0)
         result = summary.get_summary_with_comparison("2026-01")
-        assert result["delta_percent"] == float("inf")
+        assert result["delta_percent"] is None
 
     def test_both_zero(self):
         summary = self._mock_summary_with_totals(0, 0)

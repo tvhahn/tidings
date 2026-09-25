@@ -149,7 +149,7 @@ class TestGetSummaryWithComparison:
         result = summary.get_summary_with_comparison("2026-02")
         assert result["previous"]["total_spending"] == 0
         # inf when current > 0 and previous == 0
-        assert result["delta_percent"] == float("inf")
+        assert result["delta_percent"] is None
 
     def test_both_zero(self, summary: SpendingSummaryLocal) -> None:
         result = summary.get_summary_with_comparison("2025-06")

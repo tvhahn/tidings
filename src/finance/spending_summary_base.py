@@ -70,7 +70,12 @@ class SpendingSummaryBase(ABC):
         return result
 
     def get_summary_with_comparison(self, year_month: str) -> dict[str, Any]:
-        """Get current month summary with month-over-month comparison."""
+        """Get current month summary with month-over-month comparison.
+
+        ``delta_percent`` is ``None`` when the previous month has no spending
+        to compare against (a percent change is undefined), and ``0.0`` when
+        both months are empty.
+        """
         parts = year_month.split("-")
         current_date = date(int(parts[0]), int(parts[1]), 1)
         prev_date = current_date - relativedelta(months=1)
@@ -81,9 +86,11 @@ class SpendingSummaryBase(ABC):
 
         delta_amount = current["total_spending"] - previous["total_spending"]
         if previous["total_spending"] > 0:
-            delta_percent = float(delta_amount / previous["total_spending"] * 100)
+            delta_percent: float | None = float(delta_amount / previous["total_spending"] * 100)
+        elif current["total_spending"] > 0:
+            delta_percent = None  # no baseline: a percent change is undefined
         else:
-            delta_percent = float("inf") if current["total_spending"] > 0 else 0.0
+            delta_percent = 0.0
 
         return {
             "current": current,

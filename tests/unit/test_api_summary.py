@@ -1,5 +1,6 @@
 """Tests for summary API endpoints."""
 
+import json
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
@@ -138,6 +139,21 @@ class TestGetSummary:
         assert deposits["Acme Payroll"]["amount"] == 200.0
         assert deposits["Acme Payroll"]["count"] == 2
         assert "category" not in deposits["Acme Payroll"]
+
+    @pytest.mark.parametrize("mock_run_sync", ["summary"], indirect=True)
+    def test_null_delta_percent_is_valid_json(self, mock_run_sync: AsyncMock, api_client: TestClient) -> None:
+        """No baseline month → ``delta_percent`` is JSON ``null``, never ``Infinity``."""
+        mock_run_sync.return_value = {**_make_comparison(), "delta_percent": None}
+
+        resp = api_client.get("/api/v1/summary?month=2026-02")
+        assert_ok(resp)
+
+        def _reject(token: str) -> None:
+            raise AssertionError(f"non-standard JSON constant in response: {token}")
+
+        data = json.loads(resp.text, parse_constant=_reject)
+        assert data["delta_percent"] is None
+        assert resp.json()["delta_percent"] is None
 
     def test_missing_month_returns_422(self, api_client: TestClient) -> None:
         resp = api_client.get("/api/v1/summary")

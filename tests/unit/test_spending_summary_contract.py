@@ -205,13 +205,13 @@ class TestSpendingSummaryContract:
         assert result["delta_amount"] == Decimal(100)
         assert result["delta_percent"] == 100.0
 
-    def test_comparison_zero_previous_yields_infinite_delta_percent(self, pair: _Pair) -> None:
+    def test_comparison_zero_previous_yields_null_delta_percent(self, pair: _Pair) -> None:
         pair.db.add_transaction(
             _seed_txn(company="Feb Store", amount=150.0, file_name="feb.eml", date="02/10/2026 10:00 PST")
         )
         result = pair.summary.get_summary_with_comparison("2026-02")
         assert result["previous"]["total_spending"] == Decimal(0)
-        assert result["delta_percent"] == float("inf")
+        assert result["delta_percent"] is None
 
     def test_comparison_both_zero_yields_flat_delta(self, pair: _Pair) -> None:
         result = pair.summary.get_summary_with_comparison("2030-09")

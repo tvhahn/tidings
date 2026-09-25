@@ -144,7 +144,7 @@ function completeMonthCards(data: SummaryComparisonResponse): SummaryCardModel[]
     label: "Total spending",
     value: formatCurrency(current.total_spending),
     sub:
-      previous.total_spending === 0
+      previous.total_spending === 0 || delta_percent == null
         ? ""
         : `${formatPercent(delta_percent)} vs ${formatMonthLabel(previous.year_month)}`,
     tone: isUp ? "text-status-danger-calm-text" : "text-status-success",
@@ -199,7 +199,7 @@ export function buildHeadline(data: SummaryComparisonResponse): string | null {
     return `Spending is tracking ${pct}% ${direction} typical for this point in the month.`;
   }
 
-  if (data.previous.total_spending <= 0) return null;
+  if (data.previous.total_spending <= 0 || data.delta_percent == null) return null;
   const monthName = formatMonthLabelLong(data.current.year_month);
   const prevName = formatMonthLabelLong(data.previous.year_month);
   const total = formatCurrency(data.current.total_spending);

@@ -274,6 +274,19 @@ describe("buildSummaryCards — complete month (pace null)", () => {
     expect(cards[0]?.sub).toBe("");
   });
 
+  it("Total spending sub is omitted when delta_percent is null (no baseline month)", () => {
+    const cards = buildSummaryCards(
+      makeSummary({
+        current: makeMonthSummary({ total_spending: 3000 }),
+        previous: makeMonthSummary({ total_spending: 0 }),
+        delta_amount: 3000,
+        delta_percent: null,
+      })
+    );
+    expect(cards[0]?.value).toBe("$3,000.00");
+    expect(cards[0]?.sub).toBe("");
+  });
+
   it("Transactions shows 'no deposits' when none arrived", () => {
     const cards = buildSummaryCards(
       makeSummary({ current: makeMonthSummary({ spending_count: 42, deposit_count: 0 }) })
@@ -405,6 +418,19 @@ describe("buildHeadline — complete month", () => {
         makeSummary({
           current: makeMonthSummary({ total_spending: 3000 }),
           previous: makeMonthSummary({ total_spending: 0 }),
+        })
+      )
+    ).toBeNull();
+  });
+
+  it("returns null when delta_percent is null (no baseline month)", () => {
+    expect(
+      buildHeadline(
+        makeSummary({
+          current: makeMonthSummary({ total_spending: 3000 }),
+          previous: makeMonthSummary({ total_spending: 0 }),
+          delta_amount: 3000,
+          delta_percent: null,
         })
       )
     ).toBeNull();

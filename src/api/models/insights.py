@@ -212,7 +212,7 @@ class InsightsContextResponse(BaseModel):
     month: str
     current_month: dict[str, Any]
     previous_month: dict[str, Any] | None = None
-    delta: dict[str, float]
+    delta: dict[str, float | None]
     trend: list[dict[str, Any]]
     budget: dict[str, Any] | None = None
     pace: PaceBlock | None = None

@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.api.main import _warn_if_auth_bypass_exposed
+from src.api.main import DecimalJSONResponse, _warn_if_auth_bypass_exposed
 
 _LOGGER = "src.api.main"
 _EXPOSED_HOST = "0.0.0.0"  # noqa: S104 — the off-box bind we assert the warning fires for
@@ -63,3 +63,10 @@ def test_no_warning_when_host_absent(monkeypatch: pytest.MonkeyPatch, caplog: py
         _invoke(monkeypatch, ["uvicorn"], {"auth_bypass_for_dev": True})
 
     assert [r for r in caplog.records if r.levelno == logging.WARNING] == []
+
+
+@pytest.mark.parametrize("value", [float("inf"), float("-inf"), float("nan")])
+def test_decimal_json_response_rejects_non_finite_floats(value: float) -> None:
+    """NaN/±Infinity are invalid JSON — the renderer must fail loudly, not emit them."""
+    with pytest.raises(ValueError, match="Out of range float values"):
+        DecimalJSONResponse({"x": value})
