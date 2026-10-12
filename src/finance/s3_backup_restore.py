@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from src.finance.app_config import get_config
-from src.finance.attachment_store import AttachmentStore
+from src.finance.attachment_store import ATTACHMENTS_RAW_DIR, AttachmentStore
 from src.finance.aws_region import get_aws_region
 from src.finance.s3_backup_shared import (
     ATTACHMENTS_S3_PREFIX,
@@ -74,6 +74,13 @@ def _is_safe_relpath(relpath: str) -> bool:
     """Reject absolute paths and any ``..`` traversal component."""
     rel = Path(relpath)
     return not rel.is_absolute() and ".." not in rel.parts
+
+
+def _is_attachment_path(file_path: Any) -> bool:
+    """True when a manifest ``file_path`` resolves inside the attachments directory."""
+    if not isinstance(file_path, str) or not file_path:
+        return False
+    return Path(file_path).resolve().is_relative_to(ATTACHMENTS_RAW_DIR.resolve())
 
 
 def _fetch_manifest(s3_client: Any, bucket: str, norm: str) -> dict[str, Any]:
@@ -164,7 +171,17 @@ def restore_backup(
                     dest.write_bytes(body)
                 files_downloaded += 1
 
-    attachments = manifest.get("attachments") or []
+    # A manifest row's file_path is served and deleted by the attachments API,
+    # so a tampered manifest must not plant a row pointing outside the
+    # attachments directory.
+    attachments = []
+    for row in manifest.get("attachments") or []:
+        if _is_attachment_path(row.get("file_path")):
+            attachments.append(row)
+        else:
+            logger.warning(
+                "Skipping attachment row with a path outside %s: %r", ATTACHMENTS_RAW_DIR, row.get("file_path")
+            )
     statements = manifest.get("statements") or []
 
     if dry_run:

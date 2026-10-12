@@ -1,7 +1,7 @@
 """Behavioral contract for the dual-backend service pairs.
 
-Of the 7 dual-backend service pairs, this file covers 5 (MerchantAlias,
-Category, Override, Budget, Transactions) plus the CategoryIcon twin; the
+Of the 9 dual-backend service pairs, this file covers 7 (MerchantAlias,
+Category, Override, CategoryIcon, IgnoreRule, Budget, Transactions); the
 remaining two pairs live in sibling files — the spending-summary pair in
 ``test_spending_summary_contract.py`` and the parse-failure store in
 ``test_parse_failure_store.py``.
@@ -46,6 +46,8 @@ from src.finance.category_icon_service_local import CategoryIconServiceLocal
 from src.finance.category_service import CategoryService
 from src.finance.category_service_local import CategoryServiceLocal
 from src.finance.exceptions import VersionConflictError
+from src.finance.ignore_rule_service import IgnoreRuleService
+from src.finance.ignore_rule_service_local import IgnoreRuleServiceLocal
 from src.finance.merchant_alias_service import MerchantAliasService
 from src.finance.merchant_alias_service_local import MerchantAliasServiceLocal
 from src.finance.override_service import OverrideService
@@ -212,6 +214,120 @@ class TestCategoryIconServiceContract:
         m = service.get_icons_map()
         assert m.get("dining") == "Utensils"
         assert "food" not in m
+
+
+# ---------------------------------------------------------------------------
+# IgnoreRuleService contract
+# ---------------------------------------------------------------------------
+
+
+class TestIgnoreRuleContract:
+    @pytest.fixture(params=["dynamodb", "sqlite"])
+    def service(self, request: pytest.FixtureRequest, dyn_resource: Any, tmp_path: Path) -> Any:
+        if request.param == "dynamodb":
+            return _silence_backup(IgnoreRuleService(dyn_resource=dyn_resource))
+        return _silence_backup(IgnoreRuleServiceLocal(db_path=tmp_path / "ignore_rules.db"))
+
+    def test_unseeded_returns_none_and_empty(self, service: Any) -> None:
+        assert service.get_rules() is None
+        assert service.get_patterns() == []
+        assert service.get_dismissed() == {}
+        assert service.list_dismissed() == []
+
+    def test_add_then_list_round_trips(self, service: Any) -> None:
+        assert service.add_rule("Netflix") == 1
+        assert service.add_rule("  Spotify  ") == 2
+        assert service.get_patterns() == ["Netflix", "Spotify"]
+        item = service.get_rules()
+        assert int(item["Version"]) == 2
+        assert item["Data"] == {"Netflix": "", "Spotify": ""}
+
+    def test_add_duplicate_keeps_casing_and_bumps_version(self, service: Any) -> None:
+        service.add_rule("Netflix")
+        assert service.add_rule("NETFLIX") == 2
+        assert service.get_patterns() == ["Netflix"]
+
+    def test_add_empty_raises_value_error(self, service: Any) -> None:
+        with pytest.raises(ValueError, match="empty"):
+            service.add_rule("   ")
+
+    def test_delete_is_case_insensitive(self, service: Any) -> None:
+        service.add_rule("Netflix")
+        service.add_rule("Spotify")
+        assert service.delete_rule("netflix") == 3
+        assert service.get_patterns() == ["Spotify"]
+
+    def test_delete_missing_raises_key_error(self, service: Any) -> None:
+        with pytest.raises(KeyError):
+            service.delete_rule("never-existed")
+        service.add_rule("Netflix")
+        with pytest.raises(KeyError):
+            service.delete_rule("never-existed")
+
+    def test_put_all_rules_replaces_set(self, service: Any) -> None:
+        service.add_rule("Netflix")
+        assert service.put_all_rules(["Hulu", " ", "Disney"], expected_version=1) == 2
+        assert service.get_patterns() == ["Disney", "Hulu"]
+
+    def test_put_all_rules_stale_version_raises(self, service: Any) -> None:
+        service.add_rule("Netflix")  # -> v1
+        service.add_rule("Spotify")  # -> v2
+        with pytest.raises(VersionConflictError):
+            service.put_all_rules(["Hulu"], expected_version=1)
+        assert service.get_patterns() == ["Netflix", "Spotify"]
+
+    def test_put_all_rules_create_over_existing_raises(self, service: Any) -> None:
+        # A create (expected_version=None) racing an existing item is a version
+        # conflict on both backends — not a raw storage error.
+        service.add_rule("Netflix")
+        with pytest.raises(VersionConflictError):
+            service.put_all_rules(["Hulu"], expected_version=None)
+        assert service.get_patterns() == ["Netflix"]
+
+    def test_matches_uses_stored_patterns(self, service: Any) -> None:
+        assert service.matches("NETFLIX") is None
+        service.add_rule("Netflix")
+        hit = service.matches("NETFLIX")
+        assert hit is not None
+        assert hit.matched_rule == "Netflix"
+
+    def test_dismiss_undismiss_round_trip(self, service: Any) -> None:
+        service.add_rule("Netflix")
+        service.dismiss_suggestion("  Corner Cafe ")
+        dismissed = service.get_dismissed()
+        assert list(dismissed) == ["corner cafe"]
+        assert dismissed["corner cafe"]["merchant"] == "Corner Cafe"
+        listed = service.list_dismissed()
+        assert [d["merchant"] for d in listed] == ["Corner Cafe"]
+        assert listed[0]["dismissed_at"] == dismissed["corner cafe"]["dismissed_at"]
+        # Dismissing never disturbs the rule set, but it does bump the version.
+        assert service.get_patterns() == ["Netflix"]
+        assert int(service.get_rules()["Version"]) == 2
+
+        service.undismiss_suggestion("CORNER CAFE")
+        assert service.get_dismissed() == {}
+        assert service.list_dismissed() == []
+        assert service.get_patterns() == ["Netflix"]
+        assert int(service.get_rules()["Version"]) == 3
+
+    def test_dismiss_on_unseeded_creates_item(self, service: Any) -> None:
+        service.dismiss_suggestion("Corner Cafe")
+        assert service.get_patterns() == []
+        assert list(service.get_dismissed()) == ["corner cafe"]
+        assert int(service.get_rules()["Version"]) == 1
+
+    def test_undismiss_missing_is_noop(self, service: Any) -> None:
+        service.undismiss_suggestion("nobody")  # unseeded: no write
+        assert service.get_rules() is None
+        service.add_rule("Netflix")
+        service.undismiss_suggestion("nobody")  # seeded but absent: no write
+        assert int(service.get_rules()["Version"]) == 1
+
+    def test_rule_writes_preserve_dismissed_map(self, service: Any) -> None:
+        service.dismiss_suggestion("Corner Cafe")
+        service.add_rule("Netflix")
+        service.delete_rule("Netflix")
+        assert list(service.get_dismissed()) == ["corner cafe"]
 
 
 # ---------------------------------------------------------------------------
@@ -622,6 +738,144 @@ class TestTransactionsDBContract:
         limited = db.get_recent_audits(limit=1)
         assert len(limited) == 1
         assert limited[0]["Category"].lower() == "transport"
+
+    def test_get_hash_index_maps_partition_hashes(self, db: Any) -> None:
+        from src.finance.transaction_hash import generate_transaction_hash
+
+        a = _seed_txn(company="A", file_name="a.eml")
+        b = _seed_txn(company="B", date="03/01/2026 09:00 PST", file_name="b.eml")
+        dfn_a = db.add_transaction(dict(a))
+        dfn_b = db.add_transaction(dict(b))
+        db.add_transaction(_seed_txn(forwarded_to="other@example.com", company="C", file_name="c.eml"))
+
+        index = db.get_hash_index("user@example.com")
+        assert index == {generate_transaction_hash(a): dfn_a, generate_transaction_hash(b): dfn_b}
+        assert db.get_hash_index("nobody@example.com") == {}
+
+    def test_get_hash_index_lowest_date_file_name_wins(self, db: Any) -> None:
+        from src.finance.transaction_hash import generate_transaction_hash
+
+        # Two stored rows sharing one hash (legacy duplicates): force-insert both.
+        row = _seed_txn()
+        late = db._insert_imported(dict(row, file_name="z_late.eml"), None)
+        early = db._insert_imported(dict(row, file_name="a_early.eml"), None)
+        assert early < late
+        assert db.get_hash_index("user@example.com") == {generate_transaction_hash(row): early}
+
+    def test_bulk_import_dedups_in_batch_and_reads_index_once(self, db: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+        db.add_transaction(_seed_txn(company="Existing", file_name="existing.eml"))
+        index_loads: list[str] = []
+        real_index = db.get_hash_index
+
+        def counting_index(forwarded_to: str) -> dict[str, str]:
+            index_loads.append(forwarded_to)
+            return real_index(forwarded_to)
+
+        def no_per_row_lookup(*_a: Any, **_kw: Any) -> None:
+            raise AssertionError("bulk import must not look up hashes row by row")
+
+        monkeypatch.setattr(db, "get_hash_index", counting_index)
+        monkeypatch.setattr(db, "find_date_file_name_by_hash", no_per_row_lookup)
+
+        new = _seed_txn(company="New", date="02/20/2026 10:30 PST", file_name="new.eml")
+        rows = [
+            _seed_txn(company="Existing", file_name="existing.eml"),  # already stored
+            dict(new),
+            dict(new),  # in-batch duplicate of the row above
+            _seed_txn(forwarded_to="other@example.com", company="Elsewhere", file_name="o.eml"),
+        ]
+        counts = db.bulk_add_transactions(rows, strategy="skip")
+        assert counts == {"inserted": 2, "updated": 0, "skipped": 2, "invalid": 0, "errors": 0}
+        assert sorted(index_loads) == ["other@example.com", "user@example.com"]
+
+    def test_bulk_keep_both_walks_occurrences_within_batch(self, db: Any) -> None:
+        row = _seed_txn(file_name="dup.eml")
+        db.add_transaction(dict(row))
+        counts = db.bulk_add_transactions([dict(row), dict(row)], strategy="keep_both")
+        assert counts["inserted"] == 2
+        names = sorted(db.get_hash_index("user@example.com").values())
+        assert len(names) == 3
+        assert [n.rsplit("_", 1)[-1] for n in names] == ["dup.eml", "dup.eml.occ1", "dup.eml.occ2"]
+
+    def test_bulk_overwrite_replaces_then_overwrites_again(self, db: Any) -> None:
+        from src.finance.transaction_hash import generate_transaction_hash
+
+        row = _seed_txn(file_name="dup.eml")
+        db.add_transaction(dict(row))
+        counts = db.bulk_add_transactions(
+            [dict(row, comment="first"), dict(row, comment="second")], strategy="overwrite"
+        )
+        assert counts["updated"] == 2
+        index = db.get_hash_index("user@example.com")
+        assert list(index) == [generate_transaction_hash(row)]
+        item = db.get_item("user@example.com", index[generate_transaction_hash(row)])
+        assert item is not None
+        assert item["Comment"] == "second"
+
+    def test_set_ignored_many_flips_every_key(self, db: Any) -> None:
+        dfn_a = db.add_transaction(_seed_txn(company="A", file_name="a.eml"))
+        dfn_b = db.add_transaction(_seed_txn(company="B", file_name="b.eml"))
+        dfn_c = db.add_transaction(_seed_txn(company="C", file_name="c.eml"))
+        keys = [("user@example.com", dfn_a), ("user@example.com", dfn_b)]
+        assert db.set_ignored_many(keys, True) == 2
+        assert bool(db.get_item("user@example.com", dfn_a).get("Ignored")) is True
+        assert bool(db.get_item("user@example.com", dfn_b).get("Ignored")) is True
+        assert bool(db.get_item("user@example.com", dfn_c).get("Ignored")) is False
+        assert db.set_ignored_many(keys[:1], False) == 1
+        assert bool(db.get_item("user@example.com", dfn_a).get("Ignored")) is False
+
+    @staticmethod
+    def _stmt_txn(**overrides: Any) -> dict[str, Any]:
+        base = {
+            "forwarded_to": "user@example.com",
+            "date": "2026-02-10",
+            "amount": 25.0,
+            "company": "Hydro",
+            "institution": "RBC",
+            "transaction_type": "withdrawal",
+            "category": "utilities",
+            "statement_source": "RBC_Chequing_2026-02",
+        }
+        base.update(overrides)
+        return base
+
+    def test_statement_import_with_known_hashes_matches_storage_check(self, db: Any) -> None:
+        existing = db.add_statement_transaction(self._stmt_txn())
+        known = db.get_hash_index("user@example.com")
+        assert list(known.values()) == [existing]
+
+        # Preloaded map: duplicate detected without a storage lookup ...
+        assert db.add_statement_transaction(self._stmt_txn(), known_hashes=known) is False
+        # ... a new row is written and joins the map ...
+        new = db.add_statement_transaction(self._stmt_txn(amount=30.0), known_hashes=known)
+        assert isinstance(new, str)
+        assert sorted(known.values()) == sorted([existing, new])
+        assert known == db.get_hash_index("user@example.com")
+        # ... so a repeat within the same import is a duplicate too.
+        assert db.add_statement_transaction(self._stmt_txn(amount=30.0), known_hashes=known) is False
+
+    def test_classify_duplicates_reads_each_partition_once(self, db: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+        from src.finance.backup_import import classify_duplicates
+        from src.finance.transaction_hash import generate_transaction_hash
+
+        stored = _seed_txn(company="Stored", file_name="stored.eml")
+        db.add_transaction(dict(stored))
+        loads: list[str] = []
+        real_index = db.get_hash_index
+
+        def counting_index(forwarded_to: str) -> dict[str, str]:
+            loads.append(forwarded_to)
+            return real_index(forwarded_to)
+
+        monkeypatch.setattr(db, "get_hash_index", counting_index)
+        rows = [
+            dict(stored),
+            _seed_txn(company="Fresh", file_name="fresh.eml"),
+            _seed_txn(company="Fresh 2", file_name="fresh2.eml"),
+            _seed_txn(forwarded_to="other@example.com", company="Stored", file_name="stored.eml"),
+        ]
+        assert classify_duplicates(db, rows) == [generate_transaction_hash(stored)]
+        assert sorted(loads) == ["other@example.com", "user@example.com"]
 
 
 # ---------------------------------------------------------------------------

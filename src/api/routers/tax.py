@@ -38,6 +38,7 @@ from src.api.models import (
 from src.api.utils import sanitize_filename
 from src.finance.attachment_store import AttachmentStore
 from src.finance.config_loader import get_tax_line_mappings
+from src.finance.csv_safety import csv_safe_text
 from src.finance.protocols import ISpendingSummary
 from src.finance.tax_override_store import TaxOverrideStore
 from src.finance.tax_pack_service import _OTHER_KEY, _OTHER_LINE, TaxPackService
@@ -170,7 +171,7 @@ def _line_csv(transactions: list[dict[str, Any]]) -> str:
         writer.writerow(
             [
                 txn["date"],
-                txn["company"],
+                csv_safe_text(txn["company"]),  # email-sourced merchant text
                 f"{txn['amount']:.2f}",
                 txn["category"],
                 txn["evidence"],

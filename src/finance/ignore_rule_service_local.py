@@ -2,6 +2,7 @@
 
 import json
 import logging
+import sqlite3
 from pathlib import Path
 from typing import Any
 
@@ -60,10 +61,15 @@ class IgnoreRuleServiceLocal(IgnoreRuleServiceBase):
             data_str = json.dumps(data)
             extra_str = json.dumps(extra)
             if expected_version is None:
-                conn.execute(
-                    CONFIG_INSERT_EXTRA_SQL,
-                    (self.USER_PK, self.IGNORE_RULES_SK, data_str, new_version, now, extra_str),
-                )
+                try:
+                    conn.execute(
+                        CONFIG_INSERT_EXTRA_SQL,
+                        (self.USER_PK, self.IGNORE_RULES_SK, data_str, new_version, now, extra_str),
+                    )
+                except sqlite3.IntegrityError as e:
+                    # Parity with DynamoDB's attribute_not_exists(Version) guard:
+                    # a create over an existing item is a version conflict.
+                    raise VersionConflictError("Item already exists") from e
             else:
                 cursor = conn.execute(
                     CONFIG_UPDATE_EXTRA_SQL,

@@ -6,9 +6,10 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from src.api.login_throttle import login_throttle
 from src.api.main import create_app
 from src.finance import app_config
-from src.finance.auth_session import COOKIE_NAME, hash_password
+from src.finance.auth_session import COOKIE_NAME, hash_password, issue_session
 from tests.asserts import assert_ok, assert_problem
 
 if TYPE_CHECKING:
@@ -240,9 +241,146 @@ class TestSignOutAll:
         resp = client.post("/api/v1/auth/sign-out-all")
         assert_ok(resp)
 
+    def test_empty_secret_cookie_rejected_when_secret_missing(
+        self,
+        isolated_config: Path,
+        client: TestClient,
+    ) -> None:
+        """Password set, no signing secret persisted → an empty-key cookie is not a session."""
+        app_config.update_config({"app_password_hash": hash_password("old-password")})
+        assert app_config.get_config().get("session_signing_secret") is None
+        client.cookies.set(COOKIE_NAME, issue_session(version=0, secret=""))
+        resp = client.post("/api/v1/auth/sign-out-all")
+        assert_problem(resp, 401, "UNAUTHORIZED")
+
     def test_tofu_no_hash_allowed(self, client: TestClient) -> None:
         """No password set → sign-out-all allows through (bootstrap behavior)."""
         resp = client.post("/api/v1/auth/sign-out-all")
+        assert_ok(resp)
+
+
+class _FakeClock:
+    def __init__(self) -> None:
+        self.now = 10_000.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
+@pytest.fixture
+def throttle_clock(monkeypatch: pytest.MonkeyPatch) -> _FakeClock:
+    """Drive the process-wide limiter from a controllable clock."""
+    clock = _FakeClock()
+    monkeypatch.setattr(login_throttle, "clock", clock)
+    return clock
+
+
+class TestPasswordThrottle:
+    """5 failed verifications per client in 15 minutes, then 429 until the window passes."""
+
+    def _fail_logins(self, client: TestClient, n: int, **kwargs: object) -> None:
+        for _ in range(n):
+            assert_problem(client.post("/api/v1/auth/login", json={"password": "wrong"}, **kwargs), 401)
+
+    def test_sixth_attempt_after_five_failures_is_rate_limited(
+        self, isolated_config: Path, client: TestClient, throttle_clock: _FakeClock
+    ) -> None:
+        app_config.update_config({"app_password_hash": hash_password("right")})
+        self._fail_logins(client, 5)
+        # Even the correct password is refused while throttled.
+        resp = client.post("/api/v1/auth/login", json={"password": "right"})
+        assert_problem(resp, 429, "RATE_LIMITED")
+        assert resp.headers["Retry-After"] == "900"
+        assert COOKIE_NAME not in resp.cookies
+
+    def test_correct_password_accepted_after_window(
+        self, isolated_config: Path, client: TestClient, throttle_clock: _FakeClock
+    ) -> None:
+        app_config.update_config({"app_password_hash": hash_password("right")})
+        self._fail_logins(client, 5)
+        throttle_clock.now += 15 * 60
+        resp = client.post("/api/v1/auth/login", json={"password": "right"})
+        assert_ok(resp)
+        assert COOKIE_NAME in resp.cookies
+
+    def test_success_resets_client_count(
+        self, isolated_config: Path, client: TestClient, throttle_clock: _FakeClock
+    ) -> None:
+        app_config.update_config({"app_password_hash": hash_password("right")})
+        self._fail_logins(client, 4)
+        assert_ok(client.post("/api/v1/auth/login", json={"password": "right"}))
+        # Without the reset this run would cross 5 failures and 429.
+        self._fail_logins(client, 4)
+
+    def test_forwarded_for_header_is_ignored(
+        self, isolated_config: Path, client: TestClient, throttle_clock: _FakeClock
+    ) -> None:
+        app_config.update_config({"app_password_hash": hash_password("right")})
+        for i in range(5):
+            resp = client.post(
+                "/api/v1/auth/login",
+                json={"password": "wrong"},
+                headers={"X-Forwarded-For": f"203.0.113.{i}"},
+            )
+            assert_problem(resp, 401)
+        resp = client.post(
+            "/api/v1/auth/login",
+            json={"password": "wrong"},
+            headers={"X-Forwarded-For": "203.0.113.99"},
+        )
+        assert_problem(resp, 429, "RATE_LIMITED")
+
+    def test_failures_across_endpoints_share_one_count(
+        self, isolated_config: Path, client: TestClient, throttle_clock: _FakeClock
+    ) -> None:
+        app_config.update_config({"app_password_hash": hash_password("right")})
+        self._fail_logins(client, 3)
+        for _ in range(2):
+            resp = client.post("/api/v1/auth/sign-out-all", json={"current_password": "wrong"})
+            assert_problem(resp, 401)
+        resp = client.post(
+            "/api/v1/auth/set-password",
+            json={"password": "new-correct-password", "current_password": "right"},
+        )
+        assert_problem(resp, 429, "RATE_LIMITED")
+        assert int(resp.headers["Retry-After"]) == 900
+
+    def test_missing_password_does_not_count(
+        self, isolated_config: Path, client: TestClient, throttle_clock: _FakeClock
+    ) -> None:
+        """No verification runs without a candidate password, so nothing is counted."""
+        app_config.update_config({"app_password_hash": hash_password("right")})
+        for _ in range(6):
+            assert_problem(client.post("/api/v1/auth/sign-out-all"), 401, "UNAUTHORIZED")
+        assert_ok(client.post("/api/v1/auth/login", json={"password": "right"}))
+
+
+class TestPasswordLengthCap:
+    TOO_LONG = "x" * 1025
+
+    def test_login_rejects_overlong_password(self, isolated_config: Path, client: TestClient) -> None:
+        app_config.update_config({"app_password_hash": hash_password("right")})
+        assert_problem(client.post("/api/v1/auth/login", json={"password": self.TOO_LONG}), 422)
+
+    def test_set_password_rejects_overlong_new_password(self, client: TestClient) -> None:
+        resp = client.post("/api/v1/auth/set-password", json={"password": self.TOO_LONG})
+        assert_problem(resp, 422)
+
+    def test_set_password_rejects_overlong_current_password(self, isolated_config: Path, client: TestClient) -> None:
+        app_config.update_config({"app_password_hash": hash_password("right")})
+        resp = client.post(
+            "/api/v1/auth/set-password",
+            json={"password": "new-correct-password", "current_password": self.TOO_LONG},
+        )
+        assert_problem(resp, 422)
+
+    def test_sign_out_all_rejects_overlong_password(self, isolated_config: Path, client: TestClient) -> None:
+        app_config.update_config({"app_password_hash": hash_password("right")})
+        resp = client.post("/api/v1/auth/sign-out-all", json={"current_password": self.TOO_LONG})
+        assert_problem(resp, 422)
+
+    def test_max_length_password_accepted(self, client: TestClient) -> None:
+        resp = client.post("/api/v1/auth/set-password", json={"password": "x" * 1024})
         assert_ok(resp)
 
 
@@ -261,3 +399,31 @@ class TestHealthAuthRequired:
         resp = client.get("/api/v1/health")
         assert_ok(resp)
         assert resp.json()["auth_required"] is True
+
+
+class TestSessionVersionBumpConcurrency:
+    """Concurrent version bumps must never collapse into one (lost update)."""
+
+    def test_concurrent_bumps_each_increment(self, isolated_config: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        import threading
+        import time
+
+        from src.api.routers import auth as auth_router
+
+        original = app_config._save_config
+
+        def _slow(config: app_config.AppConfig) -> None:
+            time.sleep(0.01)  # widen the read-modify-write window
+            original(config)
+
+        monkeypatch.setattr(app_config, "_save_config", _slow)
+        app_config.update_config({"session_version": 0})
+
+        threads = [threading.Thread(target=auth_router._bump_session_version) for _ in range(8)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        app_config.invalidate_config_cache()
+        assert app_config.get_config().get("session_version") == 8

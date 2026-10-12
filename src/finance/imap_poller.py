@@ -14,6 +14,7 @@ import imaplib
 import logging
 import os
 import signal
+import ssl
 import sys
 import threading
 from pathlib import Path
@@ -73,6 +74,16 @@ def _mask_user(user: str) -> str:
     return f"{masked}@{domain}" if domain else masked
 
 
+def _build_ssl_context(ca_file: str | None = None) -> ssl.SSLContext:
+    """Certificate- and hostname-verifying TLS context for the IMAP connection.
+
+    imaplib.IMAP4_SSL without an explicit context uses the stdlib's
+    *unverified* context, so the server certificate is never checked. Pass
+    ``ca_file`` to trust a private CA (self-hosted mail servers).
+    """
+    return ssl.create_default_context(cafile=ca_file or None)
+
+
 # ---------------------------------------------------------------------------
 # IMAP Poller
 # ---------------------------------------------------------------------------
@@ -95,6 +106,7 @@ class ImapPoller:
         api_client: AIProviderClient | None = None,
         parse_failure_store: IParseFailureStore | None = None,
         db_path: Path = DEFAULT_DB_PATH,
+        ca_file: str | None = None,
     ):
         self._server = server
         self._port = port
@@ -107,6 +119,7 @@ class ImapPoller:
         self._api_client = api_client
         self._parse_failure_store = parse_failure_store
         self._db_path = db_path
+        self._ca_file = ca_file
         self._mail = None
 
     def connect(self):
@@ -119,7 +132,12 @@ class ImapPoller:
                 logger.warning("IMAP connection stale (%s), reconnecting", exc)
                 self._mail = None
         password = self._password.replace(" ", "")  # Google App Passwords have spaces
-        self._mail = imaplib.IMAP4_SSL(self._server, self._port, timeout=_SOCKET_TIMEOUT)
+        self._mail = imaplib.IMAP4_SSL(
+            self._server,
+            self._port,
+            ssl_context=_build_ssl_context(self._ca_file),
+            timeout=_SOCKET_TIMEOUT,
+        )
         self._mail.login(self._user, password)
         self._mail.select(self._folder)
         logger.info("Connected to %s:%s as %s", self._server, self._port, _mask_user(self._user))
@@ -302,6 +320,7 @@ def main():
     password = os.environ.get("IMAP_PASSWORD", "").strip()
     folder = os.environ.get("IMAP_FOLDER", "INBOX")
     poll_interval = int(os.environ.get("IMAP_POLL_INTERVAL", str(_POLL_INTERVAL_DEFAULT)))
+    ca_file = os.environ.get("IMAP_CA_FILE", "").strip() or None
 
     # Graceful shutdown on SIGTERM/SIGINT — install before any wait loop so the
     # idle branch below is also interruptible.
@@ -325,6 +344,11 @@ def main():
         while not shutdown.is_set():
             shutdown.wait(timeout=poll_interval)
         return
+
+    # A misconfigured CA should fail at startup, not on every reconnect.
+    if ca_file is not None and not Path(ca_file).is_file():
+        logger.error("IMAP_CA_FILE is set but %s is not a file", ca_file)
+        sys.exit(1)
 
     # Ensure SQLite schema exists (safe if finance container already created it)
     ensure_schema()
@@ -361,6 +385,7 @@ def main():
         context_enricher=context_enricher,
         api_client=api_client,
         parse_failure_store=parse_failure_store,
+        ca_file=ca_file,
     )
     poller.run(shutdown)
 

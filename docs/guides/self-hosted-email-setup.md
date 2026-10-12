@@ -230,7 +230,14 @@ OPENAI_API_KEY=<sk-...>                             # enables AI category sugges
 Defaults baked in: if you omit `IMAP_SERVER`, `IMAP_PORT`, `IMAP_FOLDER`,
 or `IMAP_POLL_INTERVAL`, the poller falls back to `imap.gmail.com`, `993`,
 `INBOX`, and `60` respectively. `IMAP_USER` and `IMAP_PASSWORD` are
-required — the process exits immediately if either is missing.
+required for polling — if either is missing, the poller logs a notice and waits idle instead of polling.
+
+The poller verifies the mail server's TLS certificate and hostname before it
+sends the app password. Gmail and other public providers need no setup. If
+you run your own mail server with a private CA, set `IMAP_CA_FILE` to the
+path of a PEM bundle that is visible inside the container, for example a file
+placed in the `finance_data` volume under `/app/data/`. The poller exits at
+startup if that path is not a file.
 
 **Never commit `.env`.** It's already in `.gitignore`; keep it that way.
 

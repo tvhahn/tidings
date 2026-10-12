@@ -77,6 +77,11 @@ class TestSessionSigning:
         # Non-base64 signatures decode-fail and return None.
         assert verify_session("aGVsbG8.@@@@@", "secret") is None
 
+    def test_empty_secret_never_verifies(self) -> None:
+        # An empty key makes the HMAC forgeable from the public cookie format.
+        token = issue_session(version=0, secret="")
+        assert verify_session(token, "") is None
+
 
 def _b64u(b: bytes) -> str:
     """base64url without padding — mirrors auth_session._b64u_encode."""

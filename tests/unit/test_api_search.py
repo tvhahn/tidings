@@ -365,6 +365,32 @@ class TestExportEndpoint:
         assert row[6] == "Alice"
 
     @pytest.mark.parametrize("mock_run_sync", ["search"], indirect=True)
+    def test_csv_neutralizes_formula_text_not_numbers(self, mock_run_sync: AsyncMock, api_client) -> None:
+        mock_run_sync.return_value = [
+            _make_item(
+                Date="02/15/2026 10:30 PST",
+                Amount=Decimal("-12.50"),
+                Company='=HYPERLINK("http://evil","x")',
+                Category="groceries",
+                Name="+15551234",
+                Comment="@SUM(A1)",
+            )
+        ]
+
+        resp = api_client.get("/api/v1/transactions/export?from=2026-02&to=2026-02")
+        assert_ok(resp)
+        reader = csv.reader(io.StringIO(resp.text))
+        next(reader)  # skip headers
+        row = next(reader)
+
+        assert row[0] == "02/15/2026 10:30"
+        assert row[1] == "-12.5"  # numeric column untouched
+        assert row[2] == '\'=HYPERLINK("http://evil","x")'
+        assert row[3] == "groceries"
+        assert row[6] == "'+15551234"
+        assert row[7] == "'@SUM(A1)"
+
+    @pytest.mark.parametrize("mock_run_sync", ["search"], indirect=True)
     def test_csv_filters_apply(self, mock_run_sync: AsyncMock, api_client) -> None:
         items = [
             _make_item(Category="groceries"),

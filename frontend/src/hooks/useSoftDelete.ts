@@ -1,6 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { softDeleteTransaction } from "@/lib/api";
+import {
+  moveToTrash,
+  optimisticallyUpdateCombined,
+  restoreCombinedTransactions,
+} from "@/lib/optimisticTransactions";
 import { invalidateTransactionDependents, mutations, queryKeys } from "@/lib/queryConfigs";
 import type { TransactionListResponse, SearchResponse } from "@/types/api";
 
@@ -11,6 +16,12 @@ export function useSoftDelete() {
     ...mutations.softDelete(qc),
 
     onMutate: async ({ forwardedTo, dateFileName }) => {
+      // Combined cache backs the Transactions page (via useTransactions): the
+      // row leaves transactions/attention and lands in trash, as on refetch.
+      const previousCombined = await optimisticallyUpdateCombined(
+        qc,
+        moveToTrash({ forwardedTo, dateFileName }, new Date().toISOString())
+      );
       await qc.cancelQueries({ queryKey: queryKeys.prefix("transactions") });
       await qc.cancelQueries({ queryKey: queryKeys.prefix("transaction-search") });
 
@@ -47,10 +58,11 @@ export function useSoftDelete() {
         }
       );
 
-      return { previousTransactions, previousSearch };
+      return { previousCombined, previousTransactions, previousSearch };
     },
 
     onError: (_err, _vars, context) => {
+      restoreCombinedTransactions(qc, context?.previousCombined);
       if (context?.previousTransactions) {
         for (const [queryKey, data] of context.previousTransactions) {
           qc.setQueryData(queryKey, data);

@@ -49,7 +49,6 @@ eval = [
 
 [dependency-groups]
 dev = [
-    "jupyterlab",
     "pytest>=9.1.1",
     "pytest-cov",
     # xdist stays opt-in via CLI flags only (`-n <N>` in the Makefile test
@@ -57,21 +56,12 @@ dev = [
     # `pytest path/to/file.py` runs stay serial and fast (see the
     # [tool.pytest.ini_options] note on coverage being opt-in for the same reason).
     "pytest-xdist",
-    "scipy",
-    "matplotlib",
-    "seaborn",
     "pandas",
-    "scikit-learn",
-    "ipywidgets",
-    "tqdm",
-    "openpyxl",
     "ruff",
-    "ipykernel",
     "pip-audit",
     # httpx: imported directly by tests/ (test_openai_categorization, asserts);
     # no src/ import since chatgpt_oauth moved to subprocess — deptry enforces.
     "httpx",
-    "pymupdf",
     "weasyprint",
     "jinja2",
     "faker",
@@ -82,6 +72,25 @@ dev = [
     "moto[dynamodb]>=5.2.2",
     "deptry>=0.25.1",
 ]
+# Exploratory notebook stack for the devcontainer's Jupyter setup. Nothing in
+# src/, tests/, scripts/ or dev/ imports these. Installed by a plain local
+# `uv sync` via default-groups below; CI and the Docker images skip it
+# (UV_NO_GROUP=notebooks / --no-default-groups).
+notebooks = [
+    "jupyterlab",
+    "ipykernel",
+    "ipywidgets",
+    "scipy",
+    "matplotlib",
+    "seaborn",
+    "scikit-learn",
+    "tqdm",
+    "openpyxl",
+    "pymupdf",
+]
+
+[tool.uv]
+default-groups = ["dev", "notebooks"]
 
 [tool.setuptools.packages.find]
 include = ["src*"]

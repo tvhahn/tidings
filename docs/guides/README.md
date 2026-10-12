@@ -25,3 +25,4 @@ Practical, step-by-step guides. Some are for self-hosters, some for people worki
 - [`static-hosted-demo.md`](./static-hosted-demo.md) — building, previewing, and regenerating fixtures for the static Cloudflare-Pages demo
 - [`dynamodb-cost-analysis.md`](./dynamodb-cost-analysis.md) — DynamoDB cost model and sizing
 - [`releases.md`](./releases.md) — versioning policy, branching model, and the step-by-step release ritual
+- [`supply-chain-security.md`](./supply-chain-security.md) — digest-pinned base images and how to refresh one, lockfiles, audit gates, Dependabot coverage

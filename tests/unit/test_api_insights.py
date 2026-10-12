@@ -126,6 +126,28 @@ class TestContextEndpoint:
         assert "spending_summary" in kwargs
         assert "budget_service" in kwargs
 
+    @patch("src.api.routers.insights.gather_insights_context")
+    def test_context_null_delta_percent(self, mock_gather: MagicMock, api_client) -> None:
+        """No baseline month → ``delta.percent`` serializes as JSON ``null``."""
+        mock_gather.return_value = {
+            "month": "2026-02",
+            "current_month": {"total_spending": 1234.5},
+            "previous_month": {"total_spending": 0.0},
+            "delta": {"amount": 234.5, "percent": None},
+            "trend": [],
+            "budget": None,
+            "historical_averages": {},
+            "category_deltas": [],
+            "anomalies": [],
+            "commented_transactions": [],
+            "generated_at": "2026-02-27T10:00:00",
+        }
+        resp = api_client.get("/api/v1/insights/context?month=2026-02")
+        assert_ok(resp)
+        body = resp.json()
+        assert body["delta"]["percent"] is None
+        assert body["delta"]["amount"] == 234.5
+
     def test_context_rejects_bad_month_format(self, api_client) -> None:
         resp = api_client.get("/api/v1/insights/context?month=not-a-month")
         assert_problem(resp, 422)

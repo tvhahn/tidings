@@ -34,6 +34,7 @@ from src.api.serializers import (
 )
 from src.api.utils import MONTH_PATTERN, generate_month_keys
 from src.finance.app_timezone import TZ_ABBREV_SUFFIX_RE
+from src.finance.csv_safety import csv_safe_text
 from src.finance.decimal_utils import decimal_to_float
 from src.finance.protocols import ISpendingSummary, TransactionItem
 
@@ -402,12 +403,12 @@ def _search_row(item: Mapping[str, Any]) -> list[Any]:
     return [
         _strip_tz(item.get("Date")),
         amt if amt is not None else "",
-        item.get("Company", ""),
+        csv_safe_text(item.get("Company", "")),
         item.get("Category", ""),
         item.get("Institution", ""),
         item.get("TransactionType", ""),
-        item.get("Name", ""),
-        item.get("Comment", ""),
+        csv_safe_text(item.get("Name", "")),
+        csv_safe_text(item.get("Comment", "")),
         item.get("StatementSource", ""),
         "true" if item.get("Ignored") else "false",
     ]
@@ -450,13 +451,14 @@ def _backup_row(item: Mapping[str, Any]) -> list[Any]:
         audit.get("fallback_reason", "") or "",
         audit.get("schema_version", "") if audit.get("schema_version") is not None else "",
         item.get("DeletedAt", "") or "",
-        item.get("Subject", "") or "",
-        item.get("FromName", "") or "",
-        item.get("FromEmail", "") or "",
-        item.get("ToName", "") or "",
-        item.get("ToEmail", "") or "",
+        # Email-sourced free text — formula-guarded; backup_import reverses it.
+        csv_safe_text(item.get("Subject", "") or ""),
+        csv_safe_text(item.get("FromName", "") or ""),
+        csv_safe_text(item.get("FromEmail", "") or ""),
+        csv_safe_text(item.get("ToName", "") or ""),
+        csv_safe_text(item.get("ToEmail", "") or ""),
         item.get("FileName", "") or "",
-        item.get("Body", "") or "",
+        csv_safe_text(item.get("Body", "") or ""),
         stmt.get("institution", "") or "",
         stmt.get("account_type", "") or "",
         stmt.get("period_start", "") or "",

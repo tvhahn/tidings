@@ -129,7 +129,7 @@ page, not the app (catalog §1: never flag the absence of hero decoration in the
 
 ## Script contract
 
-Invocation (from repo root — plain `node`, dep-free, runs on the CI Node 20 and local Node 22):
+Invocation (from repo root — plain `node`, dep-free, runs on Node 22, locally and in CI):
 
 ```
 node .claude/skills/ui-slop-audit/scripts/slop-grep.mjs frontend/src

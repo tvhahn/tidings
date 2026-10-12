@@ -60,10 +60,14 @@ from src.finance.decimal_utils import DecimalEncoder
 
 
 class DecimalJSONResponse(JSONResponse):
-    """JSONResponse that automatically converts Decimal values to float."""
+    """JSONResponse that converts Decimal values to float and rejects NaN/±Infinity.
+
+    Non-finite floats are invalid JSON that browsers cannot parse, so rendering
+    one raises ``ValueError`` on the server instead of breaking the client.
+    """
 
     def render(self, content: Any) -> bytes:
-        return json.dumps(content, cls=DecimalEncoder, ensure_ascii=False).encode("utf-8")
+        return json.dumps(content, cls=DecimalEncoder, ensure_ascii=False, allow_nan=False).encode("utf-8")
 
 
 class SpaStaticFiles(StaticFiles):

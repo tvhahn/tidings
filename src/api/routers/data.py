@@ -43,6 +43,7 @@ from src.api.models import (
     ImportResult,
     S3BackupStatusResponse,
 )
+from src.api.utils import read_upload_limited
 from src.finance import app_config, backup_export, backup_import, s3_backup_shared, staging_store
 from src.finance.decimal_utils import decimal_to_float
 from src.finance.demo_clock import app_today
@@ -101,10 +102,10 @@ def _gather_config(
     alias_item = alias_svc.get_aliases()
     aliases = alias_item.get("Data") if alias_item else None
 
-    # Budgets are per-year. Only export years that actually have data.
-    current_year = app_today().year
+    # Budgets are per-year and can be stored for any year, so export every year
+    # the store actually holds rather than a window around today.
     budgets: dict[str, Any] = {}
-    for year in range(current_year - 3, current_year + 1):
+    for year in budget_svc.list_budget_years():
         targets = budget_svc.get_targets(year)
         groups = budget_svc.get_groups(year)
         if targets or groups:
@@ -261,11 +262,13 @@ async def preview_import(
     if not file.filename:
         raise HTTPException(status_code=422, detail="Missing filename")
 
-    payload = await file.read()
+    payload = await read_upload_limited(
+        file,
+        _MAX_UPLOAD_BYTES,
+        lambda _size: HTTPException(status_code=413, detail="File exceeds 50 MB upload limit"),
+    )
     if not payload:
         raise HTTPException(status_code=422, detail="Empty upload")
-    if len(payload) > _MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=413, detail="File exceeds 50 MB upload limit")
 
     try:
         parsed = await run_sync(

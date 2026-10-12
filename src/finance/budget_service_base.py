@@ -10,6 +10,7 @@ import statistics
 import threading
 import time
 from abc import ABC, abstractmethod
+from collections.abc import Iterable, Mapping
 from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -25,6 +26,22 @@ logger = logging.getLogger(__name__)
 
 _CONFIG_DIR = Path(__file__).resolve().parent / "config"
 _PERSONAL_DIR = Path(__file__).resolve().parents[2] / "data" / "config"
+
+# Sort-key prefix shared by every budget item; both backends key targets and
+# groups as ``BUDGET#targets#<year>`` / ``BUDGET#groups#<year>``.
+BUDGET_KEY_PREFIX = "BUDGET#"
+_BUDGET_KEY_KINDS = frozenset({"targets", "groups"})
+
+
+def budget_years_from_keys(keys: Iterable[str]) -> list[int]:
+    """Sorted distinct years from ``BUDGET#targets|groups#<year>`` sort keys; others ignored."""
+    years: set[int] = set()
+    for key in keys:
+        parts = key.split("#")
+        if len(parts) == 3 and parts[0] == "BUDGET" and parts[1] in _BUDGET_KEY_KINDS and parts[2].isdigit():
+            years.add(int(parts[2]))
+    return sorted(years)
+
 
 DEFAULT_GROUPS = [
     {
@@ -130,6 +147,10 @@ class BudgetServiceBase(ABC):
     @abstractmethod
     def get_groups(self, year: int) -> dict[str, Any] | None:
         """Get category groups for a year. Returns None if not configured."""
+
+    @abstractmethod
+    def list_budget_years(self) -> list[int]:
+        """Sorted distinct years that have stored targets or groups."""
 
     # ------------------------------------------------------------------
     # Abstract: storage-specific writes (implemented per backend)
@@ -267,6 +288,7 @@ class BudgetServiceBase(ABC):
         year_month: str,
         months: int = 6,
         annotated_amounts: dict[str, float] | None = None,
+        summaries_by_month: Mapping[str, Mapping[str, Any]] | None = None,
     ) -> list[dict[str, Any]]:
         """Detect quiet anomalies in the target month against a prior baseline.
 
@@ -292,8 +314,18 @@ class BudgetServiceBase(ABC):
             ``reason`` is calmly extended (e.g. ``"… ($96 of $893 annotated)"``).
         Annotation only explains *elevated* spending, so it is not applied to
         below-baseline or unexpected-zero anomalies.
+
+        ``summaries_by_month`` (``YYYY-MM`` → ``get_summary`` result) lets a
+        caller that already holds these month summaries skip re-querying them;
+        any month missing from it is fetched via ``spending_summary`` as usual.
         """
         annotated_amounts = annotated_amounts or {}
+        precomputed = summaries_by_month or {}
+
+        def summary_for(ym: str) -> Mapping[str, Any]:
+            cached = precomputed.get(ym)
+            return cached if cached is not None else spending_summary.get_summary(ym)
+
         parts = year_month.split("-")
         target_date = date(int(parts[0]), int(parts[1]), 1)
         baseline_keys = [(target_date - relativedelta(months=i)).strftime("%Y-%m") for i in range(months, 0, -1)]
@@ -301,14 +333,14 @@ class BudgetServiceBase(ABC):
         per_month: list[dict[str, float]] = []
         all_cats: set[str] = set()
         for ym in baseline_keys:
-            summary = spending_summary.get_summary(ym)
+            summary = summary_for(ym)
             month_cats = {cat: float(info["amount"]) for cat, info in summary.get("by_category", {}).items()}
             per_month.append(month_cats)
             all_cats.update(month_cats.keys())
 
         baseline_data: dict[str, list[float]] = {cat: [m.get(cat, 0.0) for m in per_month] for cat in all_cats}
 
-        target_summary = spending_summary.get_summary(year_month)
+        target_summary = summary_for(year_month)
         target_cats = {cat: float(info["amount"]) for cat, info in target_summary.get("by_category", {}).items()}
 
         anomalies: list[dict[str, Any]] = []

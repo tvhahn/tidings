@@ -188,6 +188,48 @@ class TestSpendingSummaryContract:
         assert result["total_spending"] == Decimal(30)
         assert result["spending_count"] == 1
 
+    def test_aggregate_of_full_rows_equals_projected_summary(self, pair: _Pair) -> None:
+        """Insights summarises full query_month rows locally; get_summary reads a
+        projection. Both must aggregate identically — the projection must carry
+        every field aggregate() reads."""
+        from src.finance.spending_summary_base import _SUMMARY_PROJECTION
+
+        pair.db.add_transaction(_seed_txn(company="Store A", amount=50.25, file_name="a.eml"))
+        pair.db.add_transaction(
+            _seed_txn(company="Cafe", amount=12.0, category="dining", file_name="b.eml", date="02/16/2026 10:30 PST")
+        )
+        pair.db.add_transaction(
+            _seed_txn(
+                company="Payroll",
+                amount=900.0,
+                transaction_type="deposit",
+                file_name="c.eml",
+                date="02/17/2026 10:30 PST",
+            )
+        )
+        dfn_ignored = pair.db.add_transaction(
+            _seed_txn(company="Skip", amount=5.0, file_name="d.eml", date="02/18/2026 10:30 PST")
+        )
+        dfn_deleted = pair.db.add_transaction(
+            _seed_txn(company="Gone", amount=7.0, file_name="e.eml", date="02/19/2026 10:30 PST")
+        )
+        pair.db.set_ignored(FORWARDED_TO, dfn_ignored, ignored=True)
+        pair.db.set_deleted(FORWARDED_TO, dfn_deleted, deleted=True)
+
+        full = pair.summary.aggregate(pair.summary.query_month("2026-02"))
+        full["year_month"] = "2026-02"
+        assert full == pair.summary.get_summary("2026-02")
+        assert full["total_spending"] == Decimal("62.25")
+        # The projection names exactly the fields the aggregator reads.
+        assert {f.strip() for f in _SUMMARY_PROJECTION.split(",")} == {
+            "Amount",
+            "Category",
+            "Company",
+            "TransactionType",
+            "Ignored",
+            "DeletedAt",
+        }
+
     # -- get_summary_with_comparison: month-over-month parity ---------------
 
     def test_comparison_current_previous_and_delta(self, pair: _Pair) -> None:
@@ -205,13 +247,13 @@ class TestSpendingSummaryContract:
         assert result["delta_amount"] == Decimal(100)
         assert result["delta_percent"] == 100.0
 
-    def test_comparison_zero_previous_yields_infinite_delta_percent(self, pair: _Pair) -> None:
+    def test_comparison_zero_previous_yields_null_delta_percent(self, pair: _Pair) -> None:
         pair.db.add_transaction(
             _seed_txn(company="Feb Store", amount=150.0, file_name="feb.eml", date="02/10/2026 10:00 PST")
         )
         result = pair.summary.get_summary_with_comparison("2026-02")
         assert result["previous"]["total_spending"] == Decimal(0)
-        assert result["delta_percent"] == float("inf")
+        assert result["delta_percent"] is None
 
     def test_comparison_both_zero_yields_flat_delta(self, pair: _Pair) -> None:
         result = pair.summary.get_summary_with_comparison("2030-09")

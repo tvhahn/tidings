@@ -453,6 +453,90 @@ class TestGetLatestDateFileName:
         assert after > before
 
 
+class TestBulkImportSession:
+    """bulk_add_transactions runs on one SQLite connection and one transaction."""
+
+    def _count_connects(self, db: TransactionsDBLocal, monkeypatch: pytest.MonkeyPatch) -> list[int]:
+        opened: list[int] = []
+        real_connect = db._connect
+
+        def counting_connect() -> Any:
+            opened.append(1)
+            return real_connect()
+
+        monkeypatch.setattr(db, "_connect", counting_connect)
+        return opened
+
+    def test_whole_import_uses_one_connection(self, db: TransactionsDBLocal, monkeypatch: pytest.MonkeyPatch) -> None:
+        db.add_transaction(_base_txn(file_name="existing.eml"))
+        opened = self._count_connects(db, monkeypatch)
+        rows = [_base_txn(file_name="existing.eml", comment="replaced")] + [
+            _base_txn(company=f"Store {i}", file_name=f"s{i}.eml") for i in range(5)
+        ]
+        counts = db.bulk_add_transactions(rows, strategy="overwrite")
+        assert counts == {"inserted": 5, "updated": 1, "skipped": 0, "invalid": 0, "errors": 0}
+        # Index load, the overwrite's delete, and all six inserts share one connection.
+        assert len(opened) == 1
+
+    def test_failed_row_does_not_discard_the_batch(self, db: TransactionsDBLocal) -> None:
+        # Same composite key, different hash → the second insert hits the PK and
+        # errors; the rows around it still commit with the batch.
+        rows = [
+            _base_txn(company="A", file_name="a.eml"),
+            _base_txn(company="B", file_name="a.eml"),
+            _base_txn(company="C", file_name="c.eml"),
+        ]
+        counts = db.bulk_add_transactions(rows, strategy="skip")
+        assert counts == {"inserted": 2, "updated": 0, "skipped": 0, "invalid": 0, "errors": 1}
+        assert len(db.scan_all_transactions()) == 2
+
+    def test_session_connection_is_released_after_import(self, db: TransactionsDBLocal) -> None:
+        db.bulk_add_transactions([_base_txn()], strategy="skip")
+        assert getattr(db._bulk, "conn", None) is None
+        # Plain writes after the session commit on their own connection again.
+        dfn = db.add_transaction(_base_txn(company="After", file_name="after.eml"))
+        assert db.permanently_delete(FORWARDED_TO, dfn) is not None
+        assert db.get_item(FORWARDED_TO, dfn) is None
+
+    def test_set_ignored_many_uses_one_connection(
+        self, db: TransactionsDBLocal, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        dfns = [db.add_transaction(_base_txn(company=f"S{i}", file_name=f"s{i}.eml")) for i in range(4)]
+        opened = self._count_connects(db, monkeypatch)
+        assert db.set_ignored_many([(FORWARDED_TO, d) for d in dfns], True) == 4
+        assert len(opened) == 1
+        assert all(db.get_item(FORWARDED_TO, d)["Ignored"] is True for d in dfns)
+
+
+class TestQueryPlans:
+    """Month filters must hit an index range — a LIKE prefix silently degrades to a scan."""
+
+    def _plan(self, sql: str, params: tuple[Any, ...]) -> str:
+        import sqlite3
+
+        from src.finance import local_db
+
+        conn = sqlite3.connect(":memory:")
+        conn.executescript(local_db._SCHEMA_SQL)
+        rows = conn.execute("EXPLAIN QUERY PLAN " + sql, params).fetchall()
+        return " | ".join(str(r[-1]) for r in rows)
+
+    def test_query_month_partition_uses_prefix_in_index_range(self) -> None:
+        from src.finance.transaction_db_local import _QUERY_MONTH_PARTITION_SQL
+
+        plan = self._plan(_QUERY_MONTH_PARTITION_SQL, (FORWARDED_TO, "2026.02*"))
+        assert "SCAN transactions" not in plan
+        # The month prefix (not just forwarded_to equality) bounds the index range.
+        assert "date_file_name>" in plan
+
+    def test_latest_in_month_uses_date_index(self) -> None:
+        from src.finance.transaction_db_local import _LATEST_IN_MONTH_SQL
+
+        plan = self._plan(_LATEST_IN_MONTH_SQL, ("2026.02*",))
+        assert "SCAN transactions" not in plan
+        assert "USING INDEX" in plan or "USING COVERING INDEX" in plan
+
+
 class TestTimezoneRespected:
     """`date_file_name` prefix is local to the configured app timezone."""
 

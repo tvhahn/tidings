@@ -20,6 +20,12 @@ STATEMENT_TO_DB_TYPE_MAP = {
     "deposit": {"e-transfer", "deposit"},
 }
 
+# Tiers 2 and 3 look this many days either side of a statement date for a
+# same-amount DB row. The DB fetch window is padded by the same amount so a
+# row just outside the statement period (an alert on the 31st for a statement
+# row dated the 1st) is still a candidate instead of surfacing as "new".
+FUZZY_DATE_TOLERANCE_DAYS = 2
+
 
 @dataclass
 class MatchedTransaction:
@@ -131,10 +137,10 @@ def _suggest_category(company: str) -> str:
     return match.category.lower() if match else "miscellaneous"
 
 
-def _get_overlapping_months(period_start: str, period_end: str) -> list[str]:
-    """Get all YYYY-MM months that overlap with the statement period."""
-    start = _date_str_to_date(period_start)
-    end = _date_str_to_date(period_end)
+def _get_overlapping_months(period_start: str, period_end: str, pad_days: int = 0) -> list[str]:
+    """Get all YYYY-MM months overlapping the statement period widened by ``pad_days`` each side."""
+    start = _date_str_to_date(period_start) - timedelta(days=pad_days)
+    end = _date_str_to_date(period_end) + timedelta(days=pad_days)
     months = set()
     current = start.replace(day=1)
     while current <= end:
@@ -187,8 +193,8 @@ def reconcile(
             )
         return result
 
-    # Fetch DB transactions for overlapping months
-    months = _get_overlapping_months(period_start, period_end)
+    # Fetch DB transactions for every month the fuzzy tiers can reach
+    months = _get_overlapping_months(period_start, period_end, pad_days=FUZZY_DATE_TOLERANCE_DAYS)
     db_items = []
     for month in months:
         db_items.extend(spending_summary.query_month(month))
@@ -347,7 +353,7 @@ def reconcile(
 
         # If no exact-date cross-type match, check fuzzy date range (±2 days)
         if not cross_type_match:
-            for day_offset in range(-2, 3):
+            for day_offset in range(-FUZZY_DATE_TOLERANCE_DAYS, FUZZY_DATE_TOLERANCE_DAYS + 1):
                 if day_offset == 0:
                     continue
                 check_date = stmt_dt + timedelta(days=day_offset)
@@ -381,7 +387,7 @@ def reconcile(
 
         # --- Tier 3: Fuzzy match (±2 days + amount + compatible type) ---
         tier3_matches = []
-        for day_offset in range(-2, 3):
+        for day_offset in range(-FUZZY_DATE_TOLERANCE_DAYS, FUZZY_DATE_TOLERANCE_DAYS + 1):
             if day_offset == 0:
                 continue  # Already checked in Tier 1
             check_date = stmt_dt + timedelta(days=day_offset)

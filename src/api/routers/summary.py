@@ -95,7 +95,7 @@ async def get_summary(
         current=current,
         previous=_to_month_summary(raw["previous"]),
         delta_amount=float(raw["delta_amount"]),
-        delta_percent=float(raw["delta_percent"]),
+        delta_percent=None if raw["delta_percent"] is None else float(raw["delta_percent"]),
     )
 
     # Mid-month pace — only for the current month, and fail-open: any error

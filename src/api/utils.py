@@ -5,7 +5,7 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 
 from src.finance.exceptions import VersionConflictError
 from src.finance.tx_id import composite_from_tx_id
@@ -78,6 +78,35 @@ def sanitize_filename(name: str, *, max_len: int = 80, fallback: str = "file") -
     base = Path(name).name
     cleaned = _SANITIZE_RE.sub("_", base).strip("._")[:max_len].strip("._")
     return cleaned or fallback
+
+
+_UPLOAD_CHUNK_BYTES = 1024 * 1024
+
+
+async def read_upload_limited(
+    file: UploadFile,
+    max_bytes: int,
+    too_large: Callable[[int], HTTPException],
+) -> bytes:
+    """Read an upload in chunks, raising ``too_large(size)`` once it exceeds ``max_bytes``.
+
+    Never holds more than ``max_bytes`` (plus one chunk) in memory, unlike a
+    bare ``await file.read()``. ``too_large`` receives the upload's full size so
+    a route can keep its existing error message: the multipart-reported size
+    when known, otherwise the rest is counted chunk by chunk without buffering.
+    """
+    if file.size is not None and file.size > max_bytes:
+        raise too_large(file.size)
+    chunks: list[bytes] = []
+    total = 0
+    while chunk := await file.read(_UPLOAD_CHUNK_BYTES):
+        total += len(chunk)
+        if total > max_bytes:
+            while more := await file.read(_UPLOAD_CHUNK_BYTES):
+                total += len(more)
+            raise too_large(total)
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 async def run_with_conflict_handling[T](

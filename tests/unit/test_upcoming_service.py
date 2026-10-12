@@ -1,14 +1,16 @@
 """Tests for UpcomingService — recurring-profile derivation and the four-state
 status machine (L1/L3/L4)."""
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 from unittest.mock import MagicMock
+from zoneinfo import ZoneInfo
 
 import pytest
 
 import src.finance.upcoming_service as us
+from src.finance import demo_clock
 from src.finance.upcoming_service import UpcomingResult, UpcomingService
 
 TODAY = date(2026, 7, 17)
@@ -379,3 +381,94 @@ def test_cache_ttl(monkeypatch: pytest.MonkeyPatch) -> None:
     clock["now"] += 3601
     svc.get_upcoming(CURRENT)
     assert ss.query_month.call_count == first_calls * 2  # recomputed after TTL
+
+
+# ---------------------------------------------------------------------------
+# Evaluation date — statuses judged as of the requested month, not today's day
+# ---------------------------------------------------------------------------
+
+_PACIFIC = ZoneInfo("America/Los_Angeles")
+_JULY_17 = datetime(2026, 7, 17, 12, 0, tzinfo=_PACIFIC)
+
+
+def _history(company: str, day: int, amount: float, months: list[str], **row_kwargs: Any) -> dict[str, list]:
+    return {ym: [_row(ym, day, amount, company, **row_kwargs)] for ym in months}
+
+
+@pytest.mark.parametrize(
+    ("year_month", "history", "day", "stmt", "expected"),
+    [
+        # Past month, evaluated as of May 31: day 25 is 6 days overdue → unrecorded
+        # (today's day 17 would have read "upcoming" — a charge that never came).
+        ("2026-05", ["2026-02", "2026-03", "2026-04"], 25, False, "unrecorded"),
+        # Past month, statement-observed and day passed → assumed.
+        ("2026-05", ["2026-02", "2026-03", "2026-04"], 25, True, "assumed"),
+        # Past month, within grace of the month's last day → still upcoming.
+        ("2026-05", ["2026-02", "2026-03", "2026-04"], 29, False, "upcoming"),
+        # Future month, evaluated before Aug 1: nothing is due yet, even day 1
+        # (today's day 17 would have read "unrecorded").
+        ("2026-08", ["2026-05", "2026-06", "2026-07"], 1, False, "upcoming"),
+        ("2026-08", ["2026-05", "2026-06", "2026-07"], 1, True, "upcoming"),
+        # Current month uses today (the 17th).
+        ("2026-07", ["2026-04", "2026-05", "2026-06"], 25, False, "upcoming"),
+        ("2026-07", ["2026-04", "2026-05", "2026-06"], 1, False, "unrecorded"),
+        ("2026-07", ["2026-04", "2026-05", "2026-06"], 10, True, "assumed"),
+    ],
+)
+def test_status_evaluated_as_of_requested_month(
+    freeze_clock, year_month: str, history: list[str], day: int, stmt: bool, expected: str
+) -> None:
+    freeze_clock(demo_clock, at=_JULY_17)
+    svc = UpcomingService(_summary(_history("GymCo", day, 40.0, history, stmt=stmt)), _aliases())
+
+    charge = _charge(svc.get_upcoming(year_month), "GymCo")
+
+    assert charge is not None
+    assert charge.status == expected
+
+
+def test_past_month_arrived_charge_still_matches(freeze_clock) -> None:
+    freeze_clock(demo_clock, at=_JULY_17)
+    rows = _history("Netflix", 25, 15.99, ["2026-02", "2026-03", "2026-04"])
+    rows["2026-05"] = [_row("2026-05", 25, 15.99, "Netflix")]
+    svc = UpcomingService(_summary(rows), _aliases())
+
+    charge = _charge(svc.get_upcoming("2026-05"), "Netflix")
+
+    assert charge is not None
+    assert charge.status == "arrived"
+    assert charge.actual_date == "2026-05-25"
+
+
+def test_cache_does_not_carry_status_across_midnight(freeze_clock, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Statement-observed charge expected on the 18th: "upcoming" on the 17th,
+    # "assumed" from the 18th — even though both reads fall inside the 1h TTL.
+    monkeypatch.setattr(us.time, "time", lambda: 1_000_000.0)
+    ss = _summary(_history("Mortgage", 18, 1900.0, ["2026-04", "2026-05", "2026-06"], stmt=True))
+    svc = UpcomingService(ss, _aliases())
+
+    freeze_clock(demo_clock, at=datetime(2026, 7, 17, 23, 59, tzinfo=_PACIFIC))
+    before = _charge(svc.get_upcoming(CURRENT), "Mortgage")
+    freeze_clock(demo_clock, at=datetime(2026, 7, 18, 0, 1, tzinfo=_PACIFIC))
+    after = _charge(svc.get_upcoming(CURRENT), "Mortgage")
+
+    assert before is not None
+    assert before.status == "upcoming"
+    assert after is not None
+    assert after.status == "assumed"
+    assert ss.query_month.call_count == 28  # recomputed for the new day
+    assert len(svc._cache) == 1  # yesterday's entry for the month was dropped
+
+
+def test_past_month_cache_hit_across_days(freeze_clock, monkeypatch: pytest.MonkeyPatch) -> None:
+    # A past month's evaluation date is fixed, so a new day reuses the entry.
+    monkeypatch.setattr(us.time, "time", lambda: 1_000_000.0)
+    ss = _summary(_history("GymCo", 25, 40.0, ["2026-02", "2026-03", "2026-04"]))
+    svc = UpcomingService(ss, _aliases())
+
+    freeze_clock(demo_clock, at=datetime(2026, 7, 17, 23, 59, tzinfo=_PACIFIC))
+    svc.get_upcoming("2026-05")
+    freeze_clock(demo_clock, at=datetime(2026, 7, 18, 0, 1, tzinfo=_PACIFIC))
+    svc.get_upcoming("2026-05")
+
+    assert ss.query_month.call_count == 14

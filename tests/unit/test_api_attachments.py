@@ -122,6 +122,7 @@ class TestUpload:
             files={"file": ("big.pdf", big, "application/pdf")},
         )
         assert_problem(resp, 400)
+        assert resp.json()["error"] == "The file is larger than the 10 MB limit."
 
     def test_reject_disallowed_extension(self, api_client: TestClient) -> None:
         resp = api_client.post(
@@ -269,6 +270,55 @@ class TestDelete:
 
     def test_delete_unknown_404(self, api_client: TestClient) -> None:
         assert_problem(api_client.delete("/api/v1/attachments/att_missing"), 404)
+
+
+def _row_pointing_at(store: Any, file_path: Path) -> str:
+    """Persist an attachment row whose file_path is ``file_path`` (e.g. a tampered restore)."""
+    return store.save_attachment(
+        {
+            "original_filename": "x.jpg",
+            "content_type": "image/jpeg",
+            "size_bytes": 3,
+            "sha256": "sha-outside",
+            "file_path": str(file_path),
+            "kind": "receipt",
+        }
+    )
+
+
+class TestPathContainment:
+    """Download and delete only touch files under the attachments root."""
+
+    @pytest.fixture
+    def outside_file(self, tmp_path: Path) -> Path:
+        path = tmp_path / "secret.txt"
+        path.write_bytes(b"top secret")
+        return path
+
+    @pytest.mark.parametrize("style", ["absolute", "traversal"])
+    def test_download_outside_root_404(
+        self, api_client: TestClient, _isolate_attachment_store: Any, outside_file: Path, tmp_path: Path, style: str
+    ) -> None:
+        # tmp_raw is tmp_path/raw/attachments (see _isolate_attachment_store).
+        stored = outside_file if style == "absolute" else tmp_path / "raw" / "attachments" / ".." / ".." / "secret.txt"
+        attachment_id = _row_pointing_at(_isolate_attachment_store, stored)
+
+        resp = api_client.get(f"/api/v1/attachments/{attachment_id}/file")
+
+        assert_problem(resp, 404)
+        assert resp.json()["error"] == "Attachment file not found on disk."
+
+    def test_delete_outside_root_keeps_file(
+        self, api_client: TestClient, _isolate_attachment_store: Any, outside_file: Path, tmp_path: Path
+    ) -> None:
+        stored = tmp_path / "raw" / "attachments" / ".." / ".." / "secret.txt"
+        attachment_id = _row_pointing_at(_isolate_attachment_store, stored)
+
+        body = assert_ok(api_client.delete(f"/api/v1/attachments/{attachment_id}"))
+
+        assert body["status"] == "deleted"
+        assert _isolate_attachment_store.get_attachment(attachment_id) is None
+        assert outside_file.read_bytes() == b"top secret"
 
 
 def _enable_receipt_parsing(monkeypatch: pytest.MonkeyPatch) -> None:

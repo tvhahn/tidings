@@ -27,6 +27,7 @@ from src.finance.app_timezone import now_local
 # Re-exported under the historical private name for callers/tests that import it here.
 from src.finance.decimal_utils import decimals_to_floats as _strip_decimals
 from src.finance.demo_clock import app_today
+from src.finance.spending_summary_base import compare_summaries
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -533,31 +534,42 @@ async def gather_context(
     # (i=12 lands on the same month last year, reused for its carried-forward comments.)
     prior_months = [(current_date - relativedelta(months=i)).strftime("%Y-%m") for i in range(1, 13)]
     # 24-month lookback (oldest→target) for recurring-annual detection. This is a
-    # superset of the trend (last 6), YTD (Jan→target), and same-month-last-year
-    # months, so every month summary is fetched exactly once and shared.
+    # superset of every other window — the target/previous comparison, trend
+    # (last 6), YTD (Jan→target), anomaly baseline (prior 6), the prior 12 and
+    # same-month-last-year — so each month is read from storage exactly once.
     lookback_months = [
         (current_date - relativedelta(months=i)).strftime("%Y-%m")
         for i in range(_RECURRING_ANNUAL_LOOKBACK - 1, -1, -1)
     ]
+    # The target + prior 12 months also feed per-transaction signals, so they are
+    # read as full rows and summarised locally with the same aggregate()
+    # get_summary applies. The older lookback months only need summaries, so
+    # they keep get_summary's narrow projection (less DynamoDB read bandwidth).
+    raw_months = [year_month, *prior_months]
+    summary_only_months = [ym for ym in lookback_months if ym not in raw_months]
 
     # Phase 1: fan out everything that doesn't depend on budget targets or on
-    # the target month's raw items (needed before anomaly detection). Kept to six
-    # awaitables so asyncio.gather's typed overload holds (the previous-briefing
-    # read is deferred to phase 2, where it is still independent).
-    comparison, lookback_summaries, targets_item, historical, raw_items, prior_item_lists = await asyncio.gather(
-        asyncio.to_thread(spending_summary.get_summary_with_comparison, year_month),
-        asyncio.gather(*(asyncio.to_thread(spending_summary.get_summary, ym) for ym in lookback_months)),
+    # the target month's raw items (needed before anomaly detection). The
+    # previous-briefing read is deferred to phase 2, where it is still independent.
+    raw_item_lists, older_summaries, targets_item, historical = await asyncio.gather(
+        asyncio.gather(*(asyncio.to_thread(spending_summary.query_month, ym) for ym in raw_months)),
+        asyncio.gather(*(asyncio.to_thread(spending_summary.get_summary, ym) for ym in summary_only_months)),
         asyncio.to_thread(budget_service.get_targets, year),
         asyncio.to_thread(budget_service.get_historical_averages, spending_summary, 6),
-        asyncio.to_thread(spending_summary.query_month, year_month),
-        asyncio.gather(*(asyncio.to_thread(spending_summary.query_month, ym) for ym in prior_months)),
     )
-    prior_items = [it for month_items in prior_item_lists for it in month_items]
-    raw_by_month = dict(zip(prior_months, prior_item_lists, strict=True))
+    raw_by_month = dict(zip(raw_months, raw_item_lists, strict=True))
+    raw_items = raw_by_month[year_month]
+    prior_items = [it for ym in prior_months for it in raw_by_month[ym]]
 
-    # Single source of truth for month summaries — trend, YTD, and the memory
-    # signals all read from here so no month is queried twice.
-    summaries_by_month = dict(zip(lookback_months, lookback_summaries, strict=True))
+    # Single source of truth for month summaries — the comparison, trend, YTD,
+    # anomaly baseline, and memory signals all read from here.
+    summary_by_ym = dict(zip(summary_only_months, older_summaries, strict=True))
+    for ym in raw_months:
+        summary = spending_summary.aggregate(raw_by_month[ym])
+        summary["year_month"] = ym  # same shape as get_summary()
+        summary_by_ym[ym] = summary
+    summaries_by_month = {ym: summary_by_ym[ym] for ym in lookback_months}
+    comparison = compare_summaries(summaries_by_month[year_month], summaries_by_month[prev_month_ym])
     trend = [summaries_by_month[ym] for ym in trend_months]
 
     # Portion of each category already explained by a user comment this month —
@@ -570,7 +582,14 @@ async def gather_context(
     ytd_months = [f"{year}-{m:02d}" for m in range(1, month_num + 1)] if targets_item is not None else []
     ytd_summaries = [summaries_by_month[ym] for ym in ytd_months]
     anomalies, previous_briefing = await asyncio.gather(
-        asyncio.to_thread(budget_service.get_category_anomalies, spending_summary, year_month, 6, annotated_by_cat),
+        asyncio.to_thread(
+            budget_service.get_category_anomalies,
+            spending_summary,
+            year_month,
+            6,
+            annotated_by_cat,
+            summaries_by_month=summaries_by_month,
+        ),
         asyncio.to_thread(latest_briefing_for_month, prev_month_ym),
     )
 

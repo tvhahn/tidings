@@ -5,7 +5,7 @@ import os
 from typing import cast
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from src.api import dependencies
@@ -58,7 +58,7 @@ async def get_config_endpoint():
     operation_id="putAppConfig",
     summary="Update runtime app configuration",
 )
-async def put_config(body: AppConfigUpdateRequest):
+async def put_config(body: AppConfigUpdateRequest, request: Request):
     old_cfg = get_config()
     was_demo = old_cfg.get("demo_mode", False)
     old_user_id = old_cfg.get("user_id", "default")
@@ -72,6 +72,15 @@ async def put_config(body: AppConfigUpdateRequest):
         "AppConfig",
         {k: v for k, v in sent.items() if v is not None or k in NULLABLE_CONFIG_KEYS},
     )
+
+    # Only the operator (browser session, or TOFU before a password exists)
+    # may turn the dev auth bypass ON. A bearer token enabling it would open
+    # the API to every anonymous caller and outlive the token's revocation.
+    # Turning it OFF is always allowed.
+    if updates.get("auth_bypass_for_dev") is True and not old_cfg.get("auth_bypass_for_dev"):
+        principal = getattr(request.state, "principal", None)
+        if principal is None or principal.kind not in ("session", "tofu"):
+            raise ApiException(403, "FORBIDDEN", "only a signed-in browser session can enable auth_bypass_for_dev")
 
     if "timezone" in updates:
         try:

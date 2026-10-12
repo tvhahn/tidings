@@ -145,7 +145,7 @@ class SummaryComparisonResponse(BaseModel):
     current: MonthSummary
     previous: MonthSummary
     delta_amount: float
-    delta_percent: float
+    delta_percent: float | None
     pace: MonthPaceInfo | None = None
 
 

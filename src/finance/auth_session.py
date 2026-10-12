@@ -73,7 +73,14 @@ def verify_session(token: str, secret: str) -> SessionPayload | None:
 
     Expiry is enforced server-side against ``iat`` — the cookie's Max-Age alone
     is browser-advisory, so a stolen token must not stay valid forever.
+
+    An empty ``secret`` always fails: nothing verifies until a real signing
+    secret exists.
     """
+    if not secret:
+        # An empty key makes the HMAC forgeable by anyone who knows the cookie
+        # format; a missing secret must never authenticate a session.
+        return None
     if not token or "." not in token:
         return None
     payload_b64, sig_b64 = token.split(".", 1)

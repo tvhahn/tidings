@@ -3,6 +3,9 @@
 import json
 import logging
 import sqlite3
+import threading
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -22,6 +25,16 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _DEDICATED_AUDIT_KEYS = {"reviewed_at", "source", "matched_rule", "confidence", "previous_category"}
+
+# Month-scoped filters use GLOB, not LIKE: GLOB is case-sensitive, so SQLite can
+# rewrite the 'YYYY.MM*' prefix into an index range on date_file_name. LIKE is
+# case-insensitive and cannot use the BINARY-collated indexes, forcing a scan.
+# The prefix is digits and a dot — no GLOB metacharacters.
+_QUERY_MONTH_PARTITION_SQL = """SELECT forwarded_to, date_file_name, amount, category, company,
+          transaction_type, deleted_at, ignored
+   FROM transactions
+   WHERE forwarded_to = ? AND date_file_name GLOB ?"""
+_LATEST_IN_MONTH_SQL = "SELECT MAX(date_file_name) AS latest FROM transactions WHERE date_file_name GLOB ?"
 
 
 def _split_audit(
@@ -57,9 +70,52 @@ class TransactionsDBLocal(TransactionsDBBase):
     def __init__(self, db_path: Path | None = None):
         self._db_path = db_path or DEFAULT_DB_PATH
         ensure_schema(self._db_path)
+        # Per-thread: the connection an in-progress bulk import shares across
+        # its writes. Instances are shared by concurrent request threads, so
+        # this must never leak into another thread's calls.
+        self._bulk = threading.local()
 
     def _connect(self) -> sqlite3.Connection:
         return get_connection(self._db_path)
+
+    @contextmanager
+    def _session_conn(self) -> Iterator[sqlite3.Connection]:
+        """Yield this thread's bulk-session connection, or a fresh one committed on success.
+
+        Inside :meth:`_bulk_write_session` every write shares one connection and
+        the session commits once at the end. Outside it this is the usual
+        open → work → commit → close cycle.
+        """
+        shared: sqlite3.Connection | None = getattr(self._bulk, "conn", None)
+        if shared is not None:
+            yield shared
+            return
+        conn = self._connect()
+        try:
+            yield conn
+            conn.commit()
+        finally:
+            conn.close()
+
+    @contextmanager
+    def _bulk_write_session(self) -> Iterator[None]:
+        """Run a bulk import on one connection and one transaction.
+
+        Rows that fail individually are still counted and skipped by the
+        caller (SQLite rolls back just the failing statement); everything
+        written commits together when the batch finishes.
+        """
+        conn = self._connect()
+        self._bulk.conn = conn
+        try:
+            yield
+            conn.commit()
+        except BaseException:
+            conn.rollback()
+            raise
+        finally:
+            self._bulk.conn = None
+            conn.close()
 
     # ------------------------------------------------------------------
     # Write operations
@@ -172,6 +228,20 @@ class TransactionsDBLocal(TransactionsDBBase):
         finally:
             conn.close()
 
+    def get_hash_index(self, forwarded_to: str) -> dict[str, str]:
+        """Return ``{transaction_hash: date_file_name}`` for one partition (lowest name wins)."""
+        with self._session_conn() as conn:
+            rows = conn.execute(
+                """SELECT transaction_hash, date_file_name FROM transactions
+                   WHERE forwarded_to = ? AND transaction_hash IS NOT NULL
+                   ORDER BY date_file_name""",
+                (forwarded_to,),
+            ).fetchall()
+        index: dict[str, str] = {}
+        for row in rows:
+            index.setdefault(row["transaction_hash"], row["date_file_name"])
+        return index
+
     def _insert_imported(
         self,
         row: dict[str, Any],
@@ -204,8 +274,7 @@ class TransactionsDBLocal(TransactionsDBBase):
         amount = float(row["amount"]) if row.get("amount") is not None else None
         reviewed_at, source, matched_rule, confidence, prev_cat, audit_json = _split_audit(category_audit)
 
-        conn = self._connect()
-        try:
+        with self._session_conn() as conn:
             conn.execute(
                 """INSERT INTO transactions (
                     forwarded_to, date_file_name, transaction_hash, user_id,
@@ -249,15 +318,20 @@ class TransactionsDBLocal(TransactionsDBBase):
                     row.get("statement_source"),
                 ),
             )
-            conn.commit()
-            return date_file_name
-        finally:
-            conn.close()
+        return date_file_name
 
     def add_statement_transaction(
-        self, txn_data: dict[str, Any], audit_source: str = "statement_import"
+        self,
+        txn_data: dict[str, Any],
+        audit_source: str = "statement_import",
+        *,
+        known_hashes: dict[str, str] | None = None,
     ) -> str | bool | None:
-        """Add a statement-imported transaction. Returns DateFileName if written, False if dup, None if invalid."""
+        """Add a statement-imported transaction. Returns DateFileName if written, False if dup, None if invalid.
+
+        With ``known_hashes`` (a preloaded ``get_hash_index`` map) the duplicate
+        check reads the map instead of the table; the map gains the new row.
+        """
         stmt_required = [
             "forwarded_to",
             "date",
@@ -277,11 +351,17 @@ class TransactionsDBLocal(TransactionsDBBase):
 
         conn = self._connect()
         try:
-            row = conn.execute(
-                "SELECT 1 FROM transactions WHERE forwarded_to = ? AND transaction_hash = ?",
-                (txn_data["forwarded_to"], transaction_hash),
-            ).fetchone()
-            if row:
+            if known_hashes is not None:
+                is_duplicate = transaction_hash in known_hashes
+            else:
+                is_duplicate = (
+                    conn.execute(
+                        "SELECT 1 FROM transactions WHERE forwarded_to = ? AND transaction_hash = ?",
+                        (txn_data["forwarded_to"], transaction_hash),
+                    ).fetchone()
+                    is not None
+                )
+            if is_duplicate:
                 logger.info("Duplicate statement transaction (hash=%s). Skipping.", transaction_hash)
                 return False
 
@@ -316,6 +396,8 @@ class TransactionsDBLocal(TransactionsDBBase):
                 ),
             )
             conn.commit()
+            if known_hashes is not None:
+                known_hashes[transaction_hash] = date_file_name
             logger.info("Statement transaction added: %s", date_file_name)
             return date_file_name
         finally:
@@ -571,6 +653,15 @@ class TransactionsDBLocal(TransactionsDBBase):
         finally:
             conn.close()
 
+    def set_ignored_many(self, keys: Sequence[tuple[str, str]], ignored: bool) -> int:
+        """Set or clear Ignored on many rows in one transaction. Returns the number of keys."""
+        with self._session_conn() as conn:
+            conn.executemany(
+                "UPDATE transactions SET ignored = ? WHERE forwarded_to = ? AND date_file_name = ?",
+                [(1 if ignored else 0, forwarded_to, date_file_name) for forwarded_to, date_file_name in keys],
+            )
+        return len(keys)
+
     def set_deleted(self, forwarded_to: str, date_file_name: str, deleted: bool) -> bool | str | None:
         """Set or clear DeletedAt. Returns previous value."""
         conn = self._connect()
@@ -599,8 +690,8 @@ class TransactionsDBLocal(TransactionsDBBase):
 
     def permanently_delete(self, forwarded_to: str, date_file_name: str) -> "TransactionItem | None":
         """Permanently delete a transaction. Returns the deleted item or None."""
-        conn = self._connect()
-        try:
+        # Shares the bulk-import connection when called from an overwrite import.
+        with self._session_conn() as conn:
             row = conn.execute(
                 "SELECT * FROM transactions WHERE forwarded_to = ? AND date_file_name = ?",
                 (forwarded_to, date_file_name),
@@ -613,10 +704,7 @@ class TransactionsDBLocal(TransactionsDBBase):
                 "DELETE FROM transactions WHERE forwarded_to = ? AND date_file_name = ?",
                 (forwarded_to, date_file_name),
             )
-            conn.commit()
-            return item
-        finally:
-            conn.close()
+        return item
 
     def set_comment(self, forwarded_to: str, date_file_name: str, comment: str | None) -> str | None:
         """Set or clear a comment. Returns previous value."""
@@ -671,20 +759,16 @@ class TransactionsDBLocal(TransactionsDBBase):
     def query_month_partition(self, forwarded_to: str, year_month: str) -> "list[TransactionItem]":
         """Return transactions for one user/month as PascalCase dicts.
 
-        Uses LIKE prefix matching on date_file_name (e.g. '2026.04%') to mirror
-        DynamoDB's begins_with condition on the DateFileName sort key. The
-        composite index idx_transactions_date_prefix covers this query.
+        Uses GLOB prefix matching on date_file_name (e.g. '2026.04*') to mirror
+        DynamoDB's begins_with condition on the DateFileName sort key. GLOB is
+        case-sensitive, so SQLite bounds the (forwarded_to, date_file_name)
+        index range by the month prefix too; a case-insensitive LIKE would only
+        use the forwarded_to equality and scan the whole partition.
         """
         prefix = year_month.replace("-", ".")
         conn = self._connect()
         try:
-            rows = conn.execute(
-                """SELECT forwarded_to, date_file_name, amount, category, company,
-                          transaction_type, deleted_at, ignored
-                   FROM transactions
-                   WHERE forwarded_to = ? AND date_file_name LIKE ?""",
-                (forwarded_to, f"{prefix}%"),
-            ).fetchall()
+            rows = conn.execute(_QUERY_MONTH_PARTITION_SQL, (forwarded_to, f"{prefix}*")).fetchall()
             # sqlite boundary: row_to_item builds the stored PascalCase shape.
             return cast("list[TransactionItem]", [row_to_item(row) for row in rows])
         finally:
@@ -706,10 +790,7 @@ class TransactionsDBLocal(TransactionsDBBase):
         try:
             if year_month:
                 prefix = year_month.replace("-", ".")
-                row = conn.execute(
-                    "SELECT MAX(date_file_name) AS latest FROM transactions WHERE date_file_name LIKE ?",
-                    (f"{prefix}%",),
-                ).fetchone()
+                row = conn.execute(_LATEST_IN_MONTH_SQL, (f"{prefix}*",)).fetchone()
             else:
                 row = conn.execute("SELECT MAX(date_file_name) AS latest FROM transactions").fetchone()
             return row["latest"] if row and row["latest"] else None

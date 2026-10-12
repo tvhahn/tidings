@@ -7,7 +7,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.11.14 /uv /usr/local/bin/uv
 WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
-RUN uv sync --no-group dev --no-editable
+RUN uv sync --no-default-groups --no-editable
 
 COPY src/ src/
 

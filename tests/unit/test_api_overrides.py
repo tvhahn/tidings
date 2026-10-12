@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+from src.api.routers import overrides as overrides_router
 from src.api.routers.overrides import _query_correction_items
 from src.finance import demo_clock
 from src.finance.exceptions import VersionConflictError
@@ -283,6 +284,69 @@ class TestGetSuggestions:
         body = resp.json()
         assert body["count"] == 1
         assert body["suggestions"][0]["company"] == "NEW MERCHANT"
+
+    # Dismissals are stamped in UTC; reviewed_at carries the app-local offset.
+    # 12:00Z == 05:00 in a UTC-7 app zone, so these pairs straddle the dismissal
+    # by one hour and a lexical compare gets the order wrong.
+    _DISMISSED_AT = "2026-02-10T12:00:00+00:00"
+
+    def _suggestions_with(self, mock_run_sync: AsyncMock, api_client, freeze_clock, reviewed: list[str]) -> dict:
+        freeze_clock(overrides_router, at=datetime(2026, 2, 11, 9, 0, tzinfo=ZoneInfo("America/Phoenix")))
+        mock_run_sync.side_effect = [
+            _make_overrides_item(data={}, dismissed={"new merchant|groceries": self._DISMISSED_AT}),
+            [
+                {
+                    "Company": "NEW MERCHANT",
+                    "Category": "Groceries",
+                    "CategoryAudit": {"source": "manual", "reviewed_at": ts},
+                }
+                for ts in reviewed
+            ],
+        ]
+        resp = api_client.get("/api/v1/overrides/suggestions?months=1")
+        assert_ok(resp)
+        return resp.json()
+
+    @pytest.mark.parametrize(
+        "reviewed_at",
+        [
+            "2026-02-10T06:00:00-07:00",  # 13:00Z — sorts before the dismissal as text
+            "2026-02-10T06:00:00",  # naive → app-local (UTC-7) → 13:00Z
+        ],
+    )
+    @pytest.mark.parametrize("mock_run_sync", ["overrides"], indirect=True)
+    def test_correction_after_dismissal_resurfaces_across_offsets(
+        self, mock_run_sync: AsyncMock, api_client, freeze_clock, reviewed_at: str
+    ) -> None:
+        body = self._suggestions_with(mock_run_sync, api_client, freeze_clock, [reviewed_at])
+        assert body["count"] == 1
+        assert body["suggestions"][0]["last_corrected"] == reviewed_at
+
+    @pytest.mark.parametrize(
+        "reviewed_at",
+        [
+            "2026-02-10T04:00:00-07:00",  # 11:00Z
+            "2026-02-10T20:00:00+09:00",  # 11:00Z — sorts after the dismissal as text
+        ],
+    )
+    @pytest.mark.parametrize("mock_run_sync", ["overrides"], indirect=True)
+    def test_correction_before_dismissal_stays_hidden_across_offsets(
+        self, mock_run_sync: AsyncMock, api_client, freeze_clock, reviewed_at: str
+    ) -> None:
+        body = self._suggestions_with(mock_run_sync, api_client, freeze_clock, [reviewed_at])
+        assert body["count"] == 0
+
+    @pytest.mark.parametrize("mock_run_sync", ["overrides"], indirect=True)
+    def test_last_corrected_is_latest_instant_across_mixed_offsets(
+        self, mock_run_sync: AsyncMock, api_client, freeze_clock
+    ) -> None:
+        # Text max would pick the +09:00 stamp (11:00Z); the -07:00 one is 13:00Z.
+        # Empty and unreadable stamps are skipped rather than winning the max.
+        reviewed = ["2026-02-10T20:00:00+09:00", "", "not-a-date", "2026-02-10T06:00:00-07:00"]
+        body = self._suggestions_with(mock_run_sync, api_client, freeze_clock, reviewed)
+        assert body["count"] == 1
+        assert body["suggestions"][0]["correction_count"] == 4
+        assert body["suggestions"][0]["last_corrected"] == "2026-02-10T06:00:00-07:00"
 
     @pytest.mark.parametrize("months", ["0", "25", "100000"])
     @pytest.mark.parametrize("mock_run_sync", ["overrides"], indirect=True)

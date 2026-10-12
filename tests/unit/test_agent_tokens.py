@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import threading
+import time
+from typing import TYPE_CHECKING, cast
 
 import pytest
 
 from src.finance import agent_tokens, app_config
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
     from pathlib import Path
 
 
@@ -160,3 +162,87 @@ class TestPersistenceRoundTrip:
         cfg = app_config.get_config()
         assert cfg["timezone"] == "Europe/Berlin"
         assert len(cfg.get("agent_tokens", []) or []) == 1
+
+
+class TestConcurrentConfigWrites:
+    """``update_config`` and the token helpers hold one in-process lock across
+    their read-modify-write, so concurrent writers never lose each other's
+    updates. ``_save_config`` is slowed down to widen the race window the lock
+    has to close — without the lock every test below drops updates."""
+
+    @pytest.fixture
+    def slow_save(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        original = app_config._save_config
+
+        def _slow(config: app_config.AppConfig) -> None:
+            time.sleep(0.002)
+            original(config)
+
+        monkeypatch.setattr(app_config, "_save_config", _slow)
+
+    @staticmethod
+    def _run_all(targets: list[Callable[[], None]]) -> None:
+        threads = [threading.Thread(target=t) for t in targets]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+    def test_concurrent_updates_on_distinct_keys_are_all_kept(self, isolated_config: Path, slow_save: None) -> None:
+        keys = [f"race_key_{i}" for i in range(16)]
+        barrier = threading.Barrier(len(keys))
+
+        def _writer(key: str) -> Callable[[], None]:
+            def _write() -> None:
+                barrier.wait()
+                for n in range(5):
+                    app_config.update_config(cast("app_config.AppConfig", {key: n}))
+
+            return _write
+
+        self._run_all([_writer(k) for k in keys])
+
+        app_config.invalidate_config_cache()
+        on_disk = cast("dict[str, object]", app_config.get_config())
+        assert {k: on_disk.get(k) for k in keys} == dict.fromkeys(keys, 4)
+
+    def test_mark_used_does_not_revert_a_concurrent_update(self, isolated_config: Path, slow_save: None) -> None:
+        app_config.update_config({"auth_bypass_for_dev": True})
+        record, _ = agent_tokens.add_token(label="t")
+        barrier = threading.Barrier(2)
+
+        def _stamp() -> None:
+            barrier.wait()
+            for _ in range(20):
+                agent_tokens.mark_used(record["id"])
+
+        def _toggle() -> None:
+            barrier.wait()
+            for i in range(20):
+                app_config.update_config({"auth_bypass_for_dev": i % 2 == 0})
+            app_config.update_config({"auth_bypass_for_dev": False})
+
+        self._run_all([_stamp, _toggle])
+
+        app_config.invalidate_config_cache()
+        assert app_config.get_config().get("auth_bypass_for_dev") is False
+        tokens = agent_tokens.list_tokens()
+        assert [t["id"] for t in tokens] == [record["id"]]
+        assert tokens[0]["last_used_at"] is not None
+
+    def test_concurrent_add_token_keeps_every_token(self, isolated_config: Path, slow_save: None) -> None:
+        barrier = threading.Barrier(8)
+        added: list[str] = []
+
+        def _adder(i: int) -> Callable[[], None]:
+            def _add() -> None:
+                barrier.wait()
+                record, _ = agent_tokens.add_token(label=f"t{i}")
+                added.append(record["id"])
+
+            return _add
+
+        self._run_all([_adder(i) for i in range(8)])
+
+        app_config.invalidate_config_cache()
+        assert sorted(t["id"] for t in agent_tokens.list_tokens()) == sorted(added)

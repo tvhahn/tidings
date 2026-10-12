@@ -26,6 +26,7 @@ services:
       - IMAP_PASSWORD=${IMAP_PASSWORD:-}
       - IMAP_FOLDER=${IMAP_FOLDER:-INBOX}
       - IMAP_POLL_INTERVAL=${IMAP_POLL_INTERVAL:-60}
+      - IMAP_CA_FILE=${IMAP_CA_FILE:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
     depends_on:
       - finance

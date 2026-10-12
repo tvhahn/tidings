@@ -17,6 +17,7 @@ from src.api.models.ingestion import (
     UploadEmlResponse,
 )
 from src.api.serializers import build_manual_transaction_data, lookup_override_category
+from src.api.utils import read_upload_limited
 from src.finance.category_audit import build_audit
 from src.finance.parse_recovery import downgrade_to_quarantined, mark_recovered, recover_or_quarantine
 from src.finance.protocols import IOverrideService, IParseFailureStore, ITransactionsDB
@@ -86,11 +87,13 @@ async def upload_eml(
     if not file.filename or not file.filename.endswith(".eml"):
         raise HTTPException(status_code=422, detail="File must be a .eml file")
 
-    content = await file.read()
+    content = await read_upload_limited(
+        file,
+        _MAX_UPLOAD_BYTES,
+        lambda _size: HTTPException(status_code=413, detail="File exceeds 50 MB upload limit"),
+    )
     if not content:
         raise HTTPException(status_code=422, detail="Empty file")
-    if len(content) > _MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=413, detail="File exceeds 50 MB upload limit")
 
     from src.finance.ai_client import get_ai_client
     from src.finance.email_pipeline import parse_email

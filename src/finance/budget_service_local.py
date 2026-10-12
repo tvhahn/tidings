@@ -6,7 +6,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-from src.finance.budget_service_base import BudgetServiceBase
+from src.finance.budget_service_base import BUDGET_KEY_PREFIX, BudgetServiceBase, budget_years_from_keys
 from src.finance.decimal_utils import DecimalEncoder
 from src.finance.demo_clock import app_today
 from src.finance.exceptions import VersionConflictError
@@ -85,6 +85,17 @@ class BudgetServiceLocal(BudgetServiceBase):
 
     def get_groups(self, year: int) -> dict[str, Any] | None:
         return self._get_item(f"BUDGET#groups#{year}")
+
+    def list_budget_years(self) -> list[int]:
+        conn = self._connect()
+        try:
+            rows = conn.execute(
+                "SELECT sk FROM config_store WHERE pk = ? AND substr(sk, 1, ?) = ?",
+                (self.USER_PK, len(BUDGET_KEY_PREFIX), BUDGET_KEY_PREFIX),
+            ).fetchall()
+        finally:
+            conn.close()
+        return budget_years_from_keys(row["sk"] for row in rows)
 
     def _store_targets(self, year: int, data: dict[str, Any], expected_version: int | None) -> int:
         return self._put_item(f"BUDGET#targets#{year}", data, expected_version)

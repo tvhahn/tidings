@@ -101,6 +101,40 @@ class TestParseFailureStoreContract:
         matching = [r for r in rows if r["id"] == id1]
         assert len(matching) == 1
 
+    def test_re_record_preserves_dismissed_status(self, store: Any) -> None:
+        fid = store.record_failure(_failure())
+        store.set_status(fid, "dismissed")
+        store.record_failure(_failure(failure_stage="no_parser_match"))
+        got = store.get_failure(fid)
+        assert got is not None
+        assert got["status"] == "dismissed"
+        # The stage IS refreshed on a re-record.
+        assert got["failure_stage"] == "no_parser_match"
+
+    def test_re_record_preserves_recovery_link(self, store: Any) -> None:
+        fid = store.record_failure(_failure())
+        store.set_status(fid, "recovered", "2026.02.15_10.30_fixture.eml")
+        store.record_failure(_failure())
+        got = store.get_failure(fid)
+        assert got is not None
+        assert got["status"] == "recovered"
+        assert got["recovered_date_file_name"] == "2026.02.15_10.30_fixture.eml"
+
+    def test_re_record_preserves_created_and_received_at(self, store: Any) -> None:
+        fid = store.record_failure(_failure(received_at="2026-02-15T10:30:00-08:00"))
+        store.record_failure(_failure(received_at="2026-03-01T09:00:00-08:00"))
+        got = store.get_failure(fid)
+        assert got is not None
+        assert got["created_at"] == "2026-02-15T10:30:00-08:00"
+        assert got["received_at"] == "2026-02-15T10:30:00-08:00"
+        assert got["updated_at"] is not None
+
+    def test_first_record_honours_incoming_status(self, store: Any) -> None:
+        fid = store.record_failure(_failure(status="recovered"))
+        got = store.get_failure(fid)
+        assert got is not None
+        assert got["status"] == "recovered"
+
     def test_list_excludes_email_json(self, store: Any) -> None:
         store.record_failure(_failure())
         rows = store.list_failures()

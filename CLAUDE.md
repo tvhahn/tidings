@@ -61,7 +61,7 @@ The tree is discoverable with `ls` — only the non-obvious parts are recorded h
 - `data/` — gitignored **real** user financial data (config, SQLite DBs)
 
 ### Backend (finance + storage)
-Dual-backend storage (DynamoDB/SQLite), per-bank parsers, the 7 service-pair
+Dual-backend storage (DynamoDB/SQLite), per-bank parsers, the 10 service-pair
 implementations, and finance domain rules (amounts, timezone, DynamoDB schema)
 live in [`src/finance/CLAUDE.md`](src/finance/CLAUDE.md).
 
@@ -104,3 +104,4 @@ Read on demand (not auto-loaded):
 - `docs/guides/self-hosted-email-setup.md` — IMAP polling daemon configuration for the self-hosted path
 - `docs/guides/slash-commands.md` — category management, insights, statement parsing, test/doc review, and feature spec slash commands
 - `docs/guides/static-hosted-demo.md` — building, previewing, and regenerating fixtures for the static Cloudflare-Pages demo
+- `docs/guides/supply-chain-security.md` — digest-pinned base images and how to refresh one, lockfiles, audit gates, Dependabot coverage

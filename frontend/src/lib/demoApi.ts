@@ -84,7 +84,16 @@ import type {
   WhoamiResponse,
 } from "@/types/api";
 import { txIdFromComposite } from "./api";
-import type { ActivityFilters, TaxLineOption } from "./api";
+import type {
+  ActivityFilters,
+  AuthOk,
+  ChatgptLoginStatus,
+  ManualTransactionRequest,
+  ManualTransactionResponse,
+  MerchantAliasEntry,
+  MerchantAliasListResponse,
+  TaxLineOption,
+} from "./api";
 import { computeCategoryAnomalies, inferMerchantType, topCategoryDeltas } from "./demoAnalytics";
 import { DEMO_NOW_ISO } from "./demoConstants";
 import { buildDemoEmail } from "./demoEmails";
@@ -112,6 +121,20 @@ import { formatDate, shiftMonth } from "./format";
 // one rather than reimplementing it.
 export { txIdFromComposite };
 
+// Request/response types are owned by api.ts; re-export them rather than
+// re-declaring them here, so the demo build's `@/lib/api` type surface can
+// never drift from the real one.
+export type {
+  ActivityFilters,
+  AuthOk,
+  ChatgptLoginStatus,
+  ManualTransactionRequest,
+  ManualTransactionResponse,
+  MerchantAliasEntry,
+  MerchantAliasListResponse,
+  TaxLineOption,
+};
+
 // ---------------------------------------------------------------------------
 // Contents (line numbers approximate; sections demarcated by `// ---` below)
 //   Overlay application helpers ............ L126
@@ -138,8 +161,6 @@ export { txIdFromComposite };
 // AccessSection without a runtime null reference.
 export const AUTH_REQUIRED_EVENT = "tidings:auth-required";
 export const AUTH_STATE_CHANGED_EVENT = "tidings:auth-state-changed";
-
-export type AuthOk = { status: string };
 
 export function setAppPassword(_args: {
   password: string;
@@ -294,23 +315,6 @@ export function fetchHealth(): Promise<HealthStatus> {
 // ---------------------------------------------------------------------------
 // Manual Transaction Entry
 // ---------------------------------------------------------------------------
-
-export interface ManualTransactionRequest {
-  date: string;
-  amount: number;
-  company: string;
-  category?: string | undefined;
-  transaction_type?: string | undefined;
-  institution?: string | undefined;
-  name?: string | undefined;
-}
-
-export interface ManualTransactionResponse {
-  forwarded_to: string;
-  date_file_name: string;
-  category: string;
-  status: string;
-}
 
 export function addManualTransaction(
   data: ManualTransactionRequest
@@ -653,14 +657,7 @@ export function startChatgptLogin(): Promise<{ verification_url: string; user_co
   throw new DemoModeError("ChatGPT connection is disabled in the demo.");
 }
 
-export function fetchChatgptLoginStatus(): Promise<{
-  connected: boolean;
-  pending: boolean;
-  email: string | null;
-  error: string | null;
-  verification_url: string | null;
-  user_code: string | null;
-}> {
+export function fetchChatgptLoginStatus(): Promise<ChatgptLoginStatus> {
   return Promise.resolve({
     connected: false,
     pending: false,
@@ -1269,17 +1266,6 @@ export function fetchInsightsStatus(): Promise<InsightsStatus> {
 // ---------------------------------------------------------------------------
 // Merchant Aliases
 // ---------------------------------------------------------------------------
-
-export interface MerchantAliasEntry {
-  raw_name: string;
-  canonical_name: string;
-}
-
-export interface MerchantAliasListResponse {
-  aliases: MerchantAliasEntry[];
-  count: number;
-  version: number;
-}
 
 export function fetchMerchantAliases(): Promise<MerchantAliasListResponse> {
   return loadFixture<MerchantAliasListResponse>("merchant-aliases");

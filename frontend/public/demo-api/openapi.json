@@ -4820,7 +4820,14 @@
           },
           "delta": {
             "additionalProperties": {
-              "type": "number"
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "title": "Delta",
             "type": "object"
@@ -8749,8 +8756,15 @@
             "type": "number"
           },
           "delta_percent": {
-            "title": "Delta Percent",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delta Percent"
           },
           "pace": {
             "anyOf": [
@@ -10090,6 +10104,7 @@
       "_LoginIn": {
         "properties": {
           "password": {
+            "maxLength": 1024,
             "minLength": 1,
             "title": "Password",
             "type": "string"
@@ -10106,6 +10121,7 @@
           "current_password": {
             "anyOf": [
               {
+                "maxLength": 1024,
                 "type": "string"
               },
               {
@@ -10115,6 +10131,7 @@
             "title": "Current Password"
           },
           "password": {
+            "maxLength": 1024,
             "minLength": 8,
             "title": "Password",
             "type": "string"
@@ -10131,6 +10148,7 @@
           "current_password": {
             "anyOf": [
               {
+                "maxLength": 1024,
                 "type": "string"
               },
               {

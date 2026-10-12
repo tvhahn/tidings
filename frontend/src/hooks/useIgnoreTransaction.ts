@@ -1,6 +1,13 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { setIgnored } from "@/lib/api";
+import {
+  composeUpdaters,
+  mapRow,
+  optimisticallyUpdateCombined,
+  removeFromAttention,
+  restoreCombinedTransactions,
+} from "@/lib/optimisticTransactions";
 import { invalidateTransactionDependents, mutations, queryKeys } from "@/lib/queryConfigs";
 import type { TransactionListResponse, SearchResponse } from "@/types/api";
 
@@ -11,6 +18,14 @@ export function useIgnoreTransaction() {
     ...mutations.ignoreTransaction(qc),
 
     onMutate: async ({ forwardedTo, dateFileName, ignored }) => {
+      // Combined cache backs the Transactions page. Ignored rows never sit in
+      // attention; un-ignoring may re-qualify one, which the refetch settles.
+      const ref = { forwardedTo, dateFileName };
+      const setFlag = mapRow(ref, (t) => ({ ...t, ignored }));
+      const previousCombined = await optimisticallyUpdateCombined(
+        qc,
+        ignored ? composeUpdaters(setFlag, removeFromAttention(ref)) : setFlag
+      );
       await qc.cancelQueries({ queryKey: queryKeys.prefix("transactions") });
       await qc.cancelQueries({ queryKey: queryKeys.prefix("transaction-search") });
 
@@ -46,10 +61,11 @@ export function useIgnoreTransaction() {
         updater
       );
 
-      return { previousTransactions, previousSearch };
+      return { previousCombined, previousTransactions, previousSearch };
     },
 
     onError: (_err, _vars, context) => {
+      restoreCombinedTransactions(qc, context?.previousCombined);
       if (context?.previousTransactions) {
         for (const [queryKey, data] of context.previousTransactions) {
           qc.setQueryData(queryKey, data);

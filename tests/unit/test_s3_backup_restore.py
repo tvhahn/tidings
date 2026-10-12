@@ -8,6 +8,8 @@ faithfully rebuilt DB rows.
 
 from __future__ import annotations
 
+import json
+import logging
 import os
 from typing import TYPE_CHECKING
 
@@ -19,6 +21,7 @@ if TYPE_CHECKING:
 from src.finance import s3_backup
 from src.finance.attachment_store import AttachmentStore
 from src.finance.s3_backup_restore import ManifestNotFoundError, main, restore_backup
+from src.finance.s3_backup_shared import MANIFEST_KEY
 from src.finance.statement_store import StatementStore
 
 _RECEIPT_BYTES = b"receipt-bytes-here"
@@ -242,6 +245,39 @@ def test_malicious_traversal_key_is_rejected(s3, tmp_path):
     assert not (tmp_path / "evil.txt").exists()
     # The legitimate files still restored.
     assert (raw_b / "attachments/2026-01/a.pdf").read_bytes() == _RECEIPT_BYTES
+
+
+@pytest.mark.parametrize("dry_run", [False, True])
+@pytest.mark.parametrize(
+    "bad_path",
+    ["/etc/passwd", "data/raw/attachments/../../../evil.pdf", "data/raw/statements/RBC/jan.pdf", ""],
+)
+def test_manifest_attachment_path_outside_root_is_skipped(s3, tmp_path, caplog, bad_path, dry_run):
+    client, bucket, attachment_id = _back_up(s3, tmp_path)
+    manifest = json.loads(client.get_object(Bucket=bucket, Key=MANIFEST_KEY)["Body"].read())
+    evil = dict(manifest["attachments"][0], id="att_evil", sha256="sha-evil", file_path=bad_path)
+    manifest["attachments"].append(evil)
+    client.put_object(Bucket=bucket, Key=MANIFEST_KEY, Body=json.dumps(manifest).encode())
+
+    raw_b = tmp_path / "raw_b"
+    att_b, stmt_b = _fresh_stores(tmp_path, "b")
+    with caplog.at_level(logging.WARNING, logger="src.finance.s3_backup_restore"):
+        result = restore_backup(
+            bucket,
+            None,
+            raw_root=raw_b,
+            attachment_store=att_b,
+            statement_store=stmt_b,
+            s3_client=client,
+            dry_run=dry_run,
+        )
+
+    assert result.attachments_restored == 1
+    assert "Skipping attachment row with a path outside" in caplog.text
+    if not dry_run:
+        rows = att_b.list_attachments()
+        assert [r["id"] for r in rows] == [attachment_id]
+        assert rows[0]["file_path"] == "data/raw/attachments/2026-01/a.pdf"
 
 
 def test_main_no_bucket_returns_error(monkeypatch, capsys):

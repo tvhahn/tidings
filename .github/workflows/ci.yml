@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [main]
 
+# The `notebooks` dependency group (Jupyter/scipy stack) is a default group for
+# local `uv sync`, but no job needs it. `uv run` re-syncs the default groups, so
+# the `--no-group notebooks` flag on `uv sync` alone would not stick — the
+# env var keeps every later `uv run` from pulling the group back in.
+env:
+  UV_NO_GROUP: notebooks
+
 jobs:
   unit-tests:
     runs-on: ubuntu-latest
@@ -21,7 +28,7 @@ jobs:
         run: uv python install 3.12
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --no-group notebooks
 
       - name: Unit tests with coverage
         # The pytest invocation and coverage floor live in one place: `make test-ci`.
@@ -44,7 +51,7 @@ jobs:
         run: uv python install 3.12
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --no-group notebooks
 
       - name: Integration tests
         run: uv run pytest tests/integration/ -m integration -v --no-cov
@@ -66,13 +73,53 @@ jobs:
         run: uv python install 3.12
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --no-group notebooks
 
       - name: Regenerate openapi.json
         run: make openapi
 
       - name: Fail on drift
         run: git diff --exit-code openapi.json
+
+  # Runs the two `make verify` gates no other job covered, through the same make
+  # targets so the recipes stay single-sourced. verify-demo-api regenerates
+  # frontend/public/demo-api/ from openapi.json (pnpm + uv), fails on drift, then
+  # runs the structural check; check-changelog lints CHANGELOG.md.
+  demo-api-and-changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --no-group notebooks
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Changelog format lint
+        run: make check-changelog
+
+      - name: Demo API artifacts (regenerate, fail on drift, structural gate)
+        run: make verify-demo-api
 
   frontend-codegen-check:
     runs-on: ubuntu-latest
@@ -88,7 +135,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "22"
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
 
@@ -115,7 +162,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "22"
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
 
@@ -143,7 +190,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: De-slop P0 gate (blocking)
         run: node .claude/skills/ui-slop-audit/scripts/slop-grep.mjs frontend/src --fail-on=P0
@@ -158,7 +205,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Docs coverage gate (pages, sidebar + llms-txt, screenshots)
         run: node scripts/checks/check_docs_coverage.mjs
@@ -205,7 +252,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "22"
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
 
@@ -229,13 +276,13 @@ jobs:
         run: uv python install 3.12
 
       - name: Lockfile freshness (uv.lock matches pyproject.toml)
-        # Every other job runs plain `uv sync`, which silently re-locks on drift —
+        # Every other job runs `uv sync` without --locked, which silently re-locks on drift —
         # so a merged pyproject change with a stale committed lock would pass CI
         # while image builds re-resolve at build time. Fail it here instead.
         run: uv lock --check
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --no-group notebooks
 
       - name: Ruff check
         run: uv run ruff check src/ tests/
@@ -277,24 +324,24 @@ jobs:
         run: uv python install 3.12
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --no-group notebooks
 
       - name: Audit dependencies
-        run: uv run pip-audit --ignore-vuln CVE-2025-69872  # diskcache 5.6.3 — no fix available yet
+        run: uv run pip-audit
 
       # pnpm audit requires v11+: npm retired the legacy /security/audits{,/quick}
       # endpoints (410 since 2026-04) and pnpm moved to the bulk advisory endpoint
       # (/security/advisories/bulk) in v11 (pnpm/pnpm#11268), so v10 audit is
       # permanently broken. Pinned ahead of the app's pnpm 10 on purpose — audit
       # only reads pnpm-lock.yaml (never installs), so the v10 lockfile is read fine.
-      # pnpm 11.13+ needs the node:sqlite builtin (Node >=22.5), so pin Node 24 here.
+      # pnpm 11 needs Node >=22.13 (it uses the node:sqlite builtin); Node 22 covers it.
       - uses: pnpm/action-setup@v6
         with:
           version: 11
 
       - uses: actions/setup-node@v7
         with:
-          node-version: "24"
+          node-version: "22"
 
       - name: Audit npm dependencies (high/critical only)
         working-directory: frontend

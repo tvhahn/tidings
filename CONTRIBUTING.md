@@ -23,8 +23,9 @@ the environment is ready when it finishes. The contributor stack lives at
 self-hoster production stack and is not what the DevContainer uses.
 
 **Manual (without VS Code).** You need Python 3.12+ with
-[uv](https://docs.astral.sh/uv/) and Node 20. `make verify` runs the frontend
-gates and Playwright too, not just the backend, so both toolchains matter:
+[uv](https://docs.astral.sh/uv/) and Node 22 (22.12 or newer; the root `.nvmrc`
+names it for nvm and fnm). `make verify` runs the frontend gates and Playwright
+too, not just the backend, so both toolchains matter:
 
 ```bash
 # Backend
