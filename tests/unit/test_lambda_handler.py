@@ -150,6 +150,41 @@ class TestHandlerProcessing:
     @patch("docker.email_parsing.lambda_function.transactions_db")
     @patch("docker.email_parsing.lambda_function.parse_email")
     @patch("docker.email_parsing.lambda_function.get_s3_file")
+    def test_repeat_alert_stored_ignored_skips_sms(
+        self,
+        mock_get_s3: MagicMock,
+        mock_parse: MagicMock,
+        mock_db: MagicMock,
+        mock_sms: MagicMock,
+        mock_enricher: MagicMock,
+    ) -> None:
+        """A re-sent alert is stored (Ignored, DuplicateOf) but must not text twice."""
+        mock_get_s3.return_value = b"raw email bytes"
+        mock_parse.return_value = {
+            "forwarded_to": "user@example.com",
+            "company": "Starbucks",
+            "amount": 5.50,
+            "transaction_type": "purchase",
+        }
+
+        def _store_as_repeat(result: dict[str, Any], **_kwargs: Any) -> str:
+            result["ignored"] = True
+            result["duplicate_of"] = "2026.01.15_14.30_original.eml"
+            return "2026.01.15_15.05_copy.eml"
+
+        mock_db.add_transaction.side_effect = _store_as_repeat
+
+        handler(_s3_event(), None)
+
+        mock_sms.assert_not_called()
+        mock_enricher.enrich.assert_not_called()
+        mock_db.update_context.assert_not_called()
+
+    @patch("docker.email_parsing.lambda_function.context_enricher")
+    @patch("docker.email_parsing.lambda_function.notification_service.send")
+    @patch("docker.email_parsing.lambda_function.transactions_db")
+    @patch("docker.email_parsing.lambda_function.parse_email")
+    @patch("docker.email_parsing.lambda_function.get_s3_file")
     def test_validation_failure_skips_sms(
         self,
         mock_get_s3: MagicMock,

@@ -210,6 +210,7 @@ The shared `etransfer_parser.py:parse_e_transfer()` function handles e-transfer 
 | `FileName` | String | | S3 object key |
 | `FromName`, `FromEmail` | String | | Sender details (email lowercased) |
 | `ToName`, `ToEmail` | String | | Recipient details (email lowercased) |
+| `DuplicateOf` | String | | `DateFileName` of the row this one repeats — set with `Ignored` on a re-sent or twice-delivered alert (see [Deduplication](#deduplication)); kept if the row is restored. SQLite column `duplicate_of` |
 | `Subject` | String | | Email subject line |
 | `Body` | String | | Full email body text |
 | `CategoryAudit` | Map | | Audit metadata: `source` (`override`/`override_normalized`/`override_alias`/`override_fuzzy`/`manual`/`audit`/`statement_import`/`statement_enrich`/`manual_edit`), `matched_rule` (original-case override key that fired), `confidence` (Decimal; `1.0` for Tiers 0–2, cosine score for Tier 3), `reviewed_at` (ISO timestamp) |
@@ -267,6 +268,15 @@ SHA-256( forwarded_to | institution | amount | company | date | transaction_type
 ```
 
 Before writing, `_transaction_exists()` queries DynamoDB for a matching `TransactionHash` under the same `ForwardedTo` partition. **The check fails open** — if the query errors (DynamoDB throttling, network issue), the transaction is written anyway. This prioritizes data capture over strict uniqueness; a duplicate row is less harmful than a lost transaction.
+
+#### Repeated alerts
+
+The hash check misses two real-world repeats, so every email write is followed by a reconcile step (`_reconcile_duplicate_alerts()` in `transaction_db_base.py`, rules in `src/finance/duplicate_alerts.py`):
+
+- **The same email written twice.** One message reaching ingestion twice (two S3 objects, or the IMAP poller and the Lambda both reading it) hashes identically, but two concurrent writers can both pass the check-then-put. After writing, each re-reads the partition's neighbouring rows (DynamoDB `ConsistentRead`); rows sharing a `TransactionHash` resolve to the lowest `DateFileName`, and every other copy is marked. Whichever writer reads last sees both rows, so the race always resolves.
+- **The bank re-sends the alert.** The copy carries a later `Date:` header, and the hash includes that minute. A new row whose alert text and parsed fields match an earlier row within six hours is a re-send. Alert bodies carry no date, so a wider window would catch a genuine repeat purchase on another day; across 2.5 years of real alerts, re-sends fall within 4 hours and repeat purchases start at 12.
+
+A marked row is written, not dropped: `Ignored` is set and `DuplicateOf` names the original, so totals stay right and the restore control brings back a genuine second identical purchase. Ingestion skips enrichment and notification for it, and the API exposes it as `duplicate_of_tx_id`. The re-send rule only ever marks the row just written, so an earlier copy a user restored is never re-hidden. `dev/cli/mark_duplicate_alerts.py` replays the same rules over existing history (dry run by default).
 
 ### Timezone handling
 

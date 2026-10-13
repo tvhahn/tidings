@@ -23,6 +23,7 @@ import { useSoftDelete } from "@/hooks/useSoftDelete";
 import { useUpdateCategory } from "@/hooks/useUpdateCategory";
 import { iconForCategory } from "@/lib/categoryIcons";
 import { formatCurrency, formatDate, titleCase } from "@/lib/format";
+import { ignoreToggleTooltip } from "@/lib/ignoreToggle";
 import { cn } from "@/lib/utils";
 import { useEditedTransactions, makeKey } from "@/stores/editedTransactions";
 import { usePreferences } from "@/stores/preferences";
@@ -131,9 +132,7 @@ function TransactionCardImpl({
             <EyeOff className="h-4 w-4" />
           </button>
         </TooltipTrigger>
-        <TooltipContent>
-          {txn.ignored ? "Restore transaction" : "Ignore transaction"}
-        </TooltipContent>
+        <TooltipContent>{ignoreToggleTooltip(txn)}</TooltipContent>
       </Tooltip>
       <CommentPopover
         forwardedTo={txn.forwarded_to}

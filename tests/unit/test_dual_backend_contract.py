@@ -463,6 +463,54 @@ class TestTransactionsDBContract:
         assert item is not None
         assert bool(item.get("Ignored")) is True
 
+    # -- repeated bank alerts (issue #86) ------------------------------------
+
+    def test_resent_alert_is_stored_ignored_with_duplicate_of(self, db: Any) -> None:
+        original = db.add_transaction(_seed_txn(date="02/15/2026 10:30 PST", file_name="first.eml"))
+        resend = _seed_txn(date="02/15/2026 11:45 PST", file_name="second.eml")
+        copy = db.add_transaction(resend)
+
+        assert isinstance(copy, str)
+        assert copy != original
+        assert resend["duplicate_of"] == original
+        assert resend["ignored"] is True
+        stored = db.get_item("user@example.com", copy)
+        assert stored is not None
+        assert bool(stored.get("Ignored")) is True
+        assert stored.get("DuplicateOf") == original
+        first = db.get_item("user@example.com", original)
+        assert first is not None
+        assert not first.get("Ignored")
+        assert first.get("DuplicateOf") is None
+
+    def test_same_alert_next_day_stays_a_transaction(self, db: Any) -> None:
+        db.add_transaction(_seed_txn(date="02/15/2026 08:00 PST", file_name="mon.eml"))
+        repeat = _seed_txn(date="02/16/2026 07:55 PST", file_name="tue.eml")
+        dfn = db.add_transaction(repeat)
+
+        assert "duplicate_of" not in repeat
+        stored = db.get_item("user@example.com", dfn)
+        assert stored is not None
+        assert not stored.get("Ignored")
+
+    def test_racing_writers_leave_one_live_copy(self, db: Any) -> None:
+        """Two writers past the pre-write hash check: whichever reconciles marks the later key."""
+        first = _seed_txn(file_name="b-copy.eml")
+        second = _seed_txn(file_name="a-copy.eml")
+        # Simulate both pre-write checks having passed: write the first copy,
+        # then force-insert the second so add_transaction's dedup can't stop it.
+        db.add_transaction(first)
+        racer_key = db._insert_imported({**second, "category": "groceries"}, None)
+        # The racer's writer now reconciles and sees both rows.
+        db._reconcile_duplicate_alerts(dict(second), racer_key)
+
+        rows = [db.get_item("user@example.com", key) for key in (racer_key, "2026.02.15_10.30_b-copy.eml")]
+        live = [row for row in rows if row is not None and not row.get("Ignored")]
+        assert [row["DateFileName"] for row in live] == [racer_key]
+        hidden = rows[1]
+        assert hidden is not None
+        assert hidden.get("DuplicateOf") == racer_key
+
     def test_extraction_audit_round_trips(self, db: Any) -> None:
         """add_transaction(extraction_audit=...) persists an intact ExtractionAudit map.
 

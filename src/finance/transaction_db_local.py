@@ -212,7 +212,24 @@ class TransactionsDBLocal(TransactionsDBBase):
             )
             conn.commit()
             logger.info("Transaction added: %s", date_file_name)
-            return date_file_name
+        finally:
+            conn.close()
+        self._reconcile_duplicate_alerts(transaction_data, date_file_name)
+        return date_file_name
+
+    def _alert_window_items(self, forwarded_to: str, low: str, high: str) -> "list[TransactionItem]":
+        """Partition rows with ``low <= date_file_name <= high`` (SQLite reads are consistent)."""
+        conn = self._connect()
+        try:
+            rows = conn.execute(
+                """SELECT date_file_name, transaction_hash, institution, amount, company,
+                          transaction_type, body, deleted_at, duplicate_of, statement_source
+                   FROM transactions
+                   WHERE forwarded_to = ? AND date_file_name BETWEEN ? AND ?""",
+                (forwarded_to, low, high),
+            ).fetchall()
+            # sqlite boundary: row_to_item builds the stored PascalCase shape.
+            return cast("list[TransactionItem]", [row_to_item(row) for row in rows])
         finally:
             conn.close()
 
@@ -281,12 +298,12 @@ class TransactionsDBLocal(TransactionsDBBase):
                     institution, amount, company, transaction_type, category,
                     name, date, file_name,
                     from_name, from_email, to_name, to_email,
-                    subject, body, comment, ignored, deleted_at,
+                    subject, body, comment, ignored, deleted_at, duplicate_of,
                     category_audit_reviewed_at, category_audit_source,
                     category_audit_matched_rule, category_audit_confidence,
                     category_audit_previous_category, category_audit_json,
                     statement_source
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     row["forwarded_to"],
                     date_file_name,
@@ -309,6 +326,7 @@ class TransactionsDBLocal(TransactionsDBBase):
                     row.get("comment"),
                     1 if row.get("ignored") else 0,
                     row.get("deleted_at"),
+                    row.get("duplicate_of"),
                     reviewed_at,
                     source,
                     matched_rule,
@@ -664,6 +682,18 @@ class TransactionsDBLocal(TransactionsDBBase):
             )
             conn.commit()
             return old_val
+        finally:
+            conn.close()
+
+    def mark_duplicate_alert(self, forwarded_to: str, date_file_name: str, duplicate_of: str) -> None:
+        """Store a row as Ignored with ``duplicate_of`` naming the row it repeats."""
+        conn = self._connect()
+        try:
+            conn.execute(
+                "UPDATE transactions SET ignored = 1, duplicate_of = ? WHERE forwarded_to = ? AND date_file_name = ?",
+                (duplicate_of, forwarded_to, date_file_name),
+            )
+            conn.commit()
         finally:
             conn.close()
 

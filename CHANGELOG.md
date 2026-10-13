@@ -75,6 +75,16 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- A bank alert that arrives twice no longer counts twice. Banks sometimes
+  re-send the same alert minutes or hours later, and one email could also be
+  stored twice when two copies were processed at the same moment. The repeat is
+  now kept but ignored, so totals stay right and you get one notification; the
+  ignore control's tooltip says it repeats an earlier alert, and restoring it
+  brings it back if it really was a second purchase. The API reports the
+  original as `duplicate_of_tx_id`. Alerts already stored are unchanged; on a
+  dev checkout, `uv run dev/cli/mark_duplicate_alerts.py` previews the repeats
+  in your history and `--apply` marks them the same way. AWS variant: rebuild
+  and roll the Lambda image to pick this up.
 - Statement imports now categorize the way emailed transactions do. A row whose
   merchant you had already filed still landed as miscellaneous, so a statement
   cost you a manual pass over every line. Two things caused it: the review

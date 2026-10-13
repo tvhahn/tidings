@@ -19,6 +19,7 @@ import { useSoftDelete } from "@/hooks/useSoftDelete";
 import { useUpdateCategory } from "@/hooks/useUpdateCategory";
 import { iconForCategory } from "@/lib/categoryIcons";
 import { formatCurrency, titleCase } from "@/lib/format";
+import { ignoreToggleTooltip } from "@/lib/ignoreToggle";
 import { cleanMerchantName } from "@/lib/merchantDisplay";
 import { cn } from "@/lib/utils";
 import { makeKey, useEditedTransactions } from "@/stores/editedTransactions";
@@ -173,9 +174,7 @@ function JournalTransactionRowImpl({ transaction: txn, anchorsDemoTour }: Props)
             <EyeOff className="h-4 w-4" />
           </button>
         </TooltipTrigger>
-        <TooltipContent>
-          {txn.ignored ? "Restore transaction" : "Ignore transaction"}
-        </TooltipContent>
+        <TooltipContent>{ignoreToggleTooltip(txn)}</TooltipContent>
       </Tooltip>
       <CommentPopover
         forwardedTo={txn.forwarded_to}

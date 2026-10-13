@@ -157,10 +157,38 @@ class TransactionsDB(TransactionsDBBase):
                 item["ExtractionAudit"] = {k: to_decimal(v) for k, v in extraction_audit.items()}
             response = table.put_item(Item=item)
             logger.info("Transaction added to %s: %s", table_name, response)
-            return date_file_name
         except ClientError:
             logger.exception("Failed to add transaction to %s.", table_name)
             raise
+        self._reconcile_duplicate_alerts(transaction_data, date_file_name)
+        return date_file_name
+
+    def _alert_window_items(self, forwarded_to: str, low: str, high: str) -> "list[TransactionItem]":
+        """Partition rows in a DateFileName range, strongly consistent.
+
+        ConsistentRead is what lets a racing writer see the other's row: an
+        eventually consistent query could miss a put that completed a moment
+        earlier, and both copies would survive.
+        """
+        table = self.dyn_resource.Table("Transactions")
+        kwargs: dict[str, Any] = {
+            "KeyConditionExpression": Key("ForwardedTo").eq(forwarded_to) & Key("DateFileName").between(low, high),
+            "ProjectionExpression": (
+                "DateFileName, TransactionHash, Institution, Amount, Company, "
+                "TransactionType, #b, DeletedAt, DuplicateOf, StatementSource"
+            ),
+            "ExpressionAttributeNames": {"#b": "Body"},
+            "ConsistentRead": True,
+        }
+        items: list[TransactionItem] = []
+        while True:
+            response = table.query(**kwargs)
+            # The DynamoDB boundary: query returns the stored PascalCase shape.
+            items.extend(cast("list[TransactionItem]", response.get("Items", [])))
+            last_key = response.get("LastEvaluatedKey")
+            if not last_key:
+                return items
+            kwargs["ExclusiveStartKey"] = last_key
 
     def _audit_dynamo_safe(self, audit: dict[str, Any]) -> dict[str, Any]:
         """DynamoDB rejects Python float — coerce numeric audit fields to Decimal."""
@@ -390,6 +418,16 @@ class TransactionsDB(TransactionsDBBase):
         )
         # Narrow the boto3 scalar-value union to this attribute's actual type.
         return cast("bool | None", response.get("Attributes", {}).get("Ignored"))
+
+    def mark_duplicate_alert(self, forwarded_to: str, date_file_name: str, duplicate_of: str) -> None:
+        """Store a row as Ignored with DuplicateOf naming the row it repeats."""
+        table = self.dyn_resource.Table("Transactions")
+        table.update_item(
+            Key={"ForwardedTo": forwarded_to, "DateFileName": date_file_name},
+            UpdateExpression="SET Ignored = :ignored, DuplicateOf = :original",
+            ConditionExpression="attribute_exists(DateFileName)",
+            ExpressionAttributeValues={":ignored": True, ":original": duplicate_of},
+        )
 
     def set_deleted(self, forwarded_to: str, date_file_name: str, deleted: bool) -> bool | str | None:
         """Set or clear the DeletedAt timestamp on a transaction.
@@ -706,6 +744,8 @@ class TransactionsDB(TransactionsDBBase):
                 item["Comment"] = row["comment"]
             if row.get("deleted_at"):
                 item["DeletedAt"] = row["deleted_at"]
+            if row.get("duplicate_of"):
+                item["DuplicateOf"] = row["duplicate_of"]
 
             table.put_item(Item=item)
             return date_file_name

@@ -222,6 +222,8 @@ def test_no_duplicate_walks_all_pages_then_writes():
     table.query.side_effect = [
         {"Count": 0, "Items": [], "LastEvaluatedKey": {"ForwardedTo": "u", "DateFileName": "x"}},
         {"Count": 0, "Items": []},
+        # After the write: the duplicate-alert window read (issue #86).
+        {"Items": []},
     ]
     dyn_resource.Table.return_value = table
 
@@ -230,7 +232,8 @@ def test_no_duplicate_walks_all_pages_then_writes():
 
     assert isinstance(result, str)
     assert result
-    assert table.query.call_count == 2
+    hash_checks = [c for c in table.query.call_args_list if "FilterExpression" in c.kwargs]
+    assert len(hash_checks) == 2
     table.put_item.assert_called_once()
 
 

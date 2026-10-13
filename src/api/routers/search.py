@@ -76,6 +76,8 @@ BACKUP_CSV_COLUMNS: list[str] = [
     "CategoryAuditSchemaVersion",
     # trash state
     "DeletedAt",
+    # repeated-alert provenance (the row this one duplicates)
+    "DuplicateOf",
     # email provenance
     "Subject",
     "FromName",
@@ -451,6 +453,7 @@ def _backup_row(item: Mapping[str, Any]) -> list[Any]:
         audit.get("fallback_reason", "") or "",
         audit.get("schema_version", "") if audit.get("schema_version") is not None else "",
         item.get("DeletedAt", "") or "",
+        item.get("DuplicateOf", "") or "",
         # Email-sourced free text — formula-guarded; backup_import reverses it.
         csv_safe_text(item.get("Subject", "") or ""),
         csv_safe_text(item.get("FromName", "") or ""),

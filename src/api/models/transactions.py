@@ -87,6 +87,14 @@ class TransactionResponse(BaseModel):
     ignored: bool
     comment: str | None
     deleted_at: str | None
+    duplicate_of_tx_id: str | None = Field(
+        default=None,
+        description=(
+            "Set when ingestion stored this row as a repeat of an alert already on file "
+            "(a bank re-send, or one email delivered twice): the tx_id of the original. "
+            "Such rows arrive ignored; the value stays if the row is later restored."
+        ),
+    )
     context: TransactionContext | None = None
     statement_source: str | None = None
 

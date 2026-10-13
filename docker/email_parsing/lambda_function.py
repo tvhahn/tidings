@@ -144,6 +144,13 @@ def handler(event, context):
             else:
                 if recovered_failure_id is not None:
                     mark_recovered(parse_failure_store, recovered_failure_id, date_file_name)
+                if result.get("duplicate_of"):
+                    # A repeat of an alert already stored (bank re-send or a
+                    # second delivery) is kept Ignored — no context, no SMS.
+                    logger.info(
+                        "Repeat of %s stored Ignored as %s. SMS not sent.", result["duplicate_of"], date_file_name
+                    )
+                    continue
                 context = context_enricher.enrich(result)
                 if context:
                     transactions_db.update_context(result["forwarded_to"], date_file_name, context)

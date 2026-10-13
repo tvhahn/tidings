@@ -339,6 +339,9 @@ def _normalize_row(raw: dict[str, str], *, default_forwarded_to: str) -> tuple[d
     deleted_at = (raw.get("DeletedAt") or "").strip()
     if deleted_at:
         row["deleted_at"] = deleted_at
+    duplicate_of = (raw.get("DuplicateOf") or "").strip()
+    if duplicate_of:
+        row["duplicate_of"] = duplicate_of
 
     # Statement source — prefer pre-serialized JSON in "Statement Source" if
     # present; otherwise rebuild from the expanded columns.

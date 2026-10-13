@@ -107,6 +107,28 @@ class TestProcessMessage:
 
     @patch("src.finance.email_pipeline.notification_service.send")
     @patch("src.finance.email_pipeline.parse_email")
+    def test_repeat_alert_stored_ignored_is_not_notified(self, mock_parse: MagicMock, mock_notify: MagicMock) -> None:
+        """A re-sent alert is written (Ignored, DuplicateOf) but must not alert twice."""
+        mock_parse.return_value = _make_result()
+        mock_db = MagicMock(name="db")
+
+        def _store_as_repeat(result: dict[str, Any], **_kwargs: Any) -> str:
+            result["ignored"] = True
+            result["duplicate_of"] = "2026.04.20_08.57_original.eml"
+            return "2026.04.20_12.29_copy.eml"
+
+        mock_db.add_transaction.side_effect = _store_as_repeat
+        mock_enricher = MagicMock(name="enricher")
+
+        status = process_message(b"raw bytes", "100", mock_db, mock_enricher)
+
+        assert status == "duplicate"
+        mock_enricher.enrich.assert_not_called()
+        mock_db.update_context.assert_not_called()
+        mock_notify.assert_not_called()
+
+    @patch("src.finance.email_pipeline.notification_service.send")
+    @patch("src.finance.email_pipeline.parse_email")
     def test_no_parser_match_is_skipped(self, mock_parse: MagicMock, mock_notify: MagicMock) -> None:
         """Emails that no bank parser matched (no `transaction_type`) must not reach the DB."""
         mock_parse.return_value = {"body": "some text", "from_email": "no-reply@accounts.google.com"}

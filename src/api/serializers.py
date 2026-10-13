@@ -39,7 +39,7 @@ from src.finance.tx_id import tx_id_from_composite
 TRANSACTION_LIST_PROJECTION = (
     "ForwardedTo, DateFileName, #d, Amount, Company, Category, Institution, "
     "TransactionType, #n, CategoryAudit, ExtractionAudit, Ignored, #c, DeletedAt, "
-    "TransactionContext, StatementSource"
+    "DuplicateOf, TransactionContext, StatementSource"
 )
 PROJECTION_NAMES = {"#d": "Date", "#n": "Name", "#c": "Comment"}
 
@@ -107,6 +107,7 @@ def to_transaction_response(item: Mapping[str, Any]) -> TransactionResponse:
 
     forwarded_to = item["ForwardedTo"]
     date_file_name = item["DateFileName"]
+    duplicate_of = item.get("DuplicateOf")
     return TransactionResponse(
         tx_id=tx_id_from_composite(forwarded_to, date_file_name),
         forwarded_to=forwarded_to,
@@ -123,6 +124,7 @@ def to_transaction_response(item: Mapping[str, Any]) -> TransactionResponse:
         ignored=bool(item.get("Ignored", False)),
         comment=item.get("Comment"),
         deleted_at=item.get("DeletedAt"),
+        duplicate_of_tx_id=tx_id_from_composite(forwarded_to, duplicate_of) if duplicate_of else None,
         context=context,
         statement_source=item.get("StatementSource"),
     )

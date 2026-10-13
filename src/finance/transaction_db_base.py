@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Literal
 
 from src.finance.app_timezone import get_app_timezone
+from src.finance.duplicate_alerts import alert_row, find_duplicate_marks, window_bounds
 from src.finance.transaction_hash import bump_hash_occurrence, generate_transaction_hash
 
 if TYPE_CHECKING:
@@ -120,6 +121,13 @@ class TransactionsDBBase(ABC):
     @abstractmethod
     def set_deleted(self, forwarded_to: str, date_file_name: str, deleted: bool) -> bool | str | None:
         """Set or clear the DeletedAt timestamp. Returns previous value."""
+
+    @abstractmethod
+    def mark_duplicate_alert(self, forwarded_to: str, date_file_name: str, duplicate_of: str) -> None:
+        """Store a row as a repeat of ``duplicate_of``: Ignored, with DuplicateOf set.
+
+        DuplicateOf is kept as provenance if the row is later restored.
+        """
 
     @abstractmethod
     def permanently_delete(self, forwarded_to: str, date_file_name: str) -> "TransactionItem | None":
@@ -337,6 +345,46 @@ class TransactionsDBBase(ABC):
     @abstractmethod
     def find_date_file_name_by_hash(self, forwarded_to: str, transaction_hash: str) -> str | None:
         """Return DateFileName of a row with the given TransactionHash, or None."""
+
+    @abstractmethod
+    def _alert_window_items(self, forwarded_to: str, low: str, high: str) -> "list[TransactionItem]":
+        """Rows of one partition with ``low <= DateFileName <= high``, read consistently.
+
+        Must reflect writes that completed before the call — duplicate
+        reconciliation relies on seeing a concurrent writer's row.
+        """
+
+    def _reconcile_duplicate_alerts(self, transaction_data: dict[str, Any], date_file_name: str) -> str | None:
+        """Mark duplicate copies of the email row just written (issue #86).
+
+        Called by both backends' ``add_transaction`` after a successful write.
+        Reads the row's neighbours, applies
+        :func:`~src.finance.duplicate_alerts.find_duplicate_marks`, and stores
+        every copy it names as Ignored with DuplicateOf. When the new row itself
+        is a copy, ``transaction_data`` gains ``ignored=True`` and
+        ``duplicate_of`` so the caller can skip notifications.
+
+        Returns the original's DateFileName when the new row is a duplicate.
+        Fail-open: a lookup or update error logs and leaves the row as written.
+        """
+        forwarded_to = transaction_data["forwarded_to"]
+        bounds = window_bounds(date_file_name)
+        if bounds is None:
+            return None
+        try:
+            items = self._alert_window_items(forwarded_to, *bounds)
+            marks = find_duplicate_marks(date_file_name, [alert_row(item) for item in items])
+            for duplicate, original in marks.items():
+                self.mark_duplicate_alert(forwarded_to, duplicate, original)
+                logger.info("Duplicate alert %s stored Ignored (repeats %s)", duplicate, original)
+        except Exception:
+            logger.warning("Duplicate-alert check failed for %s; row left as written", date_file_name, exc_info=True)
+            return None
+        original = marks.get(date_file_name)
+        if original is not None:
+            transaction_data["ignored"] = True
+            transaction_data["duplicate_of"] = original
+        return original
 
     @abstractmethod
     def _insert_imported(

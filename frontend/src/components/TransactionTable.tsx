@@ -37,6 +37,7 @@ import { useIgnoreTransaction } from "@/hooks/useIgnoreTransaction";
 import { useSoftDelete } from "@/hooks/useSoftDelete";
 import { useUpdateCategory } from "@/hooks/useUpdateCategory";
 import { formatCurrency, formatDate, titleCase } from "@/lib/format";
+import { ignoreToggleTooltip } from "@/lib/ignoreToggle";
 import type { SortConfig, SortColumn } from "@/lib/sort";
 import { cn } from "@/lib/utils";
 import { useEditedTransactions, makeKey } from "@/stores/editedTransactions";
@@ -161,9 +162,7 @@ function CategoryCell({
                   <EyeOff className="h-4 w-4" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent>
-                {txn.ignored ? "Restore transaction" : "Ignore transaction"}
-              </TooltipContent>
+              <TooltipContent>{ignoreToggleTooltip(txn)}</TooltipContent>
             </Tooltip>
             <CommentPopover
               forwardedTo={txn.forwarded_to}

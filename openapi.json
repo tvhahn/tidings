@@ -9751,6 +9751,18 @@
             ],
             "title": "Deleted At"
           },
+          "duplicate_of_tx_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set when ingestion stored this row as a repeat of an alert already on file (a bank re-send, or one email delivered twice): the tx_id of the original. Such rows arrive ignored; the value stays if the row is later restored.",
+            "title": "Duplicate Of Tx Id"
+          },
           "extraction_audit": {
             "anyOf": [
               {

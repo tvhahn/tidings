@@ -5761,6 +5761,11 @@ export interface components {
             date_file_name: string;
             /** Deleted At */
             deleted_at: string | null;
+            /**
+             * Duplicate Of Tx Id
+             * @description Set when ingestion stored this row as a repeat of an alert already on file (a bank re-send, or one email delivered twice): the tx_id of the original. Such rows arrive ignored; the value stays if the row is later restored.
+             */
+            duplicate_of_tx_id?: string | null;
             extraction_audit?: components["schemas"]["ExtractionAudit"] | null;
             /** Forwarded To */
             forwarded_to: string;

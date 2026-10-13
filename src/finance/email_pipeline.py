@@ -277,6 +277,12 @@ def process_message(
     if recovered_failure_id is not None:
         mark_recovered(parse_failure_store, recovered_failure_id, date_file_name)
 
+    # A repeat of an alert already stored (a bank re-send, or the same email
+    # delivered twice) is kept Ignored — no context, no second notification.
+    if result.get("duplicate_of"):
+        logger.info("uid=%s: repeat of %s stored Ignored as %s", uid, result["duplicate_of"], date_file_name)
+        return "duplicate"
+
     # Enrich with month-to-date spending context
     context = context_enricher.enrich(result)
     if context:
