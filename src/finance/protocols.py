@@ -82,6 +82,7 @@ class ITransactionsDB(Protocol):
         self,
         txn_data: dict[str, Any],
         audit_source: str = ...,
+        category_audit: dict[str, Any] | None = ...,
         *,
         known_hashes: dict[str, str] | None = ...,
     ) -> str | bool | None: ...

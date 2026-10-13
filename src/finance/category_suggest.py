@@ -50,8 +50,14 @@ class CategorySuggester:
         self._corpus_categories: list[str] = []
         self._corpus_vectors: list[list[float]] = []
         self._overrides: dict[str, str] = {}
+        self._aliases: Mapping[str, str] | None = None
 
-    def build_corpus(self, overrides: dict[str, str], db_items: Sequence[Mapping[str, Any]]) -> None:
+    def build_corpus(
+        self,
+        overrides: dict[str, str],
+        db_items: Sequence[Mapping[str, Any]],
+        aliases: Mapping[str, str] | None = None,
+    ) -> None:
         """Build the embedding corpus from overrides + DB transaction history.
 
         Each override key contributes up to TWO corpus entries: the raw-case key
@@ -66,6 +72,7 @@ class CategorySuggester:
         available, cached vectors are reused and only uncached texts hit the API.
         """
         self._overrides = overrides
+        self._aliases = aliases
 
         # Collect (company, category) pairs — overrides first, with normalized variants
         seen_lower: set[str] = set()
@@ -169,12 +176,17 @@ class CategorySuggester:
         return result
 
     def _exact_match(self, description: str) -> str | None:
-        """Resolve against overrides via the tiered resolver (Tier 0/1).
+        """Resolve against overrides via the tiered resolver (Tiers 0/1/2).
 
         The suggester's own Tier 3 (embedding) path is the fallback after this.
-        Aliases aren't threaded in here yet — that lives on the caller side.
+        Aliases come from `build_corpus`; when a caller supplies them, Tier 2
+        fires here exactly as it does in `categorize_transactions()`. That
+        parity matters for statement rows: the raw bank description an alias
+        exists to canonicalize is precisely what this is asked to resolve, so
+        without it the review screen would suggest `miscellaneous` for a
+        merchant the import then categorizes correctly.
         """
-        match = resolve_override(description, self._overrides, aliases=None)
+        match = resolve_override(description, self._overrides, aliases=self._aliases)
         return match.category.lower() if match else None
 
     def embedding_match(self, vector: list[float]) -> tuple[str, str, float] | None:

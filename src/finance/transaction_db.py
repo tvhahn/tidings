@@ -717,6 +717,7 @@ class TransactionsDB(TransactionsDBBase):
         self,
         txn_data: dict[str, Any],
         audit_source: str = "statement_import",
+        category_audit: dict[str, Any] | None = None,
         *,
         known_hashes: dict[str, str] | None = None,
     ) -> str | bool | None:
@@ -728,6 +729,11 @@ class TransactionsDB(TransactionsDBBase):
 
         With ``known_hashes`` (a preloaded ``get_hash_index`` map) the duplicate
         check skips the per-row partition query; the map gains the new row.
+
+        When `category_audit` is given, its fields are persisted in place of a
+        bare `build_audit(audit_source)` — see the base class docstring. A
+        merchant auto-ignore rule match (via `_resolve_ignored`) arrives
+        Ignored, the same write-time behavior as `add_transaction`.
 
         Returns DateFileName if written, False if duplicate, None if validation fails.
         """
@@ -776,13 +782,19 @@ class TransactionsDB(TransactionsDBBase):
                 "TransactionType": txn_data["transaction_type"],
                 "TransactionHash": transaction_hash,
                 "StatementSource": txn_data["statement_source"],
-                "CategoryAudit": self._audit_dynamo_safe(build_audit(audit_source)),
+                "CategoryAudit": self._audit_dynamo_safe(
+                    category_audit if category_audit is not None else build_audit(audit_source)
+                ),
             }
 
             if txn_data.get("name"):
                 item["Name"] = txn_data["name"]
             if txn_data.get("user_id"):
                 item["UserId"] = txn_data["user_id"]
+            if self._resolve_ignored(txn_data):
+                # A merchant auto-ignore rule matched (or the row was flagged
+                # ignored upstream) — arrive Ignored so it never distorts totals.
+                item["Ignored"] = True
 
             table.put_item(Item=item)
             if known_hashes is not None:

@@ -55,6 +55,7 @@ from src.api.routers.statement_helpers import (
 )
 from src.api.serializers import load_statement_detail
 from src.api.utils import read_upload_limited
+from src.finance.categorizer import categorize_transactions
 from src.finance.embedding_cache import EmbeddingCache
 from src.finance.openai_client import OpenAIClient
 from src.finance.protocols import ISpendingSummary, ITransactionsDB
@@ -312,6 +313,8 @@ async def import_transactions(
     store: StatementStore = Depends(get_statement_store),
 ):
     """Execute import actions for statement transactions."""
+    from src.finance.ai_client import get_ai_client
+
     imported = 0
     skipped = 0
     duplicates = 0
@@ -320,6 +323,7 @@ async def import_transactions(
 
     forwarded_to = _get_forwarded_to()
     user_id = _get_user_id(forwarded_to)
+    api_client = get_ai_client()
 
     # Build statement source string
     period_start = body.metadata.period_start or ""
@@ -410,6 +414,22 @@ async def import_transactions(
         company = action.company or txn.cleaned_description or txn.description
         category = action.category or "miscellaneous"
 
+        edited = _was_category_edited(tx_lookup, action.index)
+        audit_src = "manual" if edited else "statement_import"
+        category_audit: dict[str, Any] | None = None
+
+        # Safety net: a row the user didn't explicitly recategorize but that
+        # still carries the generic fallback goes through the same tiered
+        # resolver the email pipeline uses (exact/normalized/alias override,
+        # then AI) instead of trusting a stale or miscomputed upload-time
+        # suggestion — this is what makes existing overrides apply to
+        # statement imports. Manual picks (including an intentional
+        # "miscellaneous") are never second-guessed.
+        if not edited and category.lower() == "miscellaneous":
+            categorize_input: dict[str, Any] = {"company": company, "amount": txn.amount}
+            category = await run_sync(categorize_transactions, api_client, categorize_input)
+            category_audit = categorize_input.get("_category_audit")
+
         # Compute occurrence index for identical same-day transactions
         raw_desc = txn.description or company
         hash_key = (txn.date, txn.amount, raw_desc, txn.type)
@@ -431,7 +451,6 @@ async def import_transactions(
         if user_id:
             txn_data["user_id"] = user_id
 
-        audit_src = "manual" if _was_category_edited(tx_lookup, action.index) else "statement_import"
         if not hash_index_loaded:
             hash_index_loaded = True
             try:
@@ -439,7 +458,9 @@ async def import_transactions(
             except Exception:
                 # Fail-open: fall back to the per-row duplicate check.
                 logger.warning("hash index load failed; checking duplicates per row", exc_info=True)
-        result = await run_sync(db.add_statement_transaction, txn_data, audit_src, known_hashes=known_hashes)
+        result = await run_sync(
+            db.add_statement_transaction, txn_data, audit_src, category_audit, known_hashes=known_hashes
+        )
         if result is False:
             duplicates += 1
             import_results.append({"tx_index": action.index, "action_result": "duplicate"})

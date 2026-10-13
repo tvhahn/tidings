@@ -26,7 +26,7 @@ def _summary_with(*items: dict[str, Any]) -> MagicMock:
     return summary
 
 
-@patch("src.finance.statement_reconciler.get_category_overrides", return_value={})
+@patch("src.finance.statement_reconciler.get_override_context", return_value=({}, {}))
 class TestTier1ExactMatch:
     def test_exact_match(self, mock_overrides: MagicMock) -> None:
         db_item = _make_db_item("2026-01-15", 50.0, "GROCERY STORE", "purchase")
@@ -78,7 +78,7 @@ class TestTier1ExactMatch:
         assert result.matched[0].company_differs is False
 
 
-@patch("src.finance.statement_reconciler.get_category_overrides", return_value={})
+@patch("src.finance.statement_reconciler.get_override_context", return_value=({}, {}))
 class TestTier2FuzzyMatch:
     def test_date_off_by_1_day(self, mock_overrides: MagicMock) -> None:
         db_item = _make_db_item("2026-01-16", 50.0, "STORE", "purchase")
@@ -113,7 +113,7 @@ class TestTier2FuzzyMatch:
         assert "2 days" in result.ambiguous[0].reason
 
 
-@patch("src.finance.statement_reconciler.get_category_overrides", return_value={})
+@patch("src.finance.statement_reconciler.get_override_context", return_value=({}, {}))
 class TestTier3NewTransaction:
     def test_no_match_creates_new(self, mock_overrides: MagicMock) -> None:
         summary = _summary_with()
@@ -134,8 +134,8 @@ class TestTier3NewTransaction:
 
     def test_suggested_category_from_overrides(self, _mock_overrides: MagicMock) -> None:
         with patch(
-            "src.finance.statement_reconciler.get_category_overrides",
-            return_value={"Monthlyfee": "service charges/fees"},
+            "src.finance.statement_reconciler.get_override_context",
+            return_value=({"Monthlyfee": "service charges/fees"}, {}),
         ):
             summary = _summary_with()
 
@@ -197,7 +197,7 @@ class TestTier3NewTransaction:
             assert _suggest_category("AMZN MKTP CA #8888") == "miscellaneous"
 
 
-@patch("src.finance.statement_reconciler.get_category_overrides", return_value={})
+@patch("src.finance.statement_reconciler.get_override_context", return_value=({}, {}))
 class TestAmbiguousEnrichmentFields:
     def test_single_candidate_carries_description(self, mock_overrides: MagicMock) -> None:
         """Ambiguous with one candidate should carry cleaned/raw description."""
@@ -221,8 +221,8 @@ class TestAmbiguousEnrichmentFields:
 
     def test_suggested_category_from_overrides(self, _mock_overrides: MagicMock) -> None:
         with patch(
-            "src.finance.statement_reconciler.get_category_overrides",
-            return_value={"BillPayment NorthMobile": "communication/cell"},
+            "src.finance.statement_reconciler.get_override_context",
+            return_value=({"BillPayment NorthMobile": "communication/cell"}, {}),
         ):
             db_item = _make_db_item("2026-01-16", 33.60, "—", "purchase")
             summary = _summary_with(db_item)
@@ -259,12 +259,64 @@ class TestAmbiguousEnrichmentFields:
         assert a.raw_description == "InteracPurchase SOMESTORE"
 
 
-@patch("src.finance.statement_reconciler.get_category_overrides", return_value={})
+@patch("src.finance.statement_reconciler.get_override_context", return_value=({}, {}))
+class TestAliasTierAtReviewTime:
+    """The review screen must suggest what the import will actually write.
+
+    Aliases exist to canonicalize the raw bank description a statement carries
+    onto the merchant name email alerts produce. `reconcile()` used to load
+    overrides without them, so the alias tier only fired at import time — the
+    reviewer saw `miscellaneous` for a merchant they had already filed and
+    re-categorized it by hand (issue #83).
+    """
+
+    def test_alias_tier_resolves_a_new_transaction(self, _mock_ctx: MagicMock) -> None:
+        with patch(
+            "src.finance.statement_reconciler.get_override_context",
+            return_value=(
+                {"Northwind Energy": "utilities"},
+                {"billpayment westlandutilityco": "Northwind Energy"},
+            ),
+        ):
+            summary = MagicMock()
+            summary.query_month.return_value = []
+
+            result = reconcile(
+                [_make_stmt_txn("2026-01-15", 98.75, "withdrawal")],
+                ["Westland Utility Co"],
+                ["BillPayment WestlandUtilityCo"],
+                {"period_start": "2026-01-01", "period_end": "2026-01-31"},
+                summary,
+            )
+
+            assert result.new[0].suggested_category == "utilities"
+
+    def test_without_an_alias_the_row_stays_miscellaneous(self, _mock_ctx: MagicMock) -> None:
+        """No alias, no match — the tier is additive, not a fuzzy loosening."""
+        with patch(
+            "src.finance.statement_reconciler.get_override_context",
+            return_value=({"Northwind Energy": "utilities"}, {}),
+        ):
+            summary = MagicMock()
+            summary.query_month.return_value = []
+
+            result = reconcile(
+                [_make_stmt_txn("2026-01-15", 98.75, "withdrawal")],
+                ["Westland Utility Co"],
+                ["BillPayment WestlandUtilityCo"],
+                {"period_start": "2026-01-01", "period_end": "2026-01-31"},
+                summary,
+            )
+
+            assert result.new[0].suggested_category == "miscellaneous"
+
+
+@patch("src.finance.statement_reconciler.get_override_context", return_value=({}, {}))
 class TestMatchedSuggestedCategory:
     def test_company_differs_gets_override_category(self, _mock_overrides: MagicMock) -> None:
         with patch(
-            "src.finance.statement_reconciler.get_category_overrides",
-            return_value={"BillPayment WestlandUtilityCo": "utilities"},
+            "src.finance.statement_reconciler.get_override_context",
+            return_value=({"BillPayment WestlandUtilityCo": "utilities"}, {}),
         ):
             db_item = _make_db_item("2026-01-15", 98.75, "WESTLANDUTILITYCO", "purchase")
             summary = _summary_with(db_item)
@@ -298,7 +350,7 @@ class TestMatchedSuggestedCategory:
         assert result.matched[0].suggested_category == "groceries"
 
 
-@patch("src.finance.statement_reconciler.get_category_overrides", return_value={})
+@patch("src.finance.statement_reconciler.get_override_context", return_value=({}, {}))
 class TestTypeMapping:
     def test_withdrawal_matches_purchase(self, mock_overrides: MagicMock) -> None:
         db_item = _make_db_item("2026-01-15", 50.0, "STORE", "purchase")
@@ -359,7 +411,7 @@ class TestTypeMapping:
         assert len(result.new) == 0
 
 
-@patch("src.finance.statement_reconciler.get_category_overrides", return_value={})
+@patch("src.finance.statement_reconciler.get_override_context", return_value=({}, {}))
 class TestSameDayDuplicates:
     def test_multiple_same_amount_same_day_ambiguous(self, mock_overrides: MagicMock) -> None:
         db_item1 = _make_db_item("2026-01-15", 50.0, "STORE A", "purchase", date_file_name="2026.01.15_10.00_a.eml")
@@ -378,7 +430,7 @@ class TestSameDayDuplicates:
         assert "multiple" in result.ambiguous[0].reason.lower()
 
 
-@patch("src.finance.statement_reconciler.get_category_overrides", return_value={})
+@patch("src.finance.statement_reconciler.get_override_context", return_value=({}, {}))
 class TestCrossMonth:
     def test_queries_both_months(self, mock_overrides: MagicMock) -> None:
         summary = MagicMock(name="summary")
@@ -450,7 +502,7 @@ class TestCrossMonth:
         assert result.ambiguous[0].candidates == [alert]
 
 
-@patch("src.finance.statement_reconciler.get_category_overrides", return_value={})
+@patch("src.finance.statement_reconciler.get_override_context", return_value=({}, {}))
 class TestUsedKeyTracking:
     def test_prevents_double_matching(self, mock_overrides: MagicMock) -> None:
         """One DB item should only match one statement transaction."""
@@ -474,7 +526,7 @@ class TestUsedKeyTracking:
         assert len(result.new) == 1
 
 
-@patch("src.finance.statement_reconciler.get_category_overrides", return_value={})
+@patch("src.finance.statement_reconciler.get_override_context", return_value=({}, {}))
 class TestSuspectedDuplicates:
     def test_suspected_duplicate_has_db_item_details(self, mock_overrides: MagicMock) -> None:
         """Suspected duplicate should carry the matched DB item with correct fields."""
@@ -581,7 +633,7 @@ class TestSuspectedDuplicates:
         assert result.suspected_duplicates[0].db_item is db_etransfer
 
 
-@patch("src.finance.statement_reconciler.get_category_overrides", return_value={})
+@patch("src.finance.statement_reconciler.get_override_context", return_value=({}, {}))
 class TestDirectionFilter:
     def test_deposit_not_suspected_duplicate_of_withdrawal(self, mock_overrides: MagicMock) -> None:
         """Bug 2 regression: deposit $4 vs DB withdrawal $4 are opposite directions → new, not suspected dup."""
@@ -652,7 +704,7 @@ class TestDirectionFilter:
         assert len(result.new) == 1
 
 
-@patch("src.finance.statement_reconciler.get_category_overrides", return_value={})
+@patch("src.finance.statement_reconciler.get_override_context", return_value=({}, {}))
 class TestCrossTypeBeforeFuzzy:
     def test_cross_type_preferred_over_fuzzy_compatible(self, mock_overrides: MagicMock) -> None:
         """Bug 1 regression: cross-type suspected dup should take priority over fuzzy type-compatible match.
@@ -693,7 +745,7 @@ class TestCrossTypeBeforeFuzzy:
         assert "e-transfer" in result.suspected_duplicates[0].reason
 
 
-@patch("src.finance.statement_reconciler.get_category_overrides", return_value={})
+@patch("src.finance.statement_reconciler.get_override_context", return_value=({}, {}))
 class TestPreviouslyImported:
     def test_statement_source_matching(self, mock_overrides: MagicMock) -> None:
         """Transactions previously imported from this statement are classified as previously_imported."""
@@ -780,7 +832,7 @@ class TestPreviouslyImported:
         assert len(result.matched) == 1
 
 
-@patch("src.finance.statement_reconciler.get_category_overrides", return_value={})
+@patch("src.finance.statement_reconciler.get_override_context", return_value=({}, {}))
 class TestNoPeriod:
     def test_no_period_marks_all_new(self, mock_overrides: MagicMock) -> None:
         summary = MagicMock(name="summary")
