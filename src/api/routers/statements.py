@@ -1,5 +1,6 @@
 """Statement orchestration endpoints: upload PDF, reparse, and import."""
 
+import asyncio
 import logging
 from pathlib import Path
 from typing import Any
@@ -65,6 +66,11 @@ from src.finance.statement_store import StatementStore
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["statements"])
+
+# Cap on concurrent categorizer calls during one import. The codex provider
+# spawns a CLI subprocess per call, so a long statement must not fan out into
+# dozens of simultaneous processes; the openai provider is rate-limited too.
+_IMPORT_CATEGORIZE_CONCURRENCY = 4
 
 
 @router.post(
@@ -301,6 +307,51 @@ async def reparse_statement(
     return await load_statement_detail(statement_id, store)
 
 
+async def _categorize_fallback_rows(
+    body: ImportRequest, tx_lookup: dict[int, dict[str, Any]]
+) -> dict[int, tuple[str, dict[str, Any] | None]]:
+    """Resolve categories for import rows still carrying the generic fallback.
+
+    A row the user didn't explicitly recategorize but that still says
+    ``miscellaneous`` goes through the same tiered resolver the email pipeline
+    uses (exact/normalized/alias override, then AI) instead of trusting a stale
+    or miscomputed upload-time suggestion — this is what makes existing
+    overrides apply to statement imports. Manual picks (including an
+    intentional "miscellaneous") are never second-guessed.
+
+    Rows resolve concurrently, bounded by ``_IMPORT_CATEGORIZE_CONCURRENCY``,
+    so AI-bound rows don't serialize the request. Each call gets its own
+    provider client: clients record failures on ``last_error``, which the
+    categorizer reads back to classify the fallback, and a shared client would
+    let concurrent rows overwrite each other's error.
+
+    Returns ``{action.index: (category, category_audit)}`` for resolved rows.
+    """
+    from src.finance.ai_client import get_ai_client
+
+    pending: list[tuple[int, dict[str, Any]]] = []
+    for action in body.actions:
+        if action.action != "import" or not 0 <= action.index < len(body.transactions):
+            continue
+        if (action.category or "miscellaneous").lower() != "miscellaneous":
+            continue
+        if _was_category_edited(tx_lookup, action.index):
+            continue
+        txn = body.transactions[action.index]
+        company = action.company or txn.cleaned_description or txn.description
+        pending.append((action.index, {"company": company, "amount": txn.amount}))
+
+    semaphore = asyncio.Semaphore(_IMPORT_CATEGORIZE_CONCURRENCY)
+
+    async def _resolve(categorize_input: dict[str, Any]) -> tuple[str, dict[str, Any] | None]:
+        async with semaphore:
+            category = await run_sync(categorize_transactions, get_ai_client(), categorize_input)
+        return category, categorize_input.get("_category_audit")
+
+    resolved = await asyncio.gather(*(_resolve(row) for _, row in pending))
+    return {index: result for (index, _), result in zip(pending, resolved, strict=True)}
+
+
 @router.post(
     "/statements/import",
     response_model=ImportResponse,
@@ -313,8 +364,6 @@ async def import_transactions(
     store: StatementStore = Depends(get_statement_store),
 ):
     """Execute import actions for statement transactions."""
-    from src.finance.ai_client import get_ai_client
-
     imported = 0
     skipped = 0
     duplicates = 0
@@ -323,7 +372,6 @@ async def import_transactions(
 
     forwarded_to = _get_forwarded_to()
     user_id = _get_user_id(forwarded_to)
-    api_client = get_ai_client()
 
     # Build statement source string
     period_start = body.metadata.period_start or ""
@@ -345,6 +393,8 @@ async def import_transactions(
                 "category-edit lookup failed for statement %s; using default statement sources",
                 body.statement_id,
             )
+
+    resolved_categories = await _categorize_fallback_rows(body, tx_lookup)
 
     # Track occurrences of identical transactions for dedup disambiguation
     import_hash_counter: dict[tuple[Any, ...], int] = {}
@@ -414,21 +464,10 @@ async def import_transactions(
         company = action.company or txn.cleaned_description or txn.description
         category = action.category or "miscellaneous"
 
-        edited = _was_category_edited(tx_lookup, action.index)
-        audit_src = "manual" if edited else "statement_import"
+        audit_src = "manual" if _was_category_edited(tx_lookup, action.index) else "statement_import"
         category_audit: dict[str, Any] | None = None
-
-        # Safety net: a row the user didn't explicitly recategorize but that
-        # still carries the generic fallback goes through the same tiered
-        # resolver the email pipeline uses (exact/normalized/alias override,
-        # then AI) instead of trusting a stale or miscomputed upload-time
-        # suggestion — this is what makes existing overrides apply to
-        # statement imports. Manual picks (including an intentional
-        # "miscellaneous") are never second-guessed.
-        if not edited and category.lower() == "miscellaneous":
-            categorize_input: dict[str, Any] = {"company": company, "amount": txn.amount}
-            category = await run_sync(categorize_transactions, api_client, categorize_input)
-            category_audit = categorize_input.get("_category_audit")
+        if action.index in resolved_categories:
+            category, category_audit = resolved_categories[action.index]
 
         # Compute occurrence index for identical same-day transactions
         raw_desc = txn.description or company

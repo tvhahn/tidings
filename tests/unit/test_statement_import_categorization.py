@@ -214,6 +214,58 @@ class TestImportAppliesOverrides:
         assert category_audit["source"] == "ai_fallback"
         assert category_audit["fallback_reason"] == expected_reason
 
+    def test_fallback_rows_resolve_concurrently_within_the_cap(
+        self,
+        mock_fwd: MagicMock,
+        mock_uid: MagicMock,
+        mock_history: MagicMock,
+        mock_run_sync: MagicMock,
+        write_calls: list[tuple[Any, ...]],
+        api_client,
+    ) -> None:
+        """AI-bound rows overlap instead of serializing, but never past the cap.
+
+        A codex-routed categorizer is a subprocess per row; a long statement
+        must neither run them one by one nor launch them all at once — and
+        each row must still get its own result back.
+        """
+        import asyncio
+
+        from src.api.routers.statements import _IMPORT_CATEGORIZE_CONCURRENCY
+
+        row_count = _IMPORT_CATEGORIZE_CONCURRENCY * 3
+        in_flight = 0
+        peak = 0
+        inner = mock_run_sync.side_effect
+
+        async def dispatch(func, *args: Any, **kwargs: Any) -> Any:
+            nonlocal in_flight, peak
+            if getattr(func, "__name__", "") != "categorize_transactions":
+                return await inner(func, *args, **kwargs)
+            in_flight += 1
+            peak = max(peak, in_flight)
+            await asyncio.sleep(0.01)
+            in_flight -= 1
+            categorize_input = args[1]
+            categorize_input["_category_audit"] = {"source": "ai", "model": "stub"}
+            return f"cat-{categorize_input['company']}"
+
+        mock_run_sync.side_effect = dispatch
+
+        body = _import_body(category="miscellaneous")
+        template = body["transactions"][0]
+        body["transactions"] = [{**template, "cleaned_description": f"Merchant {i}"} for i in range(row_count)]
+        body["actions"] = [
+            {"index": i, "action": "import", "category": "miscellaneous", "company": f"Merchant {i}"}
+            for i in range(row_count)
+        ]
+
+        assert assert_ok(api_client.post("/api/v1/statements/import", json=body))["imported"] == row_count
+
+        assert peak == _IMPORT_CATEGORIZE_CONCURRENCY
+        assert [call[0]["category"] for call in write_calls] == [f"cat-Merchant {i}" for i in range(row_count)]
+        assert all(call[2] == {"source": "ai", "model": "stub"} for call in write_calls)
+
 
 @patch("src.api.routers.statements._append_import_history")
 @patch("src.api.routers.statements._get_user_id", return_value="default")
