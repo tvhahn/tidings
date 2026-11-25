@@ -5238,13 +5238,15 @@
           },
           "transaction_type": {
             "default": "purchase",
-            "description": "purchase, withdrawal, preauth, e-transfer, or deposit",
+            "description": "purchase, withdrawal, preauth, e-transfer, deposit, refund (reduces spending), or card-payment (paying down a card; neither spending nor income)",
             "enum": [
               "purchase",
               "withdrawal",
               "preauth",
               "e-transfer",
-              "deposit"
+              "deposit",
+              "refund",
+              "card-payment"
             ],
             "title": "Transaction Type",
             "type": "string"
@@ -5344,13 +5346,15 @@
           },
           "transaction_type": {
             "default": "purchase",
-            "description": "purchase, withdrawal, preauth, e-transfer, or deposit",
+            "description": "purchase, withdrawal, preauth, e-transfer, deposit, refund (reduces spending), or card-payment (paying down a card; neither spending nor income)",
             "enum": [
               "purchase",
               "withdrawal",
               "preauth",
               "e-transfer",
-              "deposit"
+              "deposit",
+              "refund",
+              "card-payment"
             ],
             "title": "Transaction Type",
             "type": "string"
@@ -9523,7 +9527,9 @@
                   "withdrawal",
                   "preauth",
                   "e-transfer",
-                  "deposit"
+                  "deposit",
+                  "refund",
+                  "card-payment"
                 ],
                 "type": "string"
               },

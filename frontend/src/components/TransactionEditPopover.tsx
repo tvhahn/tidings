@@ -12,8 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useUpdateTransactionFields } from "@/hooks/useUpdateTransactionFields";
-
-const TRANSACTION_TYPES = ["purchase", "withdrawal", "preauth", "e-transfer", "deposit"] as const;
+import { TRANSACTION_TYPES } from "@/lib/transactionTypes";
 
 interface TransactionEditPopoverProps {
   forwardedTo: string;

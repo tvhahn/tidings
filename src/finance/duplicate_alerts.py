@@ -26,6 +26,12 @@ Decision rules (``find_duplicate_marks``):
   fields) matches an earlier row within ``RESEND_WINDOW`` is a re-send. Only
   the newly written row is ever marked by this rule, so an earlier copy the
   user restored is never re-hidden.
+* **Same account event** (issue #98) — a card payment is an event on the
+  account, not on one card, so the bank alerts every cardholder. Those copies
+  differ in cardholder name and card number, so neither rule above sees them.
+  A card-payment row with the same institution and amount as an earlier
+  card-payment row on the same day is a per-cardholder copy. As with re-sends,
+  only the newly written row is marked.
 """
 
 from __future__ import annotations
@@ -35,12 +41,15 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
+from src.finance.transaction_types import TRANSFER_TYPES
+
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
 __all__ = [
     "RESEND_WINDOW",
     "AlertRow",
+    "account_event_key",
     "alert_fingerprint",
     "alert_row",
     "find_duplicate_marks",
@@ -58,6 +67,7 @@ RESEND_WINDOW = timedelta(hours=6)
 # DateFileName starts with the alert minute: "YYYY.MM.DD_HH.MM_<file>".
 _KEY_MINUTE_FORMAT = "%Y.%m.%d_%H.%M"
 _KEY_MINUTE_LENGTH = 16
+_KEY_DAY_LENGTH = 10
 
 
 @dataclass(frozen=True)
@@ -69,6 +79,7 @@ class AlertRow:
     fingerprint: str | None
     deleted: bool
     duplicate_of: str | None
+    account_event: str | None = None
 
 
 def alert_fingerprint(item: Mapping[str, Any]) -> str | None:
@@ -93,27 +104,51 @@ def alert_fingerprint(item: Mapping[str, Any]) -> str | None:
     return hashlib.sha256("\x1f".join(fields).encode("utf-8")).hexdigest()
 
 
+def account_event_key(item: Mapping[str, Any]) -> str | None:
+    """Identify an account-level event, ignoring which cardholder was alerted.
+
+    Only card payments are account-level: every cardholder on the account gets
+    the alert. Purchases stay per-card, since two cardholders can genuinely
+    spend the same amount on the same day. Returns ``None`` for every other
+    row, and for rows with no alert body (statement imports, manual entries).
+    """
+    if item.get("TransactionType") not in TRANSFER_TYPES or not item.get("Body"):
+        return None
+    amount = item.get("Amount")
+    if amount is None:
+        return None
+    day = str(item.get("DateFileName") or "")[:_KEY_DAY_LENGTH]
+    if len(day) != _KEY_DAY_LENGTH:
+        return None
+    fields = [str(item.get("Institution") or ""), f"{float(amount):.2f}", str(item["TransactionType"]), day]
+    return "\x1f".join(fields)
+
+
 def alert_row(item: Mapping[str, Any]) -> AlertRow:
     """Project a PascalCase transaction item onto the fields detection needs."""
+    from_statement = bool(item.get("StatementSource"))
     return AlertRow(
         date_file_name=str(item["DateFileName"]),
         transaction_hash=item.get("TransactionHash") or None,
-        fingerprint=None if item.get("StatementSource") else alert_fingerprint(item),
+        fingerprint=None if from_statement else alert_fingerprint(item),
         deleted=bool(item.get("DeletedAt")),
         duplicate_of=item.get("DuplicateOf") or None,
+        account_event=None if from_statement else account_event_key(item),
     )
 
 
 def window_bounds(date_file_name: str) -> tuple[str, str] | None:
     """``DateFileName`` range holding every row detection may compare against.
 
-    From ``RESEND_WINDOW`` before the row's minute through the end of that
-    minute. ``None`` when the key doesn't start with a minute stamp.
+    From ``RESEND_WINDOW`` before the row's minute, or the start of its day if
+    that is earlier (the account-event rule compares whole days), through the
+    end of that minute. ``None`` when the key doesn't start with a minute stamp.
     """
     minute = _key_minute(date_file_name)
     if minute is None:
         return None
-    low = (minute - RESEND_WINDOW).strftime(_KEY_MINUTE_FORMAT)
+    start_of_day = minute.replace(hour=0, minute=0)
+    low = min(minute - RESEND_WINDOW, start_of_day).strftime(_KEY_MINUTE_FORMAT)
     # "~" sorts after every character a DateFileName tail uses after the minute.
     return low, f"{date_file_name[:_KEY_MINUTE_LENGTH]}~"
 
@@ -158,6 +193,16 @@ def find_duplicate_marks(new_key: str, rows: Sequence[AlertRow]) -> dict[str, st
                 continue
             marks[new_key] = row.duplicate_of or row.date_file_name
             break
+        if new_key in marks:
+            return marks
+
+    if new.account_event:
+        for row in sorted(live.values(), key=lambda r: r.date_file_name):
+            if row.date_file_name >= new_key:
+                break
+            if row.account_event == new.account_event:
+                marks[new_key] = row.duplicate_of or row.date_file_name
+                break
 
     return marks
 

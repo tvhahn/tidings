@@ -19,9 +19,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-SPENDING_TYPES = {"purchase", "withdrawal", "preauth", "e-transfer"}
-DEPOSIT_TYPES = {"deposit"}
-
 
 class SpendingSummary(SpendingSummaryBase):
     """Query and aggregate monthly transaction data from DynamoDB."""

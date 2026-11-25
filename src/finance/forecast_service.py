@@ -32,7 +32,7 @@ from dateutil.relativedelta import relativedelta
 
 from src.finance.demo_clock import app_today
 from src.finance.merchant_normalizer import normalize_merchant
-from src.finance.spending_aggregator import SPENDING_TYPES
+from src.finance.transaction_types import SPENDING_TYPES, signed_spending
 
 if TYPE_CHECKING:
     from src.finance.upcoming_service import UpcomingResult
@@ -127,11 +127,10 @@ def window_key(keys: list[str]) -> str:
 def _include(item: Mapping[str, Any]) -> bool:
     # L2: statement-created and statement-enriched rows COUNT — only
     # deleted / ignored / non-spending / amount-less rows are excluded.
+    # Refunds count too, as negative spending (see signed_spending).
     if item.get("DeletedAt") or item.get("Ignored"):
         return False
-    if item.get("TransactionType") not in SPENDING_TYPES:
-        return False
-    return item.get("Amount") is not None
+    return signed_spending(item) is not None
 
 
 def _day_of_month(item: Mapping[str, Any]) -> int | None:
@@ -174,7 +173,7 @@ def build_tables(items_by_month: Mapping[str, Sequence[Mapping[str, Any]]]) -> F
             if day is None:
                 continue
             day = min(max(day, 1), days_in_month)
-            amount = float(item["Amount"])
+            amount = signed_spending(item) or 0.0
             cat = item.get("Category") or "miscellaneous"
             by_cat_day.setdefault(cat, {})[day] = by_cat_day.get(cat, {}).get(day, 0.0) + amount
             overall_by_day[day] = overall_by_day.get(day, 0.0) + amount

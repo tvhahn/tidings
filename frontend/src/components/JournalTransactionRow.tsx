@@ -218,11 +218,19 @@ function JournalTransactionRowImpl({ transaction: txn, anchorsDemoTour }: Props)
     </>
   );
 
+  // A refund nets against the day's total, so show it as money back.
+  const isRefund = txn.transaction_type === "refund";
   const amountSpan = (
     <span
-      className={cn("font-semibold tabular-nums text-sm shrink-0", txn.ignored && "line-through")}
+      className={cn(
+        "font-semibold tabular-nums text-sm shrink-0",
+        isRefund && "text-muted-foreground",
+        txn.ignored && "line-through"
+      )}
+      title={isRefund ? "Refund" : undefined}
     >
-      {formatCurrency(amount)}
+      {isRefund ? `−${formatCurrency(amount)}` : formatCurrency(amount)}
+      {isRefund && <span className="sr-only"> refund</span>}
     </span>
   );
 

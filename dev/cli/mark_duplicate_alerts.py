@@ -30,11 +30,23 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 
 
+def _rule_name(row: AlertRow, original: str, window: list[AlertRow]) -> str:
+    """Which detection rule tied ``row`` to ``original`` (for the dry-run report)."""
+    root = next((r for r in window if r.date_file_name == original), None)
+    if root is not None and row.transaction_hash and root.transaction_hash == row.transaction_hash:
+        return "same email"
+    if root is not None and row.fingerprint and root.fingerprint == row.fingerprint:
+        return "re-send"
+    return "other cardholder"
+
+
 def plan_marks(items: list[dict[str, Any]]) -> list[tuple[dict[str, Any], str, str]]:
     """Replay duplicate detection over history.
 
     Returns ``(item, original DateFileName, rule)`` for each row to mark, where
-    ``rule`` is ``"same email"`` (shared TransactionHash) or ``"re-send"``.
+    ``rule`` is ``"same email"`` (shared TransactionHash), ``"re-send"`` (same
+    alert text), or ``"other cardholder"`` (one card payment alerted to each
+    cardholder on the account).
     """
     partitions: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for item in items:
@@ -57,11 +69,7 @@ def plan_marks(items: list[dict[str, Any]]) -> list[tuple[dict[str, Any], str, s
             original = marks.get(row.date_file_name)
             if original is None:
                 continue
-            same_email = any(
-                r.date_file_name == original and r.transaction_hash and r.transaction_hash == row.transaction_hash
-                for r in rows[start:]
-            )
-            planned.append((item, original, "same email" if same_email else "re-send"))
+            planned.append((item, original, _rule_name(row, original, rows[start:])))
             # Later rows must see this one as already marked, as live ingestion would.
             rows[-1] = replace(row, duplicate_of=original)
     return planned

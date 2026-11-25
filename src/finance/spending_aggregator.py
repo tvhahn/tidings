@@ -4,8 +4,9 @@ from collections.abc import Mapping, Sequence
 from decimal import Decimal
 from typing import Any
 
-SPENDING_TYPES = {"purchase", "withdrawal", "preauth", "e-transfer"}
-DEPOSIT_TYPES = {"deposit"}
+from src.finance.transaction_types import DEPOSIT_TYPES, REFUND_TYPES, SPENDING_TYPES
+
+__all__ = ["DEPOSIT_TYPES", "SPENDING_TYPES", "aggregate"]
 
 
 def aggregate(items: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
@@ -13,6 +14,10 @@ def aggregate(items: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
 
     Returns dict with total_spending, spending_count, deposit_total,
     deposit_count, by_category, by_company, deposits_by_company, and top_categories.
+
+    Refunds subtract from ``total_spending`` and from their category and
+    merchant, so a purchase and its refund net to zero. ``spending_count``
+    counts spending rows only; a refund is not another transaction to pay for.
     """
     total_spending = Decimal(0)
     spending_count = 0
@@ -36,9 +41,12 @@ def aggregate(items: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         category = item.get("Category") or "miscellaneous"
         company = item.get("Company") or "Unknown"
 
-        if txn_type in SPENDING_TYPES:
+        if txn_type in SPENDING_TYPES or txn_type in REFUND_TYPES:
+            if txn_type in REFUND_TYPES:
+                amount = -amount
+            else:
+                spending_count += 1
             total_spending += amount
-            spending_count += 1
 
             if category not in by_category:
                 by_category[category] = {"amount": Decimal(0), "count": 0}

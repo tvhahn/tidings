@@ -75,6 +75,15 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- A refund no longer counts as spending. Two new transaction types, refund and
+  card payment, join the type pickers and the API. A refund subtracts from
+  spending in its category, so a purchase and its refund net to zero. A payment
+  toward a credit card counts as neither spending nor income and arrives
+  ignored. When every cardholder on a shared card is alerted to the same
+  payment, it is kept once. The AI fallback can no longer store a credit or
+  payment alert as a purchase; it leaves the email for review instead.
+  `dev/cli/retype_credit_alerts.py` re-types rows stored wrong before
+  (dry run by default).
 - A bank alert that arrives twice no longer counts twice. Banks sometimes
   re-send the same alert minutes or hours later, and one email could also be
   stored twice when two copies were processed at the same moment. The repeat is

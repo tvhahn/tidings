@@ -493,6 +493,47 @@ class TestTransactionsDBContract:
         assert stored is not None
         assert not stored.get("Ignored")
 
+    # -- card payments (issue #98) ------------------------------------------
+
+    def test_card_payment_arrives_ignored(self, db: Any) -> None:
+        dfn = db.add_transaction(_seed_txn(transaction_type="card-payment", company="Payment"))
+        stored = db.get_item("user@example.com", dfn)
+        assert stored is not None
+        assert bool(stored.get("Ignored")) is True
+        assert stored.get("DuplicateOf") is None
+
+    def test_payment_alerted_to_each_cardholder_is_stored_once(self, db: Any) -> None:
+        payment = {"transaction_type": "card-payment", "company": "Payment", "amount": 500.0}
+        first = db.add_transaction(
+            _seed_txn(**payment, name="Alice", body="Payment received, card ending [1111]", file_name="a.eml")
+        )
+        copy_txn = _seed_txn(
+            **payment,
+            date="02/15/2026 10:31 PST",
+            name="Bob",
+            body="Payment received, card ending [2222]",
+            file_name="b.eml",
+        )
+        copy = db.add_transaction(copy_txn)
+
+        assert copy_txn["duplicate_of"] == first
+        stored = db.get_item("user@example.com", copy)
+        assert stored is not None
+        assert stored.get("DuplicateOf") == first
+
+    def test_same_amount_payment_next_day_is_kept(self, db: Any) -> None:
+        payment = {"transaction_type": "card-payment", "company": "Payment", "amount": 500.0}
+        db.add_transaction(_seed_txn(**payment, body="Payment received, card ending [1111]", file_name="a.eml"))
+        later_txn = _seed_txn(
+            **payment, date="02/16/2026 10:30 PST", body="Payment received, card ending [1111]", file_name="b.eml"
+        )
+        later = db.add_transaction(later_txn)
+
+        assert "duplicate_of" not in later_txn
+        stored = db.get_item("user@example.com", later)
+        assert stored is not None
+        assert stored.get("DuplicateOf") is None
+
     def test_racing_writers_leave_one_live_copy(self, db: Any) -> None:
         """Two writers past the pre-write hash check: whichever reconciles marks the later key."""
         first = _seed_txn(file_name="b-copy.eml")

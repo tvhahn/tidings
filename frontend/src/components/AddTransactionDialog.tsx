@@ -229,6 +229,8 @@ export function AddTransactionDialog({
                   <option value="withdrawal">Withdrawal</option>
                   <option value="e-transfer">E-Transfer</option>
                   <option value="deposit">Deposit</option>
+                  <option value="refund">Refund</option>
+                  <option value="card-payment">Card payment</option>
                 </select>
               </div>
             </>
@@ -254,6 +256,8 @@ export function AddTransactionDialog({
                   <option value="withdrawal">Withdrawal</option>
                   <option value="e-transfer">E-Transfer</option>
                   <option value="deposit">Deposit</option>
+                  <option value="refund">Refund</option>
+                  <option value="card-payment">Card payment</option>
                 </select>
               </div>
             </div>

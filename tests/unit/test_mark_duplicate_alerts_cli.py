@@ -55,3 +55,16 @@ def test_next_day_repeat_and_other_partitions_are_left_alone() -> None:
         _item("2026.04.20_08.30_c", ForwardedTo="other@example.com"),
     ]
     assert _planned(items) == []
+
+
+def test_card_payment_alerted_to_each_cardholder_is_planned() -> None:
+    """Issue #98: per-cardholder copies of one payment differ in text but are one event."""
+    payment = {"TransactionType": "card-payment", "Company": "Payment", "Amount": 500.0}
+    items = [
+        _item("2026.10.02_08.15_a.eml", Body="Payment received, card ending [1111]", TransactionHash="h1", **payment),
+        _item("2026.10.02_08.16_b.eml", Body="Payment received, card ending [2222]", TransactionHash="h2", **payment),
+    ]
+    planned = plan_marks(items)
+    assert [(item["DateFileName"], original, rule) for item, original, rule in planned] == [
+        ("2026.10.02_08.16_b.eml", "2026.10.02_08.15_a.eml", "other cardholder")
+    ]

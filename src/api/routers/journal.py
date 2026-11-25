@@ -10,7 +10,7 @@ from src.api.models import JournalDay, JournalResponse
 from src.api.serializers import PROJECTION_NAMES, TRANSACTION_LIST_PROJECTION, to_transaction_response
 from src.api.utils import MONTH_PATTERN
 from src.finance.protocols import IBudgetService, ISpendingSummary
-from src.finance.spending_aggregator import SPENDING_TYPES
+from src.finance.transaction_types import signed_spending
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -31,17 +31,18 @@ async def get_journal(
 ):
     items = await run_sync(summary.query_month, month, TRANSACTION_LIST_PROJECTION, PROJECTION_NAMES)
 
-    # Journal is the end-user "daily read" view, so we show only actionable
-    # spending rows: active (non-deleted/non-ignored), a spending-type txn, and
+    # Journal is the end-user "daily read" view, so we show only rows that move
+    # spending: active (non-deleted/non-ignored), a spending or refund txn, and
     # a positive amount. This keeps each day's transaction list consistent with
-    # its day_total — non-spending (refunds, deposits, transfers) and $0
-    # placeholder rows live on the Transactions page instead.
+    # its day_total, which nets refunds the way the month summary does —
+    # deposits, card payments and $0 placeholder rows live on the Transactions
+    # page instead.
     active = [
         i
         for i in items
         if not i.get("DeletedAt")
         and not i.get("Ignored")
-        and i.get("TransactionType") in SPENDING_TYPES
+        and signed_spending(i) is not None
         and float(i.get("Amount") or 0) > 0
     ]
 
@@ -57,7 +58,7 @@ async def get_journal(
     for day_key in sorted(by_day):
         day_items = by_day[day_key]
         day_items.sort(key=lambda x: x.get("DateFileName", ""), reverse=True)
-        day_spending = sum(float(i.get("Amount", 0)) for i in day_items if i.get("TransactionType") in SPENDING_TYPES)
+        day_spending = sum(signed_spending(i) or 0.0 for i in day_items)
         mtd += day_spending
         days.append(
             JournalDay(

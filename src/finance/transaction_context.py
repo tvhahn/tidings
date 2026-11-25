@@ -8,6 +8,7 @@ from dateutil.parser import parse
 
 from src.finance.app_timezone import get_tzinfos
 from src.finance.protocols import IBudgetService, ITransactionsDB, TransactionItem
+from src.finance.transaction_types import REFUND_TYPES
 
 logger = logging.getLogger(__name__)
 
@@ -59,14 +60,19 @@ class TransactionContextEnricher:
             if item.get("Ignored"):
                 continue
             item_type = item.get("TransactionType")
-            if item_type not in SPENDING_TYPES:
+            is_refund = item_type in REFUND_TYPES
+            if item_type not in SPENDING_TYPES and not is_refund:
                 continue
 
             item_category = (item.get("Category") or "").lower()
             if item_category == category:
                 amount = item.get("Amount")
                 if amount is not None:
-                    category_total += Decimal(str(amount))
+                    # A refund gives back part of the category's month.
+                    category_total += -Decimal(str(amount)) if is_refund else Decimal(str(amount))
+
+            if is_refund:
+                continue
 
             item_company = (item.get("Company") or "").lower()
             if item_company == company:

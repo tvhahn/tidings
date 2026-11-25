@@ -203,7 +203,7 @@ The shared `etransfer_parser.py:parse_e_transfer()` function handles e-transfer 
 | `Institution` | String | | e.g., "RBC", "CIBC" |
 | `Amount` | Decimal | | Transaction amount (stored as DynamoDB Decimal) |
 | `Company` | String | | Merchant or recipient name |
-| `TransactionType` | String | | "purchase", "withdrawal", "preauth", "e-transfer" |
+| `TransactionType` | String | | Spending: "purchase", "withdrawal", "preauth", "e-transfer". "refund" subtracts from spending in its category; "deposit" is income; "card-payment" (paying down a card) is neither and arrives `Ignored`. Single source: `src/finance/transaction_types.py` |
 | `Category` | String | | Lowercased category from OpenAI (e.g., "groceries") |
 | `Name` | String | | Cardholder first name |
 | `Date` | String | | Timestamp in the configured `timezone` (`src/finance/app_timezone.py`, default Pacific), formatted `MM/DD/YYYY HH:MM ZZZ` where `ZZZ` is that zone's abbreviation (e.g. `PDT`/`PST`) |
@@ -276,7 +276,9 @@ The hash check misses two real-world repeats, so every email write is followed b
 - **The same email written twice.** One message reaching ingestion twice (two S3 objects, or the IMAP poller and the Lambda both reading it) hashes identically, but two concurrent writers can both pass the check-then-put. After writing, each re-reads the partition's neighbouring rows (DynamoDB `ConsistentRead`); rows sharing a `TransactionHash` resolve to the lowest `DateFileName`, and every other copy is marked. Whichever writer reads last sees both rows, so the race always resolves.
 - **The bank re-sends the alert.** The copy carries a later `Date:` header, and the hash includes that minute. A new row whose alert text and parsed fields match an earlier row within six hours is a re-send. Alert bodies carry no date, so a wider window would catch a genuine repeat purchase on another day; across 2.5 years of real alerts, re-sends fall within 4 hours and repeat purchases start at 12.
 
-A marked row is written, not dropped: `Ignored` is set and `DuplicateOf` names the original, so totals stay right and the restore control brings back a genuine second identical purchase. Ingestion skips enrichment and notification for it, and the API exposes it as `duplicate_of_tx_id`. The re-send rule only ever marks the row just written, so an earlier copy a user restored is never re-hidden. `dev/cli/mark_duplicate_alerts.py` replays the same rules over existing history (dry run by default).
+- **Each cardholder gets the alert.** A card payment is an event on the account, so the bank alerts every cardholder, and the copies differ in name and card number. A new `card-payment` row with the same institution and amount as an earlier one on the same day is a cardholder copy. The neighbour read reaches back to the start of the day for this rule. Purchases are never collapsed this way, since two cardholders can spend the same amount on the same day.
+
+A marked row is written, not dropped: `Ignored` is set and `DuplicateOf` names the original, so totals stay right and the restore control brings back a genuine second identical purchase. Ingestion skips enrichment and notification for it, and the API exposes it as `duplicate_of_tx_id`. The re-send and cardholder rules only ever mark the row just written, so an earlier copy a user restored is never re-hidden. `dev/cli/mark_duplicate_alerts.py` replays the same rules over existing history (dry run by default).
 
 ### Timezone handling
 

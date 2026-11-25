@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, Field
 
-from src.api.models.ingestion import TransactionType
+from src.api.models.ingestion import TRANSACTION_TYPE_DESCRIPTION, TransactionType
 
 
 class ParseFailureSummary(BaseModel):
@@ -54,9 +54,7 @@ class ManualResolveRequest(BaseModel):
     amount: float = Field(..., gt=0, description="Transaction amount")
     company: str = Field(..., min_length=1, description="Merchant/company name")
     category: str | None = Field(None, description="Category (auto-detected from overrides if omitted)")
-    transaction_type: TransactionType = Field(
-        "purchase", description="purchase, withdrawal, preauth, e-transfer, or deposit"
-    )
+    transaction_type: TransactionType = Field("purchase", description=TRANSACTION_TYPE_DESCRIPTION)
     institution: str | None = Field(
         None,
         description="Financial institution; defaults to the failure's detected institution, else 'Manual'",

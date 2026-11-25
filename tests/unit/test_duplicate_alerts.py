@@ -13,6 +13,7 @@ import pytest
 from src.finance.duplicate_alerts import (
     RESEND_WINDOW,
     AlertRow,
+    account_event_key,
     alert_fingerprint,
     alert_row,
     find_duplicate_marks,
@@ -146,9 +147,79 @@ class TestFingerprint:
 
 
 def test_window_bounds_cover_the_window_and_the_whole_minute() -> None:
-    assert window_bounds("2026.04.20_12.29_abc.eml") == ("2026.04.20_06.29", "2026.04.20_12.29~")
+    assert window_bounds("2026.04.20_03.29_abc.eml") == ("2026.04.19_21.29", "2026.04.20_03.29~")
     assert "2026.04.20_12.29_zzz" < "2026.04.20_12.29~"
+
+
+def test_window_bounds_reach_back_to_the_start_of_the_day() -> None:
+    """The account-event rule compares whole days, so the window never starts mid-day."""
+    assert window_bounds("2026.04.20_12.29_abc.eml") == ("2026.04.20_00.00", "2026.04.20_12.29~")
 
 
 def test_window_bounds_reject_a_key_without_a_minute() -> None:
     assert window_bounds("manual_entry") is None
+
+
+class TestAccountEvent:
+    """One card payment alerted to each cardholder on the account (issue #98)."""
+
+    @staticmethod
+    def _payment(key: str, **overrides: object) -> dict[str, object]:
+        item: dict[str, object] = {
+            "DateFileName": key,
+            "TransactionHash": f"hash-{key}",
+            "Institution": "MBNA",
+            "Amount": Decimal("500.00"),
+            "Company": "Payment",
+            "TransactionType": "card-payment",
+            "Body": f"Payment received for the card ending in {key[-4:]}.",
+        }
+        item.update(overrides)
+        return item
+
+    def test_second_cardholder_copy_is_marked(self) -> None:
+        first = self._payment("2026.10.02_08.15_a_1111")
+        second = self._payment("2026.10.02_08.16_b_2222")
+        rows = [alert_row(first), alert_row(second)]
+        assert find_duplicate_marks("2026.10.02_08.16_b_2222", rows) == {
+            "2026.10.02_08.16_b_2222": "2026.10.02_08.15_a_1111"
+        }
+
+    def test_copy_later_the_same_day_is_marked(self) -> None:
+        """Copies are compared by day, beyond the six-hour re-send window."""
+        first = self._payment("2026.10.02_01.00_a_1111")
+        second = self._payment("2026.10.02_19.00_b_2222")
+        assert find_duplicate_marks(second["DateFileName"], [alert_row(first), alert_row(second)]) == {
+            "2026.10.02_19.00_b_2222": "2026.10.02_01.00_a_1111"
+        }
+
+    def test_same_amount_on_another_day_is_kept(self) -> None:
+        first = self._payment("2026.10.02_08.15_a_1111")
+        second = self._payment("2026.10.03_08.15_b_2222")
+        assert find_duplicate_marks(second["DateFileName"], [alert_row(first), alert_row(second)]) == {}
+
+    @pytest.mark.parametrize(
+        "change",
+        [{"Amount": Decimal("250.00")}, {"Institution": "RBC"}],
+    )
+    def test_different_payment_is_kept(self, change: dict[str, object]) -> None:
+        first = self._payment("2026.10.02_08.15_a_1111")
+        second = self._payment("2026.10.02_08.16_b_2222", **change)
+        assert find_duplicate_marks(second["DateFileName"], [alert_row(first), alert_row(second)]) == {}
+
+    def test_purchases_on_two_cards_are_never_collapsed(self) -> None:
+        """Two cardholders can really spend the same amount on the same day."""
+        first = self._payment("2026.10.02_08.15_a_1111", TransactionType="purchase")
+        second = self._payment("2026.10.02_08.16_b_2222", TransactionType="purchase")
+        assert account_event_key(first) is None
+        assert find_duplicate_marks(second["DateFileName"], [alert_row(first), alert_row(second)]) == {}
+
+    def test_statement_and_manual_rows_never_take_part(self) -> None:
+        assert alert_row(self._payment("2026.10.02_08.15_a_1111", StatementSource="s3://x")).account_event is None
+        assert account_event_key(self._payment("2026.10.02_08.15_a_1111", Body=None)) is None
+
+    def test_earlier_copy_is_never_re_hidden(self) -> None:
+        """Only the newly written row is marked, so a restored original stays visible."""
+        first = self._payment("2026.10.02_08.15_a_1111")
+        second = self._payment("2026.10.02_08.16_b_2222")
+        assert find_duplicate_marks(first["DateFileName"], [alert_row(first), alert_row(second)]) == {}

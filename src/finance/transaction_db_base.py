@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from src.finance.app_timezone import get_app_timezone
 from src.finance.duplicate_alerts import alert_row, find_duplicate_marks, window_bounds
 from src.finance.transaction_hash import bump_hash_occurrence, generate_transaction_hash
+from src.finance.transaction_types import TRANSFER_TYPES
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
@@ -440,7 +441,9 @@ class TransactionsDBBase(ABC):
         """Decide whether a NEW transaction should arrive Ignored.
 
         True when the row carries an explicit ``ignored`` flag (e.g. a caller
-        that already decided) OR its Company matches a merchant auto-ignore
+        that already decided), OR it is a card payment (issue #98: paying down a
+        card is neither spending nor income, so it arrives Ignored and can be
+        restored like any other row), OR its Company matches a merchant auto-ignore
         rule via the shared tiered resolver — the write-time parallel to how
         category overrides pin a merchant to a category. Applied by both
         backends inside ``add_transaction`` so the self-hosted (process_message)
@@ -449,6 +452,8 @@ class TransactionsDBBase(ABC):
         row un-ignored rather than blocking the write.
         """
         if transaction_data.get("ignored"):
+            return True
+        if transaction_data.get("transaction_type") in TRANSFER_TYPES:
             return True
         company = transaction_data.get("company")
         if not company:

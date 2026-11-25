@@ -21,7 +21,7 @@ from src.finance.app_config import get_config
 from src.finance.daily_summary_context import gather_daily_contexts
 from src.finance.insights_context import gather_context as gather_insights_context
 from src.finance.protocols import IBudgetService, ISpendingSummary
-from src.finance.spending_aggregator import SPENDING_TYPES
+from src.finance.transaction_types import signed_spending
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -157,9 +157,7 @@ async def kick_off_generation(
         journal_days = []
         for day_key in sorted(by_day):
             day_items = by_day[day_key]
-            day_spending = sum(
-                float(i.get("Amount") or 0) for i in day_items if i.get("TransactionType") in SPENDING_TYPES
-            )
+            day_spending = sum(signed_spending(i) or 0.0 for i in day_items)
             mtd += day_spending
             journal_days.append(
                 {

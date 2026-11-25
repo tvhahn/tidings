@@ -14,10 +14,9 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { downloadExport } from "@/lib/api";
 import type { Filters } from "@/lib/filters";
+import { TRANSACTION_TYPES } from "@/lib/transactionTypes";
 import { cn } from "@/lib/utils";
 import type { SearchParams } from "@/types/api";
-
-const TYPES = ["purchase", "withdrawal", "e-transfer", "preauth", "deposit"];
 
 /**
  * Draft state for the range controls the panel owns directly. Category,
@@ -152,7 +151,7 @@ export function AdvancedSearchPanel({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All types</SelectItem>
-                  {TYPES.map((t) => (
+                  {TRANSACTION_TYPES.map((t) => (
                     <SelectItem key={t} value={t}>
                       {t}
                     </SelectItem>

@@ -17,7 +17,8 @@ logger = logging.getLogger(__name__)
 # Statement types → compatible DynamoDB TransactionTypes
 STATEMENT_TO_DB_TYPE_MAP = {
     "withdrawal": {"purchase", "withdrawal", "preauth"},
-    "deposit": {"e-transfer", "deposit"},
+    # A credit on a card statement is a refund or a card payment.
+    "deposit": {"e-transfer", "deposit", "refund", "card-payment"},
 }
 
 # Tiers 2 and 3 look this many days either side of a statement date for a
@@ -111,7 +112,7 @@ def _types_compatible(stmt_type: str, db_type: str | None) -> bool:
 
 
 # DB types that are definitively inflows or outflows
-_DB_INFLOW_TYPES = {"deposit"}
+_DB_INFLOW_TYPES = {"deposit", "refund", "card-payment"}
 _DB_OUTFLOW_TYPES = {"purchase", "withdrawal", "preauth"}
 # Note: "e-transfer" is intentionally excluded — it can be sent (outflow) or received (inflow)
 

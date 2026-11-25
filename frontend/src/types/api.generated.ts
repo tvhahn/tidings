@@ -3976,11 +3976,11 @@ export interface components {
             institution?: string | null;
             /**
              * Transaction Type
-             * @description purchase, withdrawal, preauth, e-transfer, or deposit
+             * @description purchase, withdrawal, preauth, e-transfer, deposit, refund (reduces spending), or card-payment (paying down a card; neither spending nor income)
              * @default purchase
              * @enum {string}
              */
-            transaction_type: "purchase" | "withdrawal" | "preauth" | "e-transfer" | "deposit";
+            transaction_type: "purchase" | "withdrawal" | "preauth" | "e-transfer" | "deposit" | "refund" | "card-payment";
         };
         /** ManualResolveResponse */
         ManualResolveResponse: {
@@ -4025,11 +4025,11 @@ export interface components {
             name?: string | null;
             /**
              * Transaction Type
-             * @description purchase, withdrawal, preauth, e-transfer, or deposit
+             * @description purchase, withdrawal, preauth, e-transfer, deposit, refund (reduces spending), or card-payment (paying down a card; neither spending nor income)
              * @default purchase
              * @enum {string}
              */
-            transaction_type: "purchase" | "withdrawal" | "preauth" | "e-transfer" | "deposit";
+            transaction_type: "purchase" | "withdrawal" | "preauth" | "e-transfer" | "deposit" | "refund" | "card-payment";
         };
         /** ManualTransactionResponse */
         ManualTransactionResponse: {
@@ -5693,7 +5693,7 @@ export interface components {
             /** Company */
             company?: string | null;
             /** Transaction Type */
-            transaction_type?: ("purchase" | "withdrawal" | "preauth" | "e-transfer" | "deposit") | null;
+            transaction_type?: ("purchase" | "withdrawal" | "preauth" | "e-transfer" | "deposit" | "refund" | "card-payment") | null;
         };
         /** TransactionFieldsUpdateResponse */
         TransactionFieldsUpdateResponse: {

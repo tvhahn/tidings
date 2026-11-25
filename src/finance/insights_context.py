@@ -28,14 +28,17 @@ from src.finance.app_timezone import now_local
 from src.finance.decimal_utils import decimals_to_floats as _strip_decimals
 from src.finance.demo_clock import app_today
 from src.finance.spending_summary_base import compare_summaries
+from src.finance.transaction_types import SPENDING_TYPES
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
     from src.finance.protocols import IBudgetService, ISpendingSummary
 
-# Transaction types that count as spending (mirrors spending_aggregator.SPENDING_TYPES).
-_SPENDING_TYPES = {"purchase", "withdrawal", "preauth", "e-transfer"}
+# Transaction types that count as spending. Refunds are left out on purpose:
+# the helpers below list individual purchases (largest, commented, usually
+# ignored), and month totals already net refunds through aggregate().
+_SPENDING_TYPES = SPENDING_TYPES
 
 # --- Memory-signal detection thresholds (documented in the prompt's <data_notes>) ---
 # recurring_annual: a category qualifies only when its mean active-month amount clears

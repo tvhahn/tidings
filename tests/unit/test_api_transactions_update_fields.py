@@ -104,7 +104,7 @@ class TestUpdateFields:
     def test_invalid_transaction_type_rejected(self, api_client):
         resp = api_client.put(
             "/api/v1/transactions/user%40example.com/2026.02.15_10.30_test.eml/fields",
-            json={"transaction_type": "refund"},
+            json={"transaction_type": "chargeback"},
         )
         assert_problem(resp, 422)
 

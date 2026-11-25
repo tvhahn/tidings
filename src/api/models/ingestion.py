@@ -7,8 +7,14 @@ from pydantic import BaseModel, Field
 # Canonical set of transaction types accepted across the manual-entry surfaces
 # (manual add + parse-failure resolve). ``_VALID_TRANSACTION_TYPES`` in
 # ``src/api/routers/transactions.py`` derives its membership set from this alias
-# via ``typing.get_args`` — keep the accepted values in one place here.
-TransactionType = Literal["purchase", "withdrawal", "preauth", "e-transfer", "deposit"]
+# via ``typing.get_args`` — keep the accepted values in one place here. The
+# members must match ``ALL_TRANSACTION_TYPES`` in ``src/finance/transaction_types``
+# (pinned by a unit test); that module says how each type moves the totals.
+TransactionType = Literal["purchase", "withdrawal", "preauth", "e-transfer", "deposit", "refund", "card-payment"]
+TRANSACTION_TYPE_DESCRIPTION = (
+    "purchase, withdrawal, preauth, e-transfer, deposit, refund (reduces spending), "
+    "or card-payment (paying down a card; neither spending nor income)"
+)
 
 
 class ManualTransactionRequest(BaseModel):
@@ -17,7 +23,8 @@ class ManualTransactionRequest(BaseModel):
     company: str = Field(..., min_length=1, description="Merchant/company name")
     category: str | None = Field(None, description="Category (auto-detected if omitted)")
     transaction_type: TransactionType = Field(
-        "purchase", description="purchase, withdrawal, preauth, e-transfer, or deposit"
+        "purchase",
+        description=TRANSACTION_TYPE_DESCRIPTION,
     )
     institution: str | None = Field(None, description="Financial institution")
     name: str | None = Field(None, description="Cardholder name")

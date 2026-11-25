@@ -194,3 +194,30 @@ class TestGetJournal:
     def test_invalid_month_format_returns_422(self, api_client: TestClient) -> None:
         resp = api_client.get("/api/v1/journal?month=April-2026")
         assert_problem(resp, 422)
+
+
+class TestJournalRefunds:
+    """A refund shows in the journal and nets against the day (issue #97)."""
+
+    @pytest.mark.parametrize("mock_run_sync", ["journal"], indirect=True)
+    def test_refund_nets_against_the_day(self, mock_run_sync: AsyncMock, api_client: TestClient) -> None:
+        items = [_item("14", amount="64.99"), _item("14", hour="15.00", amount="64.99", txn_type="refund")]
+        mock_run_sync.side_effect = [items, None]
+
+        resp = api_client.get("/api/v1/journal?month=2026-04")
+        assert_ok(resp)
+        day = resp.json()["days"][0]
+        assert day["count"] == 2
+        assert day["day_total"] == 0.0
+        assert day["mtd_total"] == 0.0
+
+    @pytest.mark.parametrize("mock_run_sync", ["journal"], indirect=True)
+    def test_card_payment_stays_off_the_journal(self, mock_run_sync: AsyncMock, api_client: TestClient) -> None:
+        items = [_item("14"), _item("14", hour="15.00", amount="500.00", txn_type="card-payment")]
+        mock_run_sync.side_effect = [items, None]
+
+        resp = api_client.get("/api/v1/journal?month=2026-04")
+        assert_ok(resp)
+        day = resp.json()["days"][0]
+        assert day["count"] == 1
+        assert day["day_total"] == 42.5

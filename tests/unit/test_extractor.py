@@ -12,7 +12,9 @@ from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock
 
-from src.finance.extractor import extract_transaction, validate_extraction
+import pytest
+
+from src.finance.extractor import contradicts_money_in, extract_transaction, validate_extraction
 
 # ---------------------------------------------------------------------------
 # Helpers to build mock completion objects (copied from the categorization tests)
@@ -287,3 +289,63 @@ class TestValidateExtraction:
         body = "A withdrawal of $1,000 from your account at Acme."
         # model emits "1000.00", body shows "1,000"
         assert validate_extraction("1000.00", "Acme", body) is True
+
+
+# ---------------------------------------------------------------------------
+# extract_transaction — credit and payment alerts are never spending (#97, #98)
+# ---------------------------------------------------------------------------
+
+
+class TestMoneyInGuard:
+    @pytest.mark.parametrize(
+        ("body", "claimed"),
+        [
+            ("A refund of $25.00 from [MERCHANT] was posted to your card ending in [XXXX].", "purchase"),
+            ("You received a credit of $25.00 from [MERCHANT] on your credit card.", "purchase"),
+            ("Your account has been credited $25.00 by [MERCHANT].", "preauth"),
+            ("We received your payment of $25.00 for [MERCHANT] card ending in [XXXX].", "purchase"),
+            ("A payment of $25.00 to [MERCHANT] was received on your account.", "withdrawal"),
+        ],
+    )
+    def test_spending_type_for_money_in_text_is_rejected(self, body: str, claimed: str) -> None:
+        client = MagicMock()
+        client.chat.return_value = _make_completion(
+            "extract_transaction", {"amount": "25.00", "company": "[MERCHANT]", "transaction_type": claimed}
+        )
+        result, stage = extract_transaction(client, _email(body))
+        assert result is None
+        assert stage == "ai_validation_failed"
+
+    @pytest.mark.parametrize(
+        ("body", "claimed"),
+        [
+            ("A refund of $25.00 from [MERCHANT] was posted to your card ending in [XXXX].", "refund"),
+            ("We received your payment of $25.00 for [MERCHANT] card ending in [XXXX].", "card-payment"),
+        ],
+    )
+    def test_money_in_type_is_accepted(self, body: str, claimed: str) -> None:
+        client = MagicMock()
+        client.chat.return_value = _make_completion(
+            "extract_transaction", {"amount": "25.00", "company": "[MERCHANT]", "transaction_type": claimed}
+        )
+        result, stage = extract_transaction(client, _email(body))
+        assert stage is None
+        assert result is not None
+        assert result["transaction_type"] == claimed
+
+    def test_credit_card_wording_alone_is_not_a_credit(self) -> None:
+        """Every card alert says "credit card"; a purchase on one is still a purchase."""
+        body = "A purchase of $25.00 at [MERCHANT] was made on your credit card ending in [XXXX]."
+        assert contradicts_money_in("purchase", "Credit card alert", body) is False
+
+    def test_subject_counts(self) -> None:
+        assert contradicts_money_in("purchase", "Refund posted", "$25.00 at [MERCHANT]") is True
+
+    def test_tool_schema_offers_refund_and_card_payment(self) -> None:
+        client = MagicMock()
+        client.chat.return_value = _make_empty_completion()
+        extract_transaction(client, _email("A purchase of $1.00 at Acme."))
+        tools = client.chat.call_args.kwargs["tools"]
+        enum = tools[0]["function"]["parameters"]["properties"]["transaction_type"]["enum"]
+        assert "refund" in enum
+        assert "card-payment" in enum
