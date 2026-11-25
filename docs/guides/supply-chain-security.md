@@ -11,7 +11,7 @@ from and the date:
 
 | Dockerfile | Stage | Resolved from |
 |---|---|---|
-| `Dockerfile.prod` | frontend build | `node:20-slim` |
+| `Dockerfile.prod` | frontend build | `node:22-slim` |
 | `Dockerfile.prod` | runtime | `python:3.12-slim` |
 | `docker/imap_polling/Dockerfile` | runtime | `python:3.12-slim` |
 | `docker/email_parsing/Dockerfile` | Lambda runtime | `public.ecr.aws/lambda/python:3.12` |

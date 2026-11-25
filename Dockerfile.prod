@@ -1,13 +1,13 @@
 # ---------------------------------------------------------------------------
 # Stage 1 — Frontend build
 # ---------------------------------------------------------------------------
-# Pinned by digest. Resolved 2026-05-05 from registry-1.docker.io/library/node:20-slim.
+# Pinned by digest. Resolved 2026-11-25 from registry-1.docker.io/library/node:22-slim.
 # See docs/guides/supply-chain-security.md.
-FROM node:20-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0 AS frontend-builder
+FROM node:22-slim@sha256:be979e5523c76fa4d5ca4ebd3099078f220aa47ec39c48ad5b5df9314debd6eb AS frontend-builder
 
 WORKDIR /build/frontend
 
-# Enable pnpm 10 via Corepack (ships with Node 20). Mirrors the version
+# Enable pnpm 10 via Corepack (ships with Node 22). Mirrors the version
 # used by ci.yml's pnpm/action-setup steps.
 RUN corepack enable && corepack prepare pnpm@10 --activate
 
