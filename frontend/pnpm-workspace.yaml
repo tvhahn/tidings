@@ -6,17 +6,21 @@ allowBuilds:
   unrs-resolver: false
 overrides:
   esbuild: ">=0.28.1"
-  js-yaml: ">=4.3.1 <5"
+  js-yaml: ">=4.3.2 <5"
   undici: ">=7.29.0 <8"
   "@babel/core": ">=7.29.6 <8"
   fast-uri: ">=3.1.5 <4"
-  brace-expansion@1: ">=1.1.18 <2"
-  brace-expansion@2: ">=2.1.4 <3"
+  brace-expansion@1: ">=1.1.21 <2"
+  brace-expansion@2: ">=2.1.7 <3"
   minimatch@3: ">=3.1.4 <4"
   minimatch@5: ">=5.1.8 <6"
   minimatch@9: ">=9.0.7 <10"
   flatted: ">=3.4.2 <4"
   postcss: ">=8.5.23 <9"
+  compression: ">=1.8.2 <2"
+  zod: ">=4.6.6 <5"
+  "@humanfs/node": ">=0.16.8 <0.17"
+  postcss-selector-parser@6: ">=6.1.5 <7"
 auditConfig:
   ignoreGhsas:
     # react-router — RSC-mode CSRF bypass. Only reachable through the unstable
