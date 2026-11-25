@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=83.0.0", "wheel"]
+requires = ["setuptools>=84.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -34,7 +34,7 @@ dependencies = [
     "requests",
     # src/api/dependencies.py loads data/.env at import time — previously only
     # a transitive dep of uvicorn[standard].
-    "python-dotenv>=1.2.2",
+    "python-dotenv>=1.2.3",
     "twilio",
     "argon2-cffi",
 ]
@@ -43,7 +43,7 @@ dependencies = [
 # Prompt evaluation harness — dev-only, see dev/eval_harness/.
 # Install with: uv sync --extra eval
 eval = [
-    "streamlit>=1.60.0",
+    "streamlit>=1.62.0",
     "streamlit-sortables>=0.3.1",
 ]
 
@@ -67,8 +67,8 @@ dev = [
     "faker",
     "pyright>=1.1.411",
     "boto3-stubs[dynamodb]",
-    "hypothesis>=6.161.2",
-    "libcst>=1.8.6",
+    "hypothesis>=6.165.10",
+    "libcst>=1.9.0",
     "moto[dynamodb]>=5.2.2",
     "deptry>=0.25.1",
 ]

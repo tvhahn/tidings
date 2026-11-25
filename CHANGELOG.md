@@ -150,6 +150,10 @@ This project follows [Semantic Versioning](https://semver.org/).
   folder, and an S3 restore skips attachment entries that point elsewhere.
 - Dependency updates clear all open `pip-audit` advisories, including one in a
   library the daily-summary provider no longer needs.
+- Dependency updates clear the open `pip-audit` and `pnpm audit` advisories
+  again (certifi, urllib3, tornado, soupsieve, vite, zod and others), and the
+  self-hosted image now builds its frontend on Node 22, since Node 20 no longer
+  gets security fixes.
 
 ## [0.1.0] — 2026-07-21
 
