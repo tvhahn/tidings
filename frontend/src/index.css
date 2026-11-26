@@ -96,6 +96,15 @@
      staying palette-adaptive. Dark mode uses --brand directly (already ≥4.5). */
   --brand-text: color-mix(in oklab, var(--brand) 72%, var(--fg));
 
+  /* First-screen meters (N8.2). The Journal pace bar fills in a deepened brand
+     and shows the month-end projection as a pale run of the same hue; Budgets
+     bars fill in ink with any overage in calm red. Derived from --brand so every
+     palette keeps its own hue. */
+  --pace-fill: color-mix(in oklab, var(--brand) 80%, black);
+  --pace-proj: color-mix(in oklab, var(--pace-fill) 30%, var(--card));
+  --pace-track: color-mix(in oklab, var(--muted-foreground) 15%, var(--card));
+  --meter-fill: var(--fg-secondary);
+
   /* ---- Tidings brand scale (warm rust) ---- */
   --brand-50: oklch(0.97 0.015 45);
   --brand-100: oklch(0.93 0.035 45);
@@ -285,6 +294,9 @@
   --brand: oklch(0.72 0.15 45);
   --brand-foreground: oklch(0.18 0.018 60);
   --brand-text: var(--brand);
+  --pace-fill: color-mix(in oklab, var(--brand) 90%, black);
+  --pace-proj: color-mix(in oklab, var(--pace-fill) 38%, var(--card));
+  --meter-fill: color-mix(in oklab, var(--muted-foreground) 85%, var(--card));
 
   /* Brighter than light --fg-secondary; sits between --foreground (0.985)
      and --muted-foreground (0.7) on dark surfaces. */
@@ -338,6 +350,10 @@
   --color-status-danger-accent: var(--status-danger-accent);
   --color-status-danger-wash: var(--status-danger-wash);
   --color-status-danger-calm: var(--status-danger-calm);
+  --color-pace-fill: var(--pace-fill);
+  --color-pace-proj: var(--pace-proj);
+  --color-pace-track: var(--pace-track);
+  --color-meter-fill: var(--meter-fill);
   --color-status-danger-calm-text: var(--status-danger-calm-text);
   --color-status-info: var(--status-info);
   --color-status-info-muted: var(--status-info-muted);

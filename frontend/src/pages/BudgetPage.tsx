@@ -1,8 +1,8 @@
 import { History, Pencil, Wallet } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { BudgetFirstScreen } from "@/components/budgets/BudgetFirstScreen";
 import { BudgetTable } from "@/components/BudgetTable";
-import { PaceHeadline } from "@/components/PaceHeadline";
 import { PageHeader } from "@/components/PageHeader";
 import { QueryErrorNotice } from "@/components/QueryErrorNotice";
 import { SegmentedControl } from "@/components/SegmentedControl";
@@ -19,7 +19,7 @@ import { currentYear } from "@/lib/format";
 type BudgetView = "ytd" | "monthly";
 
 const VIEW_OPTIONS: { value: BudgetView; label: string }[] = [
-  { value: "ytd", label: "YTD" },
+  { value: "ytd", label: "Year to date" },
   { value: "monthly", label: "Monthly" },
 ];
 
@@ -63,52 +63,32 @@ export function BudgetPage() {
     <div className="space-y-6">
       <PageHeader
         title="Category budgets"
-        actions={
-          <>
-            {hasConfig && status && (
-              <div className="flex items-center gap-1.5">
-                <SegmentedControl
-                  options={VIEW_OPTIONS}
-                  value={view}
-                  onChange={setView}
-                  ariaLabel="Budget view"
-                />
-                {view === "ytd" && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        aria-label={`Compare with ${year - 1}`}
-                        onClick={() => setShowPriorYear((p) => !p)}
-                        className={
-                          showPriorYear
-                            ? "ring-1 ring-border/60 text-foreground"
-                            : "text-muted-foreground"
-                        }
-                      >
-                        <History className="mr-1 h-3 w-3" />
-                        {year - 1}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Compare with {year - 1}</TooltipContent>
-                  </Tooltip>
-                )}
-              </div>
-            )}
-            {hasConfig && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate(`/budgets/edit?year=${year}`)}
-              >
-                <Pencil className="mr-1 h-3 w-3" /> Edit budget
-              </Button>
-            )}
-            <YearPicker year={year} onChange={setYear} />
-          </>
-        }
+        actions={<YearPicker year={year} onChange={setYear} />}
       />
+
+      {/* N8.2 controls: the view on the left, Edit on the right. */}
+      {hasConfig && (
+        <div className="-mt-2 flex items-center justify-between gap-3">
+          {status ? (
+            <SegmentedControl
+              options={VIEW_OPTIONS}
+              value={view}
+              onChange={setView}
+              ariaLabel="Budget view"
+            />
+          ) : (
+            <span />
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-fg-secondary"
+            onClick={() => navigate(`/budgets/edit?year=${year}`)}
+          >
+            <Pencil className="mr-1 h-3 w-3" /> Edit
+          </Button>
+        </div>
+      )}
 
       {/* Loading */}
       {isLoading && (
@@ -152,7 +132,35 @@ export function BudgetPage() {
       {/* Dashboard */}
       {!isLoading && hasConfig && status && (
         <>
-          <PaceHeadline status={status} />
+          <BudgetFirstScreen status={status} />
+
+          <div className="flex items-center justify-between gap-3 pt-2">
+            <h2 className="text-[13px] font-medium text-fg-muted">
+              {view === "ytd" ? "All categories, year to date" : "All categories, by month"}
+            </h2>
+            {view === "ytd" && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`Compare with ${year - 1}`}
+                    aria-pressed={showPriorYear}
+                    onClick={() => setShowPriorYear((p) => !p)}
+                    className={
+                      showPriorYear
+                        ? "ring-1 ring-border/60 text-foreground"
+                        : "text-muted-foreground"
+                    }
+                  >
+                    <History className="mr-1 h-3 w-3" />
+                    {year - 1}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Compare with {year - 1}</TooltipContent>
+              </Tooltip>
+            )}
+          </div>
 
           <BudgetTable
             status={status}

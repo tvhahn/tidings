@@ -47,6 +47,16 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- The Journal and Budgets open with a quieter first screen. The Journal leads
+  with what you have spent, one sentence on where the month is heading, and a
+  plain bar toward the ceiling, beside two figures: room below the ceiling and
+  regular charges still expected. On wide screens these sit in a column next to
+  the days, with the charges still to come listed by date. The
+  month-over-month figure, the pace bar's marks, and per-day transaction counts
+  are gone. Budgets opens the same way, then shows a tile per category group
+  before the full table. The sidebar keeps only the six-month chart, now drawn
+  against the ceiling with the current month's projection behind it.
+
 - The `:main` container images now publish only after the commit passes CI.
   Previously every push to trunk published immediately, tests or not; if you
   track `:main`, a red build no longer reaches you. Release tags (`:latest`,

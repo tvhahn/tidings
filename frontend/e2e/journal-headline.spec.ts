@@ -3,8 +3,8 @@ import { test, expect, type Page } from "@playwright/test";
 /**
  * Commitment-aware journal headline — the demo's 2026-03 month is its pinned
  * "current" month, so the summary fixture carries a non-null pace.breakdown.
- * Covers: the default Standard strip with its clickable projection, the
- * shared breakdown sheet, and the Settings → Display variant toggle to
+ * Covers: the default N8.2 spent hero with its clickable projection, the
+ * "Still expected" tile, the shared breakdown sheet, and the Settings → Display variant toggle to
  * Timeline (one toggle test per non-default variant — no capture matrix).
  */
 
@@ -22,9 +22,9 @@ test("journal headline shows the projection and opens the breakdown", async ({ p
   await page.goto("/demo/journal");
   await page.waitForLoadState("networkidle");
 
-  // Standard (default): projection value labels the forecast diamond.
+  // Spent hero (default): the projected figure in the sentence opens the sheet.
   const main = page.locator("main");
-  const projection = main.getByRole("button", { name: /Projected .* by month end/i });
+  const projection = main.getByRole("button", { name: /Heading for about .* by month end/i });
   await expect(projection).toBeVisible();
 
   // Opening it reveals the shared breakdown sheet with its section labels.
@@ -36,6 +36,12 @@ test("journal headline shows the projection and opens the breakdown", async ({ p
   // Demo constraint: statement-lag states cannot occur (Statements is a
   // self-host callout), so the awaiting-statement section must be absent.
   await expect(sheet.getByText(/Awaiting your statement/i)).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+
+  // The "Still expected" tile opens the same sheet.
+  await main.getByRole("button", { name: /still expected/i }).click();
+  await expect(page.getByRole("dialog").getByText(/how it adds up/i)).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
 

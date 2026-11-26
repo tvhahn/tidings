@@ -1,107 +1,111 @@
-import { useNavigate, useLocation } from "react-router-dom";
-import { PaceBar } from "@/components/PaceBar";
+import { useQuery } from "@tanstack/react-query";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useJournal } from "@/hooks/useJournal";
 import { useTrend } from "@/hooks/useTrend";
-import { formatCurrency, formatMonthLabelLong } from "@/lib/format";
+import { monthBars, projectedMonthTotal } from "@/lib/firstScreen";
+import {
+  currentMonth,
+  formatCurrency,
+  formatCurrencyRounded,
+  formatMonthLabelLong,
+} from "@/lib/format";
+import { queries } from "@/lib/queryConfigs";
+import { cn } from "@/lib/utils";
 
+/** The sidebar's foot: the last six months against the monthly ceiling. N8.2
+ *  drops the month figure that used to sit above it — the Journal already
+ *  leads with that number. The current month shows its projected total as a
+ *  pale bar behind what is spent. */
 export function SidebarPanel({ month }: { month: string }) {
   const { data: journalData } = useJournal(month);
   // Pass month so the cache key matches SummaryPage's useTrend(6, month) and
   // avoids refetching the same 6-month window under a different key.
   const { data: trendData } = useTrend(6, month);
-
-  const spent = journalData?.month_total ?? 0;
-  const ceiling = journalData?.budget_ceiling ?? null;
-  const pct = ceiling ? (spent / ceiling) * 100 : null;
-  const [yStr, mStr] = month.split("-");
-  const monthShort = new Date(Number(yStr), Number(mStr) - 1, 1).toLocaleDateString("en-US", {
-    month: "short",
-  });
+  // Same factory and key the Journal uses, so this reads its cache.
+  const isCurrentMonth = month === currentMonth();
+  const { data: summaryData } = useQuery({ ...queries.summary(month), enabled: isCurrentMonth });
+  const breakdown = isCurrentMonth ? (summaryData?.pace?.breakdown ?? null) : null;
 
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
-  const trendMonths = trendData?.months ?? [];
-  const maxTrend =
-    trendMonths.length > 0 ? Math.max(...trendMonths.map((m) => m.total_spending)) : 0;
+  const ceiling = journalData?.budget_ceiling ?? null;
+  const model = monthBars({
+    months: trendData?.months ?? [],
+    currentMonth: month,
+    ceiling,
+    projected: breakdown ? projectedMonthTotal(breakdown) : null,
+  });
+  if (!model) return null;
+
+  const months = trendData?.months ?? [];
+  const goTo = (ym: string) => navigate(`${pathname}?month=${ym}`);
 
   return (
-    <div className="px-3 py-3 space-y-3 text-xs">
-      {/* Current month spend */}
-      <div className="rounded-lg border border-border/50 p-3">
-        <div className="flex items-baseline justify-between">
-          <span className="text-muted-foreground">{monthShort} spend</span>
-          {pct != null && (
-            <span className="text-muted-foreground tabular-nums">{Math.round(pct)}%</span>
-          )}
-        </div>
-        <div className="mt-0.5 flex items-baseline justify-between gap-2">
-          <span className="font-semibold tabular-nums text-sm">{formatCurrency(spent)}</span>
-          {ceiling != null && (
-            <span className="text-muted-foreground tabular-nums text-[11px]">
-              / {formatCurrency(ceiling)}
-            </span>
-          )}
-        </div>
-        {pct != null && (
-          <div className="mt-1.5">
-            <PaceBar pct={pct} size="xs" />
-          </div>
-        )}
+    <div className="px-[22px] pb-5 pt-3">
+      <div className="flex justify-between text-xs text-fg-muted">
+        <span>Last {months.length} months</span>
+        {ceiling != null && <span className="tabular-nums">{formatCurrencyRounded(ceiling)}</span>}
       </div>
-
-      {/* 6-month sparkline */}
-      {trendMonths.length > 0 && maxTrend > 0 && (
-        <div className="rounded-lg border border-border/50 p-3">
-          <div className="text-muted-foreground mb-1.5">Last 6 months</div>
-          <div className="flex items-end gap-1 h-10">
-            {trendMonths.map((m) => {
-              const h = (m.total_spending / maxTrend) * 100;
-              const isCurrent = m.year_month === month;
-              return (
-                <Tooltip key={m.year_month}>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      aria-label={`${formatMonthLabelLong(m.year_month)} — ${formatCurrency(m.total_spending)}`}
-                      className="flex-1 flex flex-col justify-end h-full cursor-pointer hover:opacity-80 rounded-sm bg-muted/40"
-                      onClick={() => navigate(`${pathname}?month=${m.year_month}`)}
-                    >
-                      <div
-                        className={`w-full rounded-sm transition-colors ${
-                          isCurrent ? "bg-brand" : "bg-muted-foreground/70"
-                        }`}
-                        style={{ height: `${h}%` }}
+      <p className="sr-only">{model.ariaLabel}</p>
+      <div className="relative mt-1 h-9 border-b border-border/80">
+        {model.ceilingPct != null && (
+          <div
+            aria-hidden="true"
+            className="absolute inset-x-0 border-t border-dashed border-fg-muted/55"
+            style={{ bottom: `${model.ceilingPct}%` }}
+          />
+        )}
+        <div className="absolute inset-0 flex gap-x-2.5">
+          {model.bars.map((b, i) => {
+            const m = months[i];
+            if (!m) return null;
+            return (
+              <Tooltip key={b.month}>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label={`${formatMonthLabelLong(b.month)}: ${formatCurrency(m.total_spending)}`}
+                    onClick={() => goTo(b.month)}
+                    className="relative flex flex-1 flex-col justify-end rounded-t-[2px] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    {b.projPct != null && (
+                      <span
+                        className="absolute inset-x-0 bottom-0 rounded-t-[2px] bg-pace-proj"
+                        style={{ height: `${b.projPct}%` }}
                       />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">
-                    {formatMonthLabelLong(m.year_month)} — {formatCurrency(m.total_spending)}
-                  </TooltipContent>
-                </Tooltip>
-              );
-            })}
-          </div>
-          <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
-            {trendMonths.map((m) => {
-              const [ty, tm] = m.year_month.split("-");
-              const d = new Date(Number(ty), Number(tm) - 1, 1);
-              return (
-                <button
-                  type="button"
-                  key={m.year_month}
-                  aria-label={formatMonthLabelLong(m.year_month)}
-                  className="flex-1 text-center cursor-pointer hover:opacity-80"
-                  onClick={() => navigate(`${pathname}?month=${m.year_month}`)}
-                >
-                  {d.toLocaleDateString("en-US", { month: "narrow" })}
-                </button>
-              );
-            })}
-          </div>
+                    )}
+                    <span
+                      className={cn(
+                        "relative w-full",
+                        b.current
+                          ? cn("bg-pace-fill", b.projPct == null && "rounded-t-[2px]")
+                          : "rounded-t-[2px] bg-[color-mix(in_oklab,var(--muted-foreground)_26%,var(--background))] hover:bg-[color-mix(in_oklab,var(--muted-foreground)_40%,var(--background))] dark:bg-[color-mix(in_oklab,var(--muted-foreground)_30%,var(--background))]"
+                      )}
+                      style={{ height: `${b.spentPct}%` }}
+                    />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  {formatMonthLabelLong(b.month)} — {formatCurrency(m.total_spending)}
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
         </div>
-      )}
+      </div>
+      <div className="mt-1 flex gap-x-2.5 text-center text-xs text-fg-muted" aria-hidden="true">
+        {model.bars.map((b) => {
+          const [ty, tm] = b.month.split("-");
+          const d = new Date(Number(ty), Number(tm) - 1, 1);
+          return (
+            <span key={b.month} className={cn("flex-1", b.current && "font-medium text-fg")}>
+              {d.toLocaleDateString("en-US", { month: "narrow" })}
+            </span>
+          );
+        })}
+      </div>
     </div>
   );
 }

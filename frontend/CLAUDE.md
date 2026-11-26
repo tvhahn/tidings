@@ -80,7 +80,7 @@ match, so every such hook also routes its change through `src/lib/optimisticTran
 - Components live at `src/components/<Name>.tsx` (PascalCase). Cross-cutting
   primitives live in `src/components/ui/`.
 - Feature-specific composites live in `src/components/<feature>/` (currently
-  `settings/`, `insights/`, `merchants/`).
+  `settings/`, `insights/`, `merchants/`, `journal/`, `budgets/`, `headline/`).
 - Page components live in `src/pages/`. **Pull pure data transformations into
   `src/lib/`** — don't let pure functions accumulate inside page modules.
   See `src/lib/statementTransform.ts` for the canonical extraction.

@@ -89,43 +89,26 @@ afterEach(() => {
 });
 
 describe("JournalHeadline container", () => {
-  it("renders the Standard variant by default with the forecast diamond label", () => {
+  it("renders the N8.2 spent hero by default: one sentence and a wordless pace bar", () => {
     render(<JournalHeadline {...baseProps(PACE_WITH_BREAKDOWN)} />);
-    // The projection value labels the diamond and opens the breakdown.
-    expect(
-      screen.getByRole("button", { name: /^Projected .* by month end — open the breakdown$/ })
-    ).toBeInTheDocument();
-    // The prose "entry sentence" carries the projection as a rounded, tilde-free
-    // figure inside its own breakdown button.
     const projectedRounded = formatCurrencyRounded(2461.75 + 1850 + 194 + 1006); // $5,512
     const proseButton = screen.getByRole("button", {
       name: `Heading for about ${projectedRounded} by month end — open the breakdown`,
     });
-    expect(proseButton).toBeInTheDocument();
     const prose = proseButton.closest("p");
-    expect(prose).not.toBeNull();
-    expect(prose?.textContent).toContain(`of the ${formatCurrencyRounded(4600)} ceiling`); // $4,600
-    // The prose hedges with "about" — the tilde stays on data surfaces only.
+    expect(prose?.textContent).toBe(`Heading for about ${projectedRounded} by month end.`);
+    // The prose hedges with "about" — no tilde.
     expect(prose?.textContent).not.toContain("~");
-    // The vs-prev delta renders rounded — whole dollars, no cents.
-    const deltaButton = screen.getByRole("button", {
-      name: /spent .* by this point in February/,
-    });
-    expect(deltaButton.textContent).toMatch(/^[+−]\$[\d,]+$/);
-    // Split caption's right side.
-    expect(screen.getByText("12 days left")).toBeInTheDocument();
-  });
-
-  it("ends the prose at the ceiling with no per-day clause", () => {
-    // The entry sentence stops after "ceiling." — no "a day left" tail, whether
-    // the month is under or over budget.
-    render(<JournalHeadline {...baseProps(PACE_WITH_BREAKDOWN)} budget={2000} />);
-    const proseButton = screen.getByRole("button", {
-      name: `Heading for about ${formatCurrencyRounded(2461.75 + 1850 + 194 + 1006)} by month end — open the breakdown`,
-    });
-    const prose = proseButton.closest("p");
-    expect(prose?.textContent).toContain(`of the ${formatCurrencyRounded(2000)} ceiling.`);
-    expect(prose?.textContent).not.toContain("a day left");
+    // The bar carries no words; its description is for screen readers only.
+    expect(screen.getByRole("img").getAttribute("aria-label")).toBe(
+      `$2,462 of the $4,600 ceiling is spent, 54%. The month is heading for about ${projectedRounded}, 120%.`
+    );
+    expect(screen.getByText("$4,600 ceiling")).toBeInTheDocument();
+    // Removed in N8.2: the forecast diamond, the vs-prev figure, the verdict
+    // label and the days-left caption (that lives on a tile now).
+    expect(screen.queryByRole("button", { name: /^Projected/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/February/)).not.toBeInTheDocument();
+    expect(screen.queryByText("12 days left")).not.toBeInTheDocument();
   });
 
   it("renders the Timeline variant when the store selects it", () => {
@@ -191,18 +174,25 @@ describe("JournalHeadline container", () => {
     expect(pencils).toHaveLength(3);
   });
 
-  it("falls back to the shipped strip when there is no commitment-aware pace", () => {
+  it("drops the sentence and projection when there is no commitment-aware pace", () => {
     render(<JournalHeadline {...baseProps(null)} />);
-    // Legacy caption — the elapsed-vs-spent sentence, no projection marks.
-    expect(screen.getByText(/% of budget used, .*% of month elapsed/)).toBeInTheDocument();
-    // No breakdown affordance anywhere.
+    expect(screen.queryByText(/Heading for about/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /open the breakdown/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("img").getAttribute("aria-label")).toBe(
+      "$2,462 of the $4,600 ceiling is spent, 54%."
+    );
   });
 
-  it("keeps the shipped strip for a null-breakdown month even under the Timeline preference", () => {
+  it("reads a finished month against the ceiling", () => {
+    render(<JournalHeadline {...baseProps(null)} asOfDay={null} pacePct={100} spent={4800} />);
+    expect(screen.getByText("$200 over the $4,600 ceiling.")).toBeInTheDocument();
+    expect(screen.getByText("Spent · March 2026")).toBeInTheDocument();
+  });
+
+  it("keeps the spent hero for a null-breakdown month even under the Timeline preference", () => {
     usePreferences.setState({ headlineVariant: "timeline" });
     render(<JournalHeadline {...baseProps(null)} />);
-    expect(screen.getByText(/% of budget used, .*% of month elapsed/)).toBeInTheDocument();
+    expect(screen.getByText("$4,600 ceiling")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /open the breakdown/i })).not.toBeInTheDocument();
   });
 });
