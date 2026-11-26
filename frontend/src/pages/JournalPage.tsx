@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { DemoSelfHostedCallout } from "@/components/DemoSelfHostedCallout";
+import { JournalTiles, UpcomingChargesCard } from "@/components/journal/JournalTiles";
 import { JournalDayList } from "@/components/JournalDayList";
 import { JournalHeadline } from "@/components/JournalHeadline";
 import { MonthPicker } from "@/components/MonthPicker";
@@ -15,7 +16,9 @@ import { useJournal } from "@/hooks/useJournal";
 import { useJournalSummariesOrchestrator } from "@/hooks/useJournalSummariesOrchestrator";
 import { useMonthParam } from "@/hooks/useMonthParam";
 import { prefetchJournalMonth, usePrefetchJournalMonth } from "@/hooks/usePrefetchJournalMonth";
+import { useTimelineHeadline } from "@/hooks/useTimelineHeadline";
 import { generateJournalSummaries } from "@/lib/api";
+import { ceilingTile, stillExpectedTile } from "@/lib/firstScreen";
 import {
   currentMonth,
   formatMonthLabelLong,
@@ -231,6 +234,46 @@ export function JournalPage() {
         ? daysInMonth
         : 0;
 
+  const budget = data?.budget_ceiling ?? null;
+  const breakdown = pace?.breakdown ?? null;
+  const timeline = useTimelineHeadline({ pace, budget, spentPct: pct });
+  const monthClosed = todayMonth > month;
+  const ceiling =
+    data && todayMonth >= month
+      ? ceilingTile({
+          spent: data.month_total,
+          budget,
+          daysRemaining: Math.max(0, daysInMonth - daysIntoMonth),
+          monthClosed,
+        })
+      : null;
+  const stillExpected = isCurrentMonth && breakdown ? stillExpectedTile(breakdown) : null;
+
+  const headline = data && (
+    <JournalHeadline
+      monthLabel={formatMonthLabelLong(month)}
+      prevMonthLabel={prevMonthLabel(month)}
+      spent={data.month_total}
+      budget={data.budget_ceiling ?? null}
+      monthDelta={monthDelta}
+      prevMonthSpent={prevMonthSpent}
+      spentPct={pct}
+      pacePct={monthElapsedPct}
+      daysRemaining={Math.max(0, daysInMonth - daysIntoMonth)}
+      asOfDay={todayMonth === month ? daysIntoMonth : null}
+      pace={pace}
+      days={data.days}
+      onOpenBreakdown={openBreakdown}
+      onScrollToDay={scrollToDay}
+      onSummarizeMonth={
+        aiEnabled && (missingDates.length > 0 || isGenerating)
+          ? () => void handleGenerateMonth()
+          : null
+      }
+      summarizing={isGenerating}
+    />
+  );
+
   return (
     <div className="space-y-4">
       <PageHeader
@@ -245,31 +288,9 @@ export function JournalPage() {
         }
       />
 
-      {/* Editorial Tidings headline — replaces the legacy spent Card. */}
-      {data && (
-        <JournalHeadline
-          monthLabel={formatMonthLabelLong(month)}
-          prevMonthLabel={prevMonthLabel(month)}
-          spent={data.month_total}
-          budget={data.budget_ceiling ?? null}
-          monthDelta={monthDelta}
-          prevMonthSpent={prevMonthSpent}
-          spentPct={pct}
-          pacePct={monthElapsedPct}
-          daysRemaining={Math.max(0, daysInMonth - daysIntoMonth)}
-          asOfDay={todayMonth === month ? daysIntoMonth : null}
-          pace={pace}
-          days={data.days}
-          onOpenBreakdown={openBreakdown}
-          onScrollToDay={scrollToDay}
-          onSummarizeMonth={
-            aiEnabled && (missingDates.length > 0 || isGenerating)
-              ? () => void handleGenerateMonth()
-              : null
-          }
-          summarizing={isGenerating}
-        />
-      )}
+      {/* The Timeline headline preference keeps its full-width strip above
+          the feed; otherwise the spent hero leads the tile column. */}
+      {timeline && headline}
 
       {/* Shared projection breakdown — the single detail surface for both
           headline variants. Mounted only when a commitment-aware pace exists. */}
@@ -283,40 +304,63 @@ export function JournalPage() {
         />
       )}
 
-      {/* Loading skeleton */}
-      {isLoading && !data && (
-        <div className="space-y-4">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-48 w-full rounded-xl" />
-          ))}
+      {/* N8.2 first screen: on phones the hero and tiles sit above the feed;
+          from lg up they become a pinned column beside it, with the regular
+          charges still to come listed under the tiles. */}
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(280px,328px)] lg:items-start lg:gap-6">
+        {data && (
+          <div className="mb-4 grid grid-cols-2 gap-3 lg:sticky lg:top-6 lg:order-2 lg:mb-0">
+            {!timeline && headline}
+            <JournalTiles
+              ceiling={ceiling}
+              stillExpected={stillExpected}
+              onOpenBreakdown={pace ? openBreakdown : null}
+            />
+            {stillExpected && breakdown && (
+              <div className="hidden lg:contents">
+                <UpcomingChargesCard month={month} breakdown={breakdown} />
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="min-w-0 space-y-4 lg:order-1">
+          {/* Loading skeleton */}
+          {isLoading && !data && (
+            <div className="space-y-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-48 w-full rounded-xl" />
+              ))}
+            </div>
+          )}
+
+          {/* Error state — without it a failed fetch rendered a header and
+            nothing else, indistinguishable from an empty month. */}
+          {isError && !data && <QueryErrorNotice error={error} onRetry={() => void refetch()} />}
+
+          {/* Day cards — extracted + memoized so the urgent header-flip render
+            (displayMonth changed, URL `month` not yet) skips this heavy subtree:
+            every prop is derived from the unchanged `month`/`data`, so they stay
+            referentially stable and memo bails. The list re-renders a beat later
+            in the transition pass, once the URL `month` catches up. */}
+          {data && (
+            <JournalDayList
+              days={data.days}
+              budgetCeiling={data.budget_ceiling}
+              summaries={summaries}
+              aiEnabled={aiEnabled}
+              isGenerating={isGenerating}
+              regenerating={regenerating}
+              onRegenerate={handleRegenerate}
+              todayLocal={todayLocal}
+              daysInMonth={daysInMonth}
+              demo={demo}
+            />
+          )}
+
+          {demo && <DemoSelfHostedCallout />}
         </div>
-      )}
-
-      {/* Error state — without it a failed fetch rendered a header and
-          nothing else, indistinguishable from an empty month. */}
-      {isError && !data && <QueryErrorNotice error={error} onRetry={() => void refetch()} />}
-
-      {/* Day cards — extracted + memoized so the urgent header-flip render
-          (displayMonth changed, URL `month` not yet) skips this heavy subtree:
-          every prop is derived from the unchanged `month`/`data`, so they stay
-          referentially stable and memo bails. The list re-renders a beat later
-          in the transition pass, once the URL `month` catches up. */}
-      {data && (
-        <JournalDayList
-          days={data.days}
-          budgetCeiling={data.budget_ceiling}
-          summaries={summaries}
-          aiEnabled={aiEnabled}
-          isGenerating={isGenerating}
-          regenerating={regenerating}
-          onRegenerate={handleRegenerate}
-          todayLocal={todayLocal}
-          daysInMonth={daysInMonth}
-          demo={demo}
-        />
-      )}
-
-      {demo && <DemoSelfHostedCallout />}
+      </div>
     </div>
   );
 }

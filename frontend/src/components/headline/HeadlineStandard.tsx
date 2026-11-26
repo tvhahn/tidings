@@ -1,20 +1,9 @@
 import { Loader2, Sparkles } from "lucide-react";
-import { useId } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { formatCurrency, formatCurrencyRounded } from "@/lib/format";
-import type { HeadlineVerdict, VerdictTone } from "@/lib/headlineVerdict";
-import {
-  approxAmount,
-  BAR_TICK,
-  BAR_TRACK,
-  clampPct,
-  HEADLINE_WRAPPER,
-  type MonthPace,
-  type MonthPaceBreakdown,
-  TONE_BAR,
-  vsPrevDelta,
-} from "@/lib/projectionBreakdown";
+import { closedMonthSentence, paceBarLabel, paceBarWidths, TILE_CARD } from "@/lib/firstScreen";
+import { formatCurrencyRounded } from "@/lib/format";
+import type { HeadlineVerdict } from "@/lib/headlineVerdict";
+import type { MonthPace, MonthPaceBreakdown } from "@/lib/projectionBreakdown";
 import { cn } from "@/lib/utils";
 import type { JournalDay } from "@/types/api";
 
@@ -29,13 +18,6 @@ import type { JournalDay } from "@/types/api";
  * so the graph stays acyclic. Shared non-component constants live in
  * `lib/projectionBreakdown.ts` (react-refresh forbids mixing them here).
  * ------------------------------------------------------------------------- */
-
-/** Verdict tone → the CSS custom property backing the committed hatch. */
-const TONE_VAR: Record<VerdictTone, string> = {
-  success: "--status-success",
-  warning: "--status-warning",
-  danger: "--status-danger-calm",
-};
 
 export interface HeadlineBaseProps {
   /** "April 2026" — already formatted. */
@@ -159,197 +141,85 @@ export function OpenBreakdownButton({
   );
 }
 
-/** Diagonal-stripe hatch for the committed segment — an SVG pattern (the same
- *  device SpendingChart's projected segment uses), tinted to the verdict tone
- *  via currentColor on the wrapper. */
-function CommittedHatch({ tone }: { tone: VerdictTone }) {
-  const patternId = useId();
-  const v = TONE_VAR[tone];
-  return (
-    <svg
-      className="h-full w-full"
-      style={{ color: `color-mix(in oklch, var(${v}) 55%, transparent)` }}
-      aria-hidden="true"
-    >
-      <defs>
-        <pattern
-          id={patternId}
-          width="6.5"
-          height="6.5"
-          patternUnits="userSpaceOnUse"
-          patternTransform="rotate(-55)"
-        >
-          <rect width="3" height="6.5" fill="currentColor" />
-        </pattern>
-      </defs>
-      <rect width="100%" height="100%" fill={`url(#${patternId})`} />
-    </svg>
-  );
+export interface SpentHeroProps extends HeadlineBaseProps {
+  /** Month-end projection (commitment-aware), or null when unavailable. */
+  projected: number | null;
+  /** Opens the projection breakdown sheet; null when there is no breakdown. */
+  onOpenBreakdown: (() => void) | null;
 }
 
-/** V7 — the de-worded Standard strip (default). Hero spent figure unchanged;
- *  subline cut to fragments; the vs-prev explainer demoted to a tooltip; the
- *  pace bar gains a hatched committed segment and a hollow forecast diamond
- *  whose value labels it directly and opens the breakdown sheet. ~10 words. */
+/** N8.2 — the spent hero, shared by the Journal's phone column and desktop
+ *  rail. The figure, one sentence, and a plain pace bar: spent so far over a
+ *  pale run to the projection, with the ceiling named beneath. No ticks, no
+ *  hatching, no labels on the bar, no month-over-month comparison. */
 export function HeadlineStandard({
   monthLabel,
-  prevMonthLabel,
   spent,
   budget,
-  monthDelta,
-  prevMonthSpent,
-  spentPct,
-  pacePct,
-  daysRemaining,
   asOfDay,
-  breakdown,
-  verdict,
-  projectedPct,
+  pacePct,
+  projected,
+  onOpenBreakdown,
   onSummarizeMonth,
   summarizing,
-  onOpenBreakdown,
-}: HeadlineVariantProps) {
-  const spentLeft = clampPct(spentPct);
-  const committedTotal = breakdown.upcoming_committed + breakdown.assumed_committed;
-  const committedPct = (committedTotal / budget) * 100;
-  const committedWidth = clampPct(Math.min(committedPct, 100 - spentLeft));
-  const diamondLeft = clampPct(projectedPct);
-  const projectedTotal =
-    breakdown.observed_mtd +
-    breakdown.assumed_committed +
-    breakdown.upcoming_committed +
-    breakdown.everyday_remainder;
-  // Data surfaces (diamond aria-label + tooltip, hatch tooltip) keep the tilde;
-  // the prose sentence hedges with the word "about" instead.
-  const projectedAmount = approxAmount(projectedTotal);
-  const projectedRounded = formatCurrencyRounded(projectedTotal);
-
-  // Like-for-like comparison — folds statement-assumed spend into the current
-  // side so a statement-lag month isn't flattered against a fully-imported one.
-  const delta =
-    monthDelta != null && prevMonthSpent != null
-      ? vsPrevDelta({ monthDelta, prevMonthSpent, breakdown })
-      : null;
-  const deltaUnder = delta != null && delta.delta < 0;
-  const explainer =
-    prevMonthSpent != null && delta != null
-      ? delta.likeForLike
-        ? `like for like · statement charges counted in both months · spent ${formatCurrency(prevMonthSpent)} by this point in ${prevMonthLabel}`
-        : `spent ${formatCurrency(prevMonthSpent)} by this point in ${prevMonthLabel}`
+}: SpentHeroProps) {
+  const monthClosed = asOfDay == null && pacePct >= 100;
+  const heading = projected != null && !monthClosed;
+  const projectedRounded = projected != null ? formatCurrencyRounded(projected) : "";
+  const closedSentence = monthClosed ? closedMonthSentence({ spent, budget }) : null;
+  const bar =
+    budget != null && budget > 0
+      ? paceBarWidths({ spent, budget, projected: heading ? projected : null })
       : null;
 
   return (
-    <TooltipProvider delayDuration={150}>
-      <div className={HEADLINE_WRAPPER}>
-        <SummarizeAffordance onSummarizeMonth={onSummarizeMonth} summarizing={summarizing} />
+    <div className={cn(TILE_CARD, "group/headline col-span-2 px-5 pb-4 pt-5")}>
+      <SummarizeAffordance onSummarizeMonth={onSummarizeMonth} summarizing={summarizing} />
+      <SpentDisplay spent={spent} asOfDay={asOfDay} monthLabel={monthLabel} />
 
-        <div>
-          <SpentDisplay spent={spent} asOfDay={asOfDay} monthLabel={monthLabel} />
-          <p className="t-prose mt-2.5 max-w-[44ch] text-fg-secondary">
-            Heading for about{" "}
+      {heading && (
+        <p className="t-prose mt-2.5 text-balance text-fg-secondary">
+          Heading for about{" "}
+          {onOpenBreakdown ? (
             <OpenBreakdownButton
               onOpenBreakdown={onOpenBreakdown}
               label={`Heading for about ${projectedRounded} by month end — open the breakdown`}
-              className="font-medium text-fg-2"
             >
               {projectedRounded}
-            </OpenBreakdownButton>{" "}
-            of the {formatCurrencyRounded(budget)} ceiling.
-          </p>
-        </div>
+            </OpenBreakdownButton>
+          ) : (
+            projectedRounded
+          )}{" "}
+          by month end.
+        </p>
+      )}
+      {closedSentence != null && (
+        <p className="t-prose mt-2.5 text-balance text-fg-secondary">{closedSentence}</p>
+      )}
 
-        {delta != null && (
-          <div className="text-left sm:text-right">
-            <div className="mb-2 text-meta font-medium text-fg-muted">vs. {prevMonthLabel}</div>
-            {explainer != null ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label={explainer}
-                    className={cn(
-                      "cursor-help rounded-sm text-xl font-medium leading-none tabular-nums focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-border-strong",
-                      deltaUnder ? "text-status-success" : "text-fg-2"
-                    )}
-                  >
-                    {deltaUnder ? "−" : "+"}
-                    {formatCurrencyRounded(Math.abs(delta.delta))}
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>{explainer}</TooltipContent>
-              </Tooltip>
-            ) : (
-              <div
-                className={cn(
-                  "text-xl font-medium leading-none tabular-nums",
-                  deltaUnder ? "text-status-success" : "text-fg-2"
-                )}
-              >
-                {deltaUnder ? "−" : "+"}
-                {formatCurrencyRounded(Math.abs(delta.delta))}
-              </div>
+      {bar != null && budget != null && (
+        <>
+          <div
+            role="img"
+            aria-label={paceBarLabel({ spent, budget, projected: heading ? projected : null })}
+            className="relative mt-[18px] h-1.5 overflow-hidden rounded-full bg-pace-track"
+          >
+            {bar.projPct != null && (
+              <span
+                className="absolute inset-y-0 left-0 rounded-full bg-pace-proj"
+                style={{ width: `${bar.projPct}%` }}
+              />
             )}
+            <span
+              className="absolute inset-y-0 left-0 rounded-full bg-pace-fill"
+              style={{ width: `${bar.fillPct}%` }}
+            />
           </div>
-        )}
-
-        {/* Pace bar with hatch + forecast diamond. Amounts live in tooltips —
-            the strip itself stays wordless. */}
-        <div className="sm:col-span-2 mt-5">
-          <div className={cn("relative h-2 rounded-full", BAR_TRACK)}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div
-                  className={cn("absolute inset-y-0 left-0 rounded-full", TONE_BAR[verdict.tone])}
-                  style={{ width: `${spentLeft}%` }}
-                />
-              </TooltipTrigger>
-              <TooltipContent>
-                spent {formatCurrency(spent)} · {Math.round(spentPct)}% of budget
-              </TooltipContent>
-            </Tooltip>
-            {committedWidth > 0 && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div
-                    className="absolute inset-y-0 overflow-hidden rounded-r-full"
-                    style={{ left: `${spentLeft}%`, width: `${committedWidth}%` }}
-                  >
-                    <CommittedHatch tone={verdict.tone} />
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {approxAmount(committedTotal)} committed, still to come
-                </TooltipContent>
-              </Tooltip>
-            )}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div
-                  className={cn("absolute -top-[3px] h-[14px] w-[1.5px] rounded-full", BAR_TICK)}
-                  style={{ left: `${clampPct(pacePct)}%` }}
-                />
-              </TooltipTrigger>
-              <TooltipContent>today</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={onOpenBreakdown}
-                  aria-label={`Projected ${projectedAmount} by month end — open the breakdown`}
-                  className="absolute top-1/2 h-[7px] w-[7px] -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-[1px] border-[1.5px] border-fg-secondary bg-card focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-border-strong"
-                  style={{ left: `${diamondLeft}%` }}
-                />
-              </TooltipTrigger>
-              <TooltipContent>projected {projectedAmount} by month end</TooltipContent>
-            </Tooltip>
+          <div className="mt-2 text-right text-xs text-fg-muted tabular-nums">
+            {formatCurrencyRounded(budget)} ceiling
           </div>
-          <div className="mt-2 flex justify-between gap-3 text-meta tabular-nums text-fg-muted">
-            <span className="font-medium text-fg-2">{verdict.label}</span>
-            <span>{daysRemaining} days left</span>
-          </div>
-        </div>
-      </div>
-    </TooltipProvider>
+        </>
+      )}
+    </div>
   );
 }

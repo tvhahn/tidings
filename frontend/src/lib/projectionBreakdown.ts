@@ -8,7 +8,6 @@
  *  no side effects. Amounts go through the house formatters (U+2212 minus). */
 
 import { formatCurrency, formatCurrencyRounded, MONTH_SHORT } from "@/lib/format";
-import type { VerdictTone } from "@/lib/headlineVerdict";
 import type { SummaryComparisonResponse } from "@/types/api";
 
 /** The pace block, narrowed to non-null — the shape the current-month summary
@@ -28,21 +27,11 @@ export type ExpectedCharge = MonthPaceBreakdown["charges"][number];
  * definition. Pure strings and math; no JSX.
  * ------------------------------------------------------------------------- */
 
-/** Outer strip shell — shared by the legacy fallback and both projection
- *  variants so the box geometry never drifts between treatments. */
+/** Outer strip shell for the Timeline headline variant. */
 export const HEADLINE_WRAPPER =
   "group/headline relative grid grid-cols-1 gap-7 rounded-[var(--radius-tidings-md)] border border-border/50 bg-card px-5 py-5 sm:grid-cols-[1.4fr_1fr] sm:items-end sm:px-6 sm:py-6";
 
-/** Verdict tone → pace-bar fill class. One place so the bar color always
- *  tracks the words `headlineVerdict` chose. */
-export const TONE_BAR: Record<VerdictTone, string> = {
-  success: "bg-status-success",
-  warning: "bg-status-warning",
-  danger: "bg-status-danger-calm",
-};
-
-/** Track and tick colors, matched to the shipped strip (mockup `--track`/`--tick`). */
-export const BAR_TRACK = "bg-[color-mix(in_oklch,var(--fg)_7%,transparent)]";
+/** Tick color for the Timeline strip (mockup `--tick`). */
 export const BAR_TICK = "bg-[color-mix(in_oklch,var(--fg)_50%,transparent)]";
 
 /** Clamp a percentage into the 0–100 painting range. */

@@ -142,11 +142,6 @@ function DayCardImpl({
             <span className="text-base font-semibold tabular-nums">
               {formatCurrency(day.day_total)}
             </span>
-            <span className="text-xs text-fg-secondary whitespace-nowrap">
-              {/* Keep the unit at every width — a bare "1" next to the amount
-                  reads as a stray number; the day header truncates instead. */}
-              {day.count} txn{day.count !== 1 ? "s" : ""}
-            </span>
             {pct != null && (
               <Tooltip>
                 <TooltipTrigger asChild>
