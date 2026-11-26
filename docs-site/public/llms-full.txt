@@ -1042,7 +1042,9 @@ The journal shows only spending you can act on: transactions that are a spending
 
 Each day carries its own total; the month accumulates as you scroll. The monthly ceiling shown at the top is your annual [spending ceiling](/using/budgets/) divided by twelve — it is derived from the annual target, not a separate monthly budget you set.
 
-The month-over-month figure compares this month's spending against the prior month up to the same day. Early in the month you are compared against the same early stretch of last month, not the whole of it, so the two are a fair match rather than a partial month against a full one.
+The month opens with what you have spent so far, a sentence on where the month is heading, and a bar that fills toward the ceiling with the projected month end drawn as a paler run ahead of it. Two figures sit beside it: how much room is left below the ceiling, with the days remaining, and how much your regular charges are still expected to add. Select **Still expected** to see how the projection adds up. On a wide screen these sit in a column beside the days, with the regular charges still to come listed by date.
+
+A finished month reads its result instead: how far under or over the ceiling it closed.
 
 ## Day summaries
 
@@ -1235,7 +1237,9 @@ The ceiling also feeds the [journal](/using/journal/): the journal's monthly cei
 
 ## Views
 
-The dashboard shows either a year-to-date or a monthly view, with an optional column comparing against the prior year. Categories you have spent in but never budgeted collect in their own unbudgeted section, so nothing goes missing just because it lacks a target.
+Budgets opens the way the journal does: what you have spent this year, one sentence on whether that is under or over the pace for your ceiling, and a bar marked where spending is expected to be by today. Below it, a tile per category group says how far over or under its pace the group is, most over first. Every bar is drawn on the year so far, with the expected mark in the same place on each, and any overage past it in red.
+
+The full table follows, in either a year-to-date or a monthly view, with an optional column comparing against the prior year. Categories you have spent in but never budgeted collect in their own unbudgeted section, so nothing goes missing just because it lacks a target.
 
 ## Setting targets
 
